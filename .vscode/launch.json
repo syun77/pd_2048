@@ -1,0 +1,12 @@
+// Outer workspace launch settings for nested Playdate project
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "playdate",
+            "request": "launch",
+            "name": "Playdate: Debug",
+            "preLaunchTask": "${defaultBuildTask}"
+        }
+    ]
+}
