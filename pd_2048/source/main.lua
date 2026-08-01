@@ -18,6 +18,7 @@ local NEXT_BOX_X <const> = 343
 local NEXT_BOX_Y <const> = 48
 local NEXT_BOX_WIDTH <const> = 25
 local NEXT_BOX_HEIGHT <const> = 20
+-- 危険アイコン関連.
 local DANGER_ICON_SIZE <const> = 20
 local DANGER_ICON_OFFSET <const> = 4 -- 盤面の外周からアイコンまでの距離.
 local DANGER_ICON_BOTTOM_X <const> = BOARD_X + (BOARD_SIZE * CELL_SIZE - DANGER_ICON_SIZE) * 0.5
@@ -28,6 +29,11 @@ local DANGER_ICON_RIGHT_X <const> = BOARD_X + BOARD_SIZE * CELL_SIZE + DANGER_IC
 local DANGER_ICON_RIGHT_Y <const> = DANGER_ICON_LEFT_Y
 local DANGER_ICON_BLINK_PERIOD <const> = 600
 local DANGER_ICON_BLINK_ON_DURATION <const> = 300
+-- コンボ表示時間.
+local COMBO_BLINK_PERIOD_FRAMES <const> = 3
+local COMBO_BLINK_ON_FRAMES <const> = 1
+local COMBO_BLINK_DURATION_FRAMES <const> = 20
+local COMBO_STEADY_DURATION_FRAMES <const> = 30
 -- 方向定数.
 local DIRECTION_DOWN <const> = 1
 local DIRECTION_LEFT <const> = 2
@@ -65,6 +71,9 @@ local cursorX = 3 -- カーソル位置.
 local nextValue = 2 -- nextブロック.
 local followingValue = 2 -- nextの次のブロック.
 local score = 0
+local combo = 0
+local comboDisplayFrame = 0
+local comboSoundPlayed = false
 local highScore = 0
 local gameState = GAME_STATE_TITLE
 local message = ""
@@ -454,13 +463,35 @@ local function startRotation()
     gameState = GAME_STATE_ROTATING
 end
 
+-- 連鎖が確定した時点でコンボSEを再生する.
+local function playComboSoundIfNeeded()
+    if combo < 2 or comboSoundPlayed then
+        return
+    end
+
+    comboSoundPlayed = true
+    comboDisplayFrame = 0
+    if combo < 3 then
+        sound:play_se("combo1")
+    elseif combo < 5 then
+        sound:play_se("combo2")
+    else
+        sound:play_se("combo3")
+    end
+end
+
 local function startResolve(nextAction)
     applyGravity()
     local x1, y1, x2, y2 = findMergeForActiveBlock()
     if x1 == nil then
         if nextAction == "ROTATE" then
+            -- これ以上マージが発生しないことが確定した直後に再生する.
+            -- 回転アニメーション開始より前になる.
+            playComboSoundIfNeeded()
             startRotation()
         else
+            -- 回転後に初めてコンボが成立した場合はこちらで再生する.
+            playComboSoundIfNeeded()
             finishTurn()
         end
         return
@@ -480,6 +511,7 @@ local function startResolve(nextAction)
 end
 
 local function finishMerge()
+    combo += 1
     local v = getMergeEvaluation(mergeSourceX, mergeTargetX)
     addRotationEvaluation(v)
     if mergeTargetX < mergeSourceX then
@@ -542,6 +574,9 @@ end
 local function startGame()
     clearBoard()
     score = 0
+    combo = 0
+    comboDisplayFrame = 0
+    comboSoundPlayed = false
     cursorX = CENTER
     nextValue = randomBlockValue()
     followingValue = randomBlockValue()
@@ -565,7 +600,10 @@ local function beginDrop()
         return
     end
 
-	-- 落下開始.
+    -- 落下開始.
+    combo = 0
+    comboDisplayFrame = 0
+    comboSoundPlayed = false
     pendingDropX = x
     pendingDropY = y
     pendingDropValue = nextValue
@@ -899,8 +937,34 @@ local function drawBoard()
     end
 end
 
+-- コンボの描画.
+local function drawCombo()
+	if combo <= 1 then
+		return -- 描画不要.
+	end
+
+    comboDisplayFrame += 1
+	if comboDisplayFrame >= COMBO_BLINK_DURATION_FRAMES + COMBO_STEADY_DURATION_FRAMES then
+		return -- 描画不要.
+	end
+
+	local isBlinking = comboDisplayFrame < COMBO_BLINK_DURATION_FRAMES
+	if isBlinking then
+		local isBlinkOn = (comboDisplayFrame % COMBO_BLINK_PERIOD_FRAMES)
+			< COMBO_BLINK_ON_FRAMES
+		-- 点滅中は枠を描画.
+		if isBlinkOn then
+			gfx.drawRoundRect(4, 50, 88, 24, 4)
+		end
+	end
+	gfx.drawText("COMBO: " .. tostring(combo), 12, 54)
+end
+
 local function drawHeader()
-    gfx.drawTextAligned("SCORE " .. tostring(score), 392, 4, kTextAlignment.right)
+	-- スコアの描画.
+    gfx.drawTextAligned("SCORE " .. tostring(score), 12, 24, kTextAlignment.left)
+	-- コンボ数の描画.
+    drawCombo()
     gfx.drawText("NEXT", 300, 50)
 
     local shade = math.min(10, math.floor(math.log(followingValue, 2)))

@@ -87,6 +87,9 @@ local seTable = {
 	"rotate",
 	"decide",
 	"gameover",
+	"combo1",
+	"combo2",
+	"combo3",
 }
 
 class('Sound').extends()
