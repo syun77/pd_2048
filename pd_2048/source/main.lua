@@ -1253,7 +1253,7 @@ local function getPreviewRotationAngle()
 end
 
 local function drawRotatingBoard()
-    local progress = easeInOut(animationProgress)
+    local progress = Easing.back_out(animationProgress)
     local angle = math.pi * 0.5 * progress
     if not rotationClockwise then
         angle = -angle
