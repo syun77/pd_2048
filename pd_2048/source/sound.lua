@@ -85,6 +85,8 @@ local seTable = {
 	"fixed",
 	"merge",
 	"rotate",
+	"hold",
+	"rewind",
 	"decide",
 	"gameover",
 	"combo1",

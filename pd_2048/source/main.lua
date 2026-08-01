@@ -62,6 +62,7 @@ local GAME_STATE_MERGING <const> = "MERGING"
 local GAME_STATE_ROTATING <const> = "ROTATING"
 local GAME_STATE_UNDO_ROTATING <const> = "UNDO_ROTATING"
 local GAME_STATE_NEXT_ANIM <const> = "NEXT_ANIM"
+local GAME_STATE_HOLD_ANIM <const> = "HOLD_ANIM"
 local GAME_STATE_PAUSED <const> = "PAUSED"
 local GAME_STATE_GAME_OVER <const> = "GAME_OVER"
 -- 傾きをわかりやすく見せるための回転角度の最大値と、1ポイントあたりの回転角度.
@@ -119,6 +120,9 @@ local mergeNextAction = "FINISH"
 local activeMergeX = 0
 local activeMergeY = 0
 local nextAnimationGameOver = false
+local holdAnimationSourceValue = 0 -- HOLD操作前の現在ブロック.
+local holdAnimationReturnValue = 0 -- 交換時にHOLDから現在位置へ移動するブロック.
+local finishHoldAnimation
 local rotationEvaluation = 0 -- 傾きプレビューの評価値.
 local previewImpulseRotationDegrees = 0 -- プレビュー反動の角度.
 local crisisBgmActive = false
@@ -291,8 +295,8 @@ local function undoLastTurn()
     nextAnimationGameOver = false
     message = ""
     crisisBgmActive = false
-    playGameBgm()
 
+	sound:play_se("rewind")
     if state.hasRotation then
         -- 現在の盤面を逆回転させながら、取り消し前の盤面へ戻す。
         board = currentBoard
@@ -749,6 +753,8 @@ local function advanceAnimation()
         gameState = GAME_STATE_PLAYING
     elseif gameState == GAME_STATE_NEXT_ANIM then
         finishNextAnimation()
+    elseif gameState == GAME_STATE_HOLD_ANIM then
+        finishHoldAnimation()
     end
 end
 
@@ -795,6 +801,8 @@ local function holdCurrentBlock()
     saveUndoState()
 
     local currentValue = nextValues[1]
+    holdAnimationSourceValue = currentValue
+    holdAnimationReturnValue = holdValue
     if holdValue == 0 then
         -- 初回は現在ブロックをHOLDし、NEXTの先頭を現在ブロックにする.
         holdValue = currentValue
@@ -805,11 +813,21 @@ local function holdCurrentBlock()
     end
 
     holdAvailable = false
-    sound:play_se("decide")
+    sound:play_se("hold")
 
-    -- HOLDで出現したブロックをどの列にも置けない場合はゲームオーバーにする.
+    animationProgress = 0
+    animationDuration = 0.30
+    gameState = GAME_STATE_HOLD_ANIM
+end
+
+-- HOLDアニメーションを終了し、HOLDで出現したブロックの配置可能性を確認する.
+finishHoldAnimation = function()
+    holdAnimationSourceValue = 0
+    holdAnimationReturnValue = 0
     if not canDropInAnyColumn() then
         beginGameOver()
+    else
+        gameState = GAME_STATE_PLAYING
     end
 end
 
@@ -1138,6 +1156,32 @@ local function drawNextAnimation()
         sourceY + (targetY - sourceY) * progress)
 end
 
+-- HOLD枠の中央を基準にしたブロックの左上座標を返す.
+local function getHoldTilePosition()
+    return HOLD_BOX_X + (NEXT_BOX_WIDTH - CELL_SIZE) * 0.5,
+        HOLD_BOX_Y + (NEXT_BOX_HEIGHT - CELL_SIZE) * 0.5
+end
+
+-- 現在ブロックとHOLDブロックを移動させるアニメーションを描画する.
+local function drawHoldAnimation()
+    local progress = easeInOut(animationProgress)
+    local currentX = BOARD_X + (cursorX - 1) * CELL_SIZE
+    local currentY = BOARD_Y - CELL_SIZE
+    local holdX, holdY = getHoldTilePosition()
+
+    if holdAnimationSourceValue ~= 0 then
+        drawTileAt(holdAnimationSourceValue,
+            currentX + (holdX - currentX) * progress,
+            currentY + (holdY - currentY) * progress)
+    end
+
+    if holdAnimationReturnValue ~= 0 then
+        drawTileAt(holdAnimationReturnValue,
+            holdX + (currentX - holdX) * progress,
+            holdY + (currentY - holdY) * progress)
+    end
+end
+
 -- 盤面の描画.
 local function drawBoard()
     drawBoardGrid()
@@ -1164,6 +1208,10 @@ local function drawBoard()
         drawDropPreview()
     elseif gameState == GAME_STATE_NEXT_ANIM then
         drawNextAnimation()
+    end
+
+    if gameState == GAME_STATE_HOLD_ANIM then
+        drawHoldAnimation()
     end
 end
 
@@ -1235,6 +1283,10 @@ local function drawHoldBlock()
     gfx.drawText("HOLD", HOLD_LABEL_X, 20)
     gfx.setLineWidth(1)
     gfx.drawRect(HOLD_BOX_X, HOLD_BOX_Y, NEXT_BOX_WIDTH, NEXT_BOX_HEIGHT)
+
+    if gameState == GAME_STATE_HOLD_ANIM then
+        return
+    end
 
     if holdValue == 0 then
         return
@@ -1330,7 +1382,7 @@ function pd.update()
 
     if gameState == GAME_STATE_DROPPING or gameState == GAME_STATE_MERGING
         or gameState == GAME_STATE_ROTATING or gameState == GAME_STATE_UNDO_ROTATING
-        or gameState == GAME_STATE_NEXT_ANIM then
+        or gameState == GAME_STATE_NEXT_ANIM or gameState == GAME_STATE_HOLD_ANIM then
         advanceAnimation()
     end
 
