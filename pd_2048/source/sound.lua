@@ -80,7 +80,13 @@ local bgmAmbientTable = {
 
 -- SEテーブル.
 local seTable = {
-	"put",
+	"pi",
+	"fall",
+	"fixed",
+	"merge",
+	"rotate",
+	"decide",
+	"gameover",
 }
 
 class('Sound').extends()

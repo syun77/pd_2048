@@ -366,16 +366,24 @@ local function finishTurn()
     gameState = GAME_STATE_NEXT_ANIM
 end
 
+-- ゲームオーバー開始.
+local function beginGameOver()
+	saveHighScore()
+	gameState = GAME_STATE_GAME_OVER
+	sound:play_se("gameover")
+	sound:stop_bgm(1.0)
+end
+
 local function finishNextAnimation()
     if nextAnimationGameOver then
-        saveHighScore()
-        gameState = GAME_STATE_GAME_OVER
-        sound:stop_bgm(1.0)
+		-- ゲームオーバー開始.
+		beginGameOver()
     else
         gameState = GAME_STATE_PLAYING
     end
 end
 
+-- 回転開始.
 local function startRotation()
     if rotationEvaluation == 0 then
         finishTurn()
@@ -398,6 +406,7 @@ local function startRotation()
 
     animationProgress = 0
     animationDuration = 0.38
+    sound:play_se("rotate")
     gameState = GAME_STATE_ROTATING
 end
 
@@ -413,6 +422,7 @@ local function startResolve(nextAction)
         return
     end
 
+	-- マージ開始.
     mergeSourceX = x1
     mergeSourceY = y1
     mergeTargetX = x2
@@ -421,6 +431,7 @@ local function startResolve(nextAction)
     mergeNextAction = nextAction
     animationProgress = 0
     animationDuration = 0.22
+	sound:play_se("merge")
     gameState = GAME_STATE_MERGING
 end
 
@@ -440,6 +451,7 @@ local function finishMerge()
     startResolve(mergeNextAction)
 end
 
+-- 落下完了.
 local function finishDrop()
     board:set(pendingDropX, pendingDropY, pendingDropValue)
     pendingDropValue = 0
@@ -450,6 +462,9 @@ local function finishDrop()
     )
     addPreviewImpulse(getPositionEvaluation(pendingDropX))
     startResolve("ROTATE")
+	if gameState ~= GAME_STATE_MERGING then
+		sound:play_se("fixed")
+	end
 end
 
 local function advanceAnimation()
@@ -499,13 +514,13 @@ local function beginDrop()
     if x == nil then
         setMessage("NO SPACE", 700)
         if not canDropInAnyColumn() then
-            saveHighScore()
-            gameState = GAME_STATE_GAME_OVER
-            playMenuBgm()
+			-- ゲームオーバー開始.
+            beginGameOver()
         end
         return
     end
 
+	-- 落下開始.
     pendingDropX = x
     pendingDropY = y
     pendingDropValue = nextValue
@@ -514,16 +529,24 @@ local function beginDrop()
     followingValue = randomBlockValue()
     animationProgress = 0
     animationDuration = math.max(0.18, (y + 1) * 0.07)
+	sound:play_se("fall")
     gameState = GAME_STATE_DROPPING
 end
 
+-- カーソルを移動.
 local function moveCursor(delta)
+	local prev = cursorX
     cursorX += delta
     if cursorX < 1 then
         cursorX = 1
     elseif cursorX > BOARD_SIZE then
         cursorX = BOARD_SIZE
     end
+
+	if prev ~= cursorX then
+		-- 移動した.
+		sound:play_se("pi")
+	end
 end
 
 local function drawCenteredText(text, y)
@@ -770,6 +793,7 @@ function pd.update()
     if gameState == GAME_STATE_TITLE then
         drawTitle()
         if pd.buttonJustPressed(pd.kButtonA) then
+			sound:play_se("decide")
             startGame()
         end
         return
@@ -791,6 +815,7 @@ function pd.update()
         end
     elseif gameState == GAME_STATE_GAME_OVER then
         if pd.buttonJustPressed(pd.kButtonA) then
+			sound:play_se("decide")
             startGame()
         end
     end
