@@ -18,6 +18,10 @@ local NEXT_BOX_X <const> = 343
 local NEXT_BOX_Y <const> = 48
 local NEXT_BOX_WIDTH <const> = 25
 local NEXT_BOX_HEIGHT <const> = 20
+local NEXT_PREVIEW_COUNT <const> = 3
+local NEXT_BOX_GAP <const> = 4
+local MAX_UNDO_COUNT <const> = 1
+local MAX_REWIND_USES <const> = 3
 -- 危険アイコン関連.
 local DANGER_ICON_SIZE <const> = 20
 local DANGER_ICON_OFFSET <const> = 4 -- 盤面の外周からアイコンまでの距離.
@@ -45,6 +49,7 @@ local GAME_STATE_PLAYING <const> = "PLAYING"
 local GAME_STATE_DROPPING <const> = "DROPPING"
 local GAME_STATE_MERGING <const> = "MERGING"
 local GAME_STATE_ROTATING <const> = "ROTATING"
+local GAME_STATE_UNDO_ROTATING <const> = "UNDO_ROTATING"
 local GAME_STATE_NEXT_ANIM <const> = "NEXT_ANIM"
 local GAME_STATE_PAUSED <const> = "PAUSED"
 local GAME_STATE_GAME_OVER <const> = "GAME_OVER"
@@ -68,9 +73,13 @@ local PREVIEW_IMPULSE_DECAY <const> = 0.7
 
 local board = Array2D(BOARD_SIZE, BOARD_SIZE, 0) -- 盤面.
 local cursorX = 3 -- カーソル位置.
-local nextValue = 2 -- nextブロック.
-local followingValue = 2 -- nextの次のブロック.
+local nextValues = {} -- nextブロックから順番に並んだ先読みキュー.
+for i = 1, NEXT_PREVIEW_COUNT do
+    nextValues[i] = 2
+end
 local score = 0
+local undoStates = {}
+local rewindUsesRemaining = 0
 local combo = 0
 local comboDisplayFrame = 0
 local comboSoundPlayed = false
@@ -198,6 +207,83 @@ end
 local function clearBoard()
     board = Array2D(BOARD_SIZE, BOARD_SIZE, 0)
     board:set(CENTER, CENTER, 0)
+end
+
+-- 盤面を値ごと複製する。Array2Dは参照型なので、取り消し用に別の盤面を作る。
+local function copyBoard(source)
+    local copied = Array2D(BOARD_SIZE, BOARD_SIZE, 0)
+    source:foreach(function(x, y, value)
+        copied:set(x, y, value)
+    end)
+    return copied
+end
+
+-- 1手前の状態を履歴に保存する。
+local function saveUndoState()
+    local state = {
+        board = copyBoard(board),
+        score = score,
+        cursorX = cursorX,
+        hasRotation = false,
+        rotationClockwise = false,
+        nextValues = {}
+    }
+    for i = 1, NEXT_PREVIEW_COUNT do
+        state.nextValues[i] = nextValues[i]
+    end
+
+    table.insert(undoStates, state)
+    if #undoStates > MAX_UNDO_COUNT then
+        table.remove(undoStates, 1)
+    end
+end
+
+-- 直前の手を取り消す。取り消しは最大MAX_UNDO_COUNT手分可能。
+local function undoLastTurn()
+    if rewindUsesRemaining <= 0 then
+        setMessage("NO REWINDS", 700)
+        return false
+    end
+    if #undoStates == 0 then
+        setMessage("NO UNDO", 700)
+        return false
+    end
+
+    local state = table.remove(undoStates)
+    rewindUsesRemaining -= 1
+    local currentBoard = board
+    board = state.board
+    score = state.score
+    cursorX = state.cursorX
+    nextValues = state.nextValues
+
+    combo = 0
+    comboDisplayFrame = 0
+    comboSoundPlayed = false
+    rotationEvaluation = 0
+    previewImpulseRotationDegrees = 0
+    pendingDropValue = 0
+    rotationStartBoard = nil
+    rotationEndBoard = nil
+    nextAnimationGameOver = false
+    message = ""
+    crisisBgmActive = false
+    playGameBgm()
+
+    if state.hasRotation then
+        -- 現在の盤面を逆回転させながら、取り消し前の盤面へ戻す。
+        board = currentBoard
+        rotationStartBoard = currentBoard
+        rotationEndBoard = state.board
+        rotationClockwise = not state.rotationClockwise
+        animationProgress = 0
+        animationDuration = 0.38
+        sound:play_se("rotate")
+        gameState = GAME_STATE_UNDO_ROTATING
+    else
+        gameState = GAME_STATE_PLAYING
+    end
+    return true
 end
 
 local function getMaxTileValue()
@@ -444,6 +530,11 @@ local function startRotation()
     end
 
     rotationClockwise = rotationEvaluation > 0
+    local latestUndoState = undoStates[#undoStates]
+    if latestUndoState ~= nil then
+        latestUndoState.hasRotation = true
+        latestUndoState.rotationClockwise = rotationClockwise
+    end
     rotationStartBoard = board
     rotationEndBoard = makeRotatedBoard(rotationStartBoard, rotationClockwise)
 
@@ -558,6 +649,11 @@ local function advanceAnimation()
     elseif gameState == GAME_STATE_ROTATING then
         board = rotationEndBoard
         startResolve("FINISH")
+    elseif gameState == GAME_STATE_UNDO_ROTATING then
+        board = rotationEndBoard
+        rotationStartBoard = nil
+        rotationEndBoard = nil
+        gameState = GAME_STATE_PLAYING
     elseif gameState == GAME_STATE_NEXT_ANIM then
         finishNextAnimation()
     end
@@ -574,12 +670,16 @@ end
 local function startGame()
     clearBoard()
     score = 0
+    undoStates = {}
+    rewindUsesRemaining = MAX_REWIND_USES
     combo = 0
     comboDisplayFrame = 0
     comboSoundPlayed = false
     cursorX = CENTER
-    nextValue = randomBlockValue()
-    followingValue = randomBlockValue()
+    nextValues = {}
+    for i = 1, NEXT_PREVIEW_COUNT do
+        nextValues[i] = randomBlockValue()
+    end
     previewImpulseRotationDegrees = 0
     spawnInitialBlocks()
     gameState = GAME_STATE_PLAYING
@@ -601,15 +701,18 @@ local function beginDrop()
     end
 
     -- 落下開始.
+    saveUndoState()
     combo = 0
     comboDisplayFrame = 0
     comboSoundPlayed = false
     pendingDropX = x
     pendingDropY = y
-    pendingDropValue = nextValue
+    pendingDropValue = nextValues[1]
     rotationEvaluation = 0
-    nextValue = followingValue
-    followingValue = randomBlockValue()
+    for i = 1, NEXT_PREVIEW_COUNT - 1 do
+        nextValues[i] = nextValues[i + 1]
+    end
+    nextValues[NEXT_PREVIEW_COUNT] = randomBlockValue()
     animationProgress = 0
     animationDuration = math.max(0.18, (y + 1) * 0.07)
 	sound:play_se("fall")
@@ -686,6 +789,7 @@ local function drawDangerIcons()
     end
 end
 
+-- タイルの描画.
 local function drawTileAt(value, px, py)
     local shade = math.min(10, math.floor(math.log(value, 2)))
 
@@ -695,7 +799,8 @@ local function drawTileAt(value, px, py)
     else
         gfx.drawRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4)
     end
-    gfx.drawTextAligned(tostring(value), px + CELL_SIZE / 2, py + 14, kTextAlignment.center)
+	-- 数字の描画.
+    gfx.drawTextAligned(tostring(value), px + CELL_SIZE / 2, py + 8, kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
@@ -746,6 +851,7 @@ local function drawBoardCells(skipX, skipY, rotationAngle)
     end)
 end
 
+-- 落下するブロックの描画.
 local function drawFallingBlock(rotationAngle)
     local startY = BOARD_Y - CELL_SIZE
     local targetY = BOARD_Y + (pendingDropY - 1) * CELL_SIZE
@@ -770,12 +876,13 @@ local function drawLandingPreview()
     gfx.setColor(gfx.kColorBlack)
 	-- 外枠は表示しない.
     --gfx.drawRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4)
-    gfx.drawTextAligned(tostring(nextValue),
-        px + CELL_SIZE / 2, py + 14, kTextAlignment.center)
+	-- 数字の描画.
+    gfx.drawTextAligned(tostring(nextValues[1]),
+        px + CELL_SIZE / 2, py + 8, kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 
 	-- マージ予測方向の描画.
-    local _, _, targetX, targetY = findMergeForBlock(landingX, landingY, nextValue)
+    local _, _, targetX, targetY = findMergeForBlock(landingX, landingY, nextValues[1])
     if targetX ~= nil then
 		-- 方向ベクトルを計算.
         local sourceCenterX = BOARD_X + (landingX - 0.5) * CELL_SIZE
@@ -807,7 +914,7 @@ local function drawDropPreview()
     local px = BOARD_X + (cursorX - 1) * CELL_SIZE
     local py = BOARD_Y - CELL_SIZE
 
-    drawTileAt(nextValue, px, py)
+    drawTileAt(nextValues[1], px, py)
 
     -- Blink the outline around the tile to make the active column obvious.
     if (pd.getCurrentTimeMilliseconds() % 600) < 300 then
@@ -893,7 +1000,7 @@ local function drawMergeAnimation(rotationAngle)
         currentCenterX - CELL_SIZE * 0.5,
         currentCenterY - CELL_SIZE * 0.5,
         rotationAngle)
-    drawTileAt(mergeValue / 2,
+    drawTileAt(math.floor(mergeValue / 2),
         rotatedSourcePx, rotatedSourcePy)
 end
 
@@ -905,16 +1012,17 @@ local function drawNextAnimation()
     local sourceY = sourceCenterY - CELL_SIZE * 0.5
     local targetX = BOARD_X + (cursorX - 1) * CELL_SIZE
     local targetY = BOARD_Y - CELL_SIZE
-    drawTileAt(nextValue,
+    drawTileAt(nextValues[1],
         sourceX + (targetX - sourceX) * progress,
         sourceY + (targetY - sourceY) * progress)
 end
 
+-- 盤面の描画.
 local function drawBoard()
     drawBoardGrid()
     local previewRotationAngle = getPreviewRotationAngle()
 
-    if gameState == GAME_STATE_ROTATING then
+    if gameState == GAME_STATE_ROTATING or gameState == GAME_STATE_UNDO_ROTATING then
         drawRotatingBoard()
     elseif gameState == GAME_STATE_MERGING then
         drawMergeAnimation(previewRotationAngle)
@@ -927,6 +1035,7 @@ local function drawBoard()
     end
 
     if gameState == GAME_STATE_DROPPING then
+		-- 落下ブロックの描画.
         drawFallingBlock(previewRotationAngle)
     end
 
@@ -960,25 +1069,50 @@ local function drawCombo()
 	gfx.drawText("COMBO: " .. tostring(combo), 12, 54)
 end
 
+-- NEXTブロックの描画.
+local function drawNextBlocks()
+    gfx.drawText("NEXT", 300, 50)
+    for i = 1, NEXT_PREVIEW_COUNT do
+		if i == 1 then
+			-- 1番目は点滅する.
+			local isBlink = (pd.getCurrentTimeMilliseconds() % 400) < 200
+			if isBlink then
+				gfx.setLineWidth(2)
+				gfx.drawRect(NEXT_BOX_X, NEXT_BOX_Y, NEXT_BOX_WIDTH, NEXT_BOX_HEIGHT)
+				gfx.setLineWidth(1)
+			end
+		else
+			-- 2番目以降は点滅しない.
+			gfx.setLineWidth(1)
+		end
+
+        local value = nextValues[i]
+        local boxY = NEXT_BOX_Y + (i - 1) * (NEXT_BOX_HEIGHT + NEXT_BOX_GAP)
+        local shade = math.min(10, math.floor(math.log(value, 2)))
+        if shade % 2 == 0 then
+            gfx.fillRect(NEXT_BOX_X, boxY, NEXT_BOX_WIDTH, NEXT_BOX_HEIGHT)
+            gfx.setImageDrawMode(gfx.kDrawModeInverted)
+        else
+            gfx.drawRect(NEXT_BOX_X, boxY, NEXT_BOX_WIDTH, NEXT_BOX_HEIGHT)
+        end
+        gfx.drawTextAligned(tostring(value),
+            NEXT_BOX_X + NEXT_BOX_WIDTH * 0.5,
+            boxY + 3,
+            kTextAlignment.center)
+        gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    end
+end
+
 local function drawHeader()
 	-- スコアの描画.
     gfx.drawTextAligned("SCORE " .. tostring(score), 12, 24, kTextAlignment.left)
 	-- コンボ数の描画.
     drawCombo()
-    gfx.drawText("NEXT", 300, 50)
 
-    local shade = math.min(10, math.floor(math.log(followingValue, 2)))
-    if shade % 2 == 0 then
-        gfx.fillRect(NEXT_BOX_X, NEXT_BOX_Y, NEXT_BOX_WIDTH, NEXT_BOX_HEIGHT)
-        gfx.setImageDrawMode(gfx.kDrawModeInverted)
-    else
-        gfx.drawRect(NEXT_BOX_X, NEXT_BOX_Y, NEXT_BOX_WIDTH, NEXT_BOX_HEIGHT)
-    end
-    gfx.drawTextAligned(tostring(followingValue),
-        NEXT_BOX_X + NEXT_BOX_WIDTH * 0.5,
-        NEXT_BOX_Y + 3,
-        kTextAlignment.center)
-    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+	-- NEXtの描画.
+	drawNextBlocks()
+
+	-- 危険アイコンの描画.
     drawDangerIcons()
 end
 
@@ -987,6 +1121,15 @@ local function drawTitle()
     drawCenteredText("5 x 5 MERGE PUZZLE", 88)
     drawCenteredText("PRESS A TO START", 132)
     drawCenteredText("LEFT / RIGHT: SELECT   DOWN: DROP", 164)
+end
+
+-- 巻き戻し可能であることを表示する.
+local function drawRewindHint()
+    if (gameState == GAME_STATE_PLAYING or gameState == GAME_STATE_GAME_OVER)
+        and #undoStates > 0 and rewindUsesRemaining > 0 then
+		-- 巻き戻し可能であることを表示.
+        gfx.drawText("B: REWIND [" .. tostring(rewindUsesRemaining) .. "]", 280, 220)
+    end
 end
 
 -- ゲームオーバー表示.
@@ -1019,26 +1162,34 @@ function pd.update()
         elseif pd.buttonJustPressed(pd.kButtonDown) then
             beginDrop()
         elseif pd.buttonJustPressed(pd.kButtonB) then
-            gameState = GAME_STATE_PAUSED
+            undoLastTurn()
         end
     elseif gameState == GAME_STATE_PAUSED then
         if pd.buttonJustPressed(pd.kButtonB) then
             gameState = GAME_STATE_PLAYING
         end
     elseif gameState == GAME_STATE_GAME_OVER then
-        if pd.buttonJustPressed(pd.kButtonA) then
+        if pd.buttonJustPressed(pd.kButtonB) then
+            undoLastTurn()
+        elseif pd.buttonJustPressed(pd.kButtonA) then
 			sound:play_se("decide")
             startGame()
         end
     end
 
     if gameState == GAME_STATE_DROPPING or gameState == GAME_STATE_MERGING
-        or gameState == GAME_STATE_ROTATING or gameState == GAME_STATE_NEXT_ANIM then
+        or gameState == GAME_STATE_ROTATING or gameState == GAME_STATE_UNDO_ROTATING
+        or gameState == GAME_STATE_NEXT_ANIM then
         advanceAnimation()
     end
 
+	-- 各種情報の描画.
     drawHeader()
+
+	-- 盤面の描画.
     drawBoard()
+
+    drawRewindHint()
 
     if gameState == GAME_STATE_PAUSED then
         gfx.fillRect(145, 93, 110, 44)
@@ -1054,6 +1205,16 @@ function pd.update()
 
 	-- FPSを描画.
 	pd.drawFPS(4, 4)
+
+    if gameState == GAME_STATE_UNDO_ROTATING then
+        -- 巻き戻し中であることを示すため、画面全体をXOR反転する。
+        -- kDrawModeXORは画像・フォント用で、fillRectには適用されないため、
+        -- プリミティブ用のkColorXORを使う。
+        local previousColor = gfx.getColor()
+        gfx.setColor(gfx.kColorXOR)
+        gfx.fillRect(0, 0, 400, 240)
+        gfx.setColor(previousColor)
+    end
 end
 
 loadHighScore()
