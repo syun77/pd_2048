@@ -49,6 +49,9 @@ local COMBO_BLINK_PERIOD_FRAMES <const> = 3
 local COMBO_BLINK_ON_FRAMES <const> = 1
 local COMBO_BLINK_DURATION_FRAMES <const> = 20
 local COMBO_STEADY_DURATION_FRAMES <const> = 30
+local COMBO_SCORE_COEFFICIENT <const> = 2
+local COMBO_SCORE_EXPONENT <const> = 1.5
+local SCORE_MULTIPLIER <const> = 100
 -- 方向定数.
 local DIRECTION_DOWN <const> = 1
 local DIRECTION_LEFT <const> = 2
@@ -97,6 +100,7 @@ local consecutiveRandomBlockCount = 0
 local undoStates = {}
 local rewindUsesRemaining = 0
 local combo = 0
+local comboBonusScore = 0
 local comboDisplayFrame = 0
 local comboSoundPlayed = false
 local highScore = 0
@@ -285,6 +289,7 @@ local function undoLastTurn()
     nextValues = state.nextValues
 
     combo = 0
+    comboBonusScore = 0
     comboDisplayFrame = 0
     comboSoundPlayed = false
     rotationEvaluation = 0
@@ -441,7 +446,7 @@ end
 
 -- スコアを加算.
 local function addScore(value)
-    score += value
+    score += value * SCORE_MULTIPLIER
     if score > highScore then
         highScore = score -- ハイスコア更新.
     end
@@ -710,6 +715,17 @@ local function finishMerge()
     board:set(mergeSourceX, mergeSourceY, 0)
     board:set(mergeTargetX, mergeTargetY, mergeValue)
     addScore(mergeValue)
+
+    -- 1コンボ目は通常のマージ得点のみとし、2コンボ目以降に差分ボーナスを加算する.
+    -- 累積値は係数 * (コンボ回数 ^ 指数 - 1)になる.
+    comboBonusScore = 0
+    if combo >= 2 then
+        local currentComboScore = COMBO_SCORE_COEFFICIENT * (combo ^ COMBO_SCORE_EXPONENT)
+        local previousComboScore = COMBO_SCORE_COEFFICIENT * ((combo - 1) ^ COMBO_SCORE_EXPONENT)
+        comboBonusScore = math.floor(currentComboScore - previousComboScore)
+        addScore(comboBonusScore)
+    end
+
     activeMergeX = mergeTargetX
     activeMergeY = mergeTargetY
     startResolve(mergeNextAction)
@@ -776,6 +792,7 @@ local function startGame()
     undoStates = {}
     rewindUsesRemaining = MAX_REWIND_USES
     combo = 0
+    comboBonusScore = 0
     comboDisplayFrame = 0
     comboSoundPlayed = false
     cursorX = CENTER
@@ -846,6 +863,7 @@ local function beginDrop()
     -- 落下開始.
     saveUndoState()
     combo = 0
+    comboBonusScore = 0
     comboDisplayFrame = 0
     comboSoundPlayed = false
     pendingDropX = x
@@ -1236,6 +1254,10 @@ local function drawCombo()
 		end
 	end
 	gfx.drawText("COMBO: " .. tostring(combo), 12 + PANEL_OFFSET_X, 54 + PANEL_OFFSET_Y)
+	if comboBonusScore > 0 then
+		gfx.drawText("+" .. tostring(comboBonusScore * SCORE_MULTIPLIER),
+			12 + PANEL_OFFSET_X, 72 + PANEL_OFFSET_Y)
+	end
 end
 
 -- NEXTブロックの描画.
