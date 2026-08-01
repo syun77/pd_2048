@@ -91,6 +91,8 @@ end
 local score = 0
 local holdValue = 0 -- HOLD中のブロック。0は空.
 local holdAvailable = true -- 現在の手でHOLDできるか.
+local lastRandomBlockValue = 0
+local consecutiveRandomBlockCount = 0
 local undoStates = {}
 local rewindUsesRemaining = 0
 local combo = 0
@@ -239,6 +241,8 @@ local function saveUndoState()
         cursorX = cursorX,
         holdValue = holdValue,
         holdAvailable = holdAvailable,
+        lastRandomBlockValue = lastRandomBlockValue,
+        consecutiveRandomBlockCount = consecutiveRandomBlockCount,
         hasRotation = false,
         rotationClockwise = false,
         nextValues = {}
@@ -272,6 +276,8 @@ local function undoLastTurn()
     cursorX = state.cursorX
     holdValue = state.holdValue
     holdAvailable = state.holdAvailable
+    lastRandomBlockValue = state.lastRandomBlockValue or 0
+    consecutiveRandomBlockCount = state.consecutiveRandomBlockCount or 0
     nextValues = state.nextValues
 
     combo = 0
@@ -315,22 +321,80 @@ end
 
 -- ランダムでブロックを抽選する.
 local function randomBlockValue()
-    local maxHalf = math.floor(getMaxTileValue() / 2)
+    local maxValue = getMaxTileValue()
+    local maxQuarter = math.floor(maxValue / 4)
+    local suppressedValue = nil
+    if consecutiveRandomBlockCount >= 3 then
+        suppressedValue = lastRandomBlockValue
+    end
 
-	-- 8以上のブロックがある場合、まれに最大値の半分のブロックを出現させる。通常の2/4の分布は維持される。
-    if maxHalf > 4 then
-        local roll = math.random(1, 100)
-        if roll <= 2 then
-            return maxHalf
-        elseif roll <= 12 then
-            return 4
+    local selectedValue
+
+    -- 最大値が16以上になったら、2から最大値の1/4までを候補にする。
+    -- 重みは1/値とし、最大値の1/4だけ重みを半分にして出現率を抑える。
+    if maxValue >= 16 then
+        local totalWeight = 0
+        local value = 2
+        while value <= maxQuarter do
+            local weight = 1 / value
+            if value == maxQuarter then
+                weight *= 0.5
+            end
+            if value ~= suppressedValue then
+                totalWeight += weight
+            end
+            value *= 2
         end
-        return 2
+
+        local roll = math.random() * totalWeight
+        local cumulativeWeight = 0
+        value = 2
+        while value <= maxQuarter do
+            local weight = 1 / value
+            if value == maxQuarter then
+                weight *= 0.5
+            end
+            if value ~= suppressedValue then
+                cumulativeWeight += weight
+                if roll < cumulativeWeight then
+                    selectedValue = value
+                    break
+                end
+            end
+            value *= 2
+        end
+
+        -- 浮動小数点誤差などで未選択になった場合の安全策。
+        if selectedValue == nil then
+            value = 2
+            while value <= maxQuarter do
+                if value ~= suppressedValue then
+                    selectedValue = value
+                    break
+                end
+                value *= 2
+            end
+        end
+    else
+        if math.random(1, 10) == 10 then
+            selectedValue = 4
+        else
+            selectedValue = 2
+        end
+
+        -- 同じ値が3回連続した場合、次回はその値を出さない。
+        if selectedValue == suppressedValue then
+            selectedValue = (selectedValue == 2) and 4 or 2
+        end
     end
-    if math.random(1, 10) == 10 then
-        return 4
+
+    if selectedValue == lastRandomBlockValue then
+        consecutiveRandomBlockCount += 1
+    else
+        lastRandomBlockValue = selectedValue
+        consecutiveRandomBlockCount = 1
     end
-    return 2
+    return selectedValue
 end
 
 -- 落下可能かどうかを判定する.
@@ -689,11 +753,11 @@ local function advanceAnimation()
 end
 
 local function spawnInitialBlocks()
-    -- Start with one block immediately to each side of the rotation axis.
+    -- Start with one value-8 block immediately to each side of the rotation axis.
     -- Coordinates are 1-based: the axis is (3, 3), so the two cells are
     -- (2, 3) and (4, 3).
-    board:set(CENTER - 1, CENTER, randomBlockValue())
-    board:set(CENTER + 1, CENTER, randomBlockValue())
+    board:set(CENTER - 1, CENTER, 8)
+    board:set(CENTER + 1, CENTER, 8)
 end
 
 local function startGame()
@@ -701,6 +765,8 @@ local function startGame()
     score = 0
     holdValue = 0
     holdAvailable = true
+    lastRandomBlockValue = 0
+    consecutiveRandomBlockCount = 0
     undoStates = {}
     rewindUsesRemaining = MAX_REWIND_USES
     combo = 0
@@ -1210,7 +1276,7 @@ end
 
 -- 巻き戻し可能であることを表示する.
 local function drawRewindHint()
-    if (gameState == GAME_STATE_PLAYING or gameState == GAME_STATE_GAME_OVER)
+    if gameState == GAME_STATE_PLAYING
         and #undoStates > 0 and rewindUsesRemaining > 0 then
 		-- 巻き戻し可能であることを表示.
         gfx.drawText("B: REWIND [" .. tostring(rewindUsesRemaining) .. "]", 280, 220)
@@ -1256,9 +1322,7 @@ function pd.update()
             gameState = GAME_STATE_PLAYING
         end
     elseif gameState == GAME_STATE_GAME_OVER then
-        if pd.buttonJustPressed(pd.kButtonB) then
-            undoLastTurn()
-        elseif pd.buttonJustPressed(pd.kButtonA) then
+        if pd.buttonJustPressed(pd.kButtonA) then
 			sound:play_se("decide")
             startGame()
         end
