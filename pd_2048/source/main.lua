@@ -8,6 +8,7 @@ local gfx <const> = pd.graphics
 local gameContext <const> = GameContext.getInstance()
 local sound <const> = gameContext.sound
 
+local DEFAULT_REFRESH_RATE <const> = 30 -- ディスプレイの更新レート (FPS。フレーム毎秒).
 local BOARD_SIZE <const> = 5
 local CENTER <const> = 3
 local CELL_SIZE <const> = 32
@@ -32,8 +33,9 @@ local GAME_STATE_NEXT_ANIM <const> = "NEXT_ANIM"
 local GAME_STATE_PAUSED <const> = "PAUSED"
 local GAME_STATE_GAME_OVER <const> = "GAME_OVER"
 -- 傾きをわかりやすく見せるための回転角度の最大値と、1ポイントあたりの回転角度.
-local PREVIEW_ROTATION_MAX_DEGREES <const> = 10
-local PREVIEW_ROTATION_DEGREES_PER_POINT <const> = 0.1
+local PREVIEW_ROTATION_MAX_DEGREES <const> = 200
+local PREVIEW_ROTATION_EVALUATION_MULTIPLIER <const> = 0.1 -- 評価値に対する倍率.
+local PREVIEW_ROTATION_DEGREES_PER_POINT <const> = 0.1 -- 最終的な角度に対する倍率.
 -- 回転方向の評価値.
 local ROTATION_EVALUATION_POSITION_RIGHT <const> = 10 -- 右側の位置を評価する値.
 local ROTATION_EVALUATION_POSITION_LEFT <const> = -10 -- 左側の位置を評価する値.
@@ -44,6 +46,9 @@ local ROTATION_EVALUATION_MERGED_BLOCK_WEIGHT <const> = 10 -- マージされた
 local ROTATION_EVALUATION_MERGE_DIRECTION_LEFT <const> = -5 -- マージ方向の評価値 (左方向).
 local ROTATION_EVALUATION_MERGE_DIRECTION_RIGHT <const> = 5 -- マージ方向の評価値 (右方向).
 local ROTATION_EVALUATION_VERTICAL_DIRECTION_WEIGHT <const> = 10 -- マージ方向が上下の場合の評価値の重み.
+-- プレビュー反動の設定.
+local PREVIEW_IMPULSE_ROTATION_DEGREES <const> = 5
+local PREVIEW_IMPULSE_DECAY <const> = 0.7
 
 local board = Array2D(BOARD_SIZE, BOARD_SIZE, 0) -- 盤面.
 local cursorX = 3 -- カーソル位置.
@@ -71,7 +76,8 @@ local mergeNextAction = "FINISH"
 local activeMergeX = 0
 local activeMergeY = 0
 local nextAnimationGameOver = false
-local rotationEvaluation = 0
+local rotationEvaluation = 0 -- 傾きプレビューの評価値.
+local previewImpulseRotationDegrees = 0 -- プレビュー反動の角度.
 
 -- メニューBGMの再生.
 local function playMenuBgm()
@@ -115,6 +121,28 @@ local function getMergeEvaluation(sourceX, targetX)
     return ROTATION_EVALUATION_DISAPPEARED_BLOCK_WEIGHT * getPositionEvaluation(sourceX)
         + ROTATION_EVALUATION_MERGED_BLOCK_WEIGHT * getPositionEvaluation(targetX)
         + getMergeDirectionEvaluation(sourceX, targetX)
+end
+
+-- 方向の力を一時的なプレビュー反動として加算する.
+local function addPreviewImpulse(direction)
+    if direction == ROTATION_EVALUATION_POSITION_CENTER then
+        return
+    end
+    if direction > 0 then
+        previewImpulseRotationDegrees += PREVIEW_IMPULSE_ROTATION_DEGREES
+    else
+        previewImpulseRotationDegrees -= PREVIEW_IMPULSE_ROTATION_DEGREES
+    end
+end
+
+local function addRotationEvaluation(value)
+	-- 加算倍率を適用.
+	value *= PREVIEW_ROTATION_EVALUATION_MULTIPLIER
+    rotationEvaluation += value
+	--print("rotationEvaluation"	 .. rotationEvaluation)
+	-- 傾き制限を適用.
+	rotationEvaluation = math.max(-PREVIEW_ROTATION_MAX_DEGREES,
+		math.min(PREVIEW_ROTATION_MAX_DEGREES, rotationEvaluation))
 end
 
 local function isPlayable(x, y)
@@ -397,7 +425,13 @@ local function startResolve(nextAction)
 end
 
 local function finishMerge()
-    rotationEvaluation += getMergeEvaluation(mergeSourceX, mergeTargetX)
+    local v = getMergeEvaluation(mergeSourceX, mergeTargetX)
+    addRotationEvaluation(v)
+    if mergeTargetX < mergeSourceX then
+        addPreviewImpulse(ROTATION_EVALUATION_MERGE_DIRECTION_LEFT)
+    elseif mergeTargetX > mergeSourceX then
+        addPreviewImpulse(ROTATION_EVALUATION_MERGE_DIRECTION_RIGHT)
+    end
     board:set(mergeSourceX, mergeSourceY, 0)
     board:set(mergeTargetX, mergeTargetY, mergeValue)
     addScore(mergeValue)
@@ -411,12 +445,15 @@ local function finishDrop()
     pendingDropValue = 0
     activeMergeX = pendingDropX
     activeMergeY = pendingDropY
-    rotationEvaluation += ROTATION_EVALUATION_DROP_POSITION_WEIGHT
+    addRotationEvaluation(ROTATION_EVALUATION_DROP_POSITION_WEIGHT
         * getPositionEvaluation(pendingDropX)
+    )
+    addPreviewImpulse(getPositionEvaluation(pendingDropX))
     startResolve("ROTATE")
 end
 
 local function advanceAnimation()
+    previewImpulseRotationDegrees *= PREVIEW_IMPULSE_DECAY
     animationProgress += 1 / (animationDuration * 30)
     if animationProgress < 1 then
         return
@@ -449,6 +486,7 @@ local function startGame()
     cursorX = CENTER
     nextValue = randomBlockValue()
     followingValue = randomBlockValue()
+    previewImpulseRotationDegrees = 0
     spawnInitialBlocks()
     gameState = GAME_STATE_PLAYING
     message = ""
@@ -585,7 +623,9 @@ local function getPreviewRotationEvaluation()
         local mergeEvaluation = getMergeEvaluation(mergeSourceX, mergeTargetX)
         evaluation += mergeEvaluation * easeInOut(animationProgress)
     end
-    return evaluation
+
+	-- 最終的な倍率を加算した値を返す.
+    return evaluation * PREVIEW_ROTATION_DEGREES_PER_POINT
 end
 
 local function getPreviewRotationDegrees()
@@ -593,13 +633,20 @@ local function getPreviewRotationDegrees()
         return 0
     end
 
-    local degrees = getPreviewRotationEvaluation() * PREVIEW_ROTATION_DEGREES_PER_POINT
-    return math.max(-PREVIEW_ROTATION_MAX_DEGREES,
-        math.min(PREVIEW_ROTATION_MAX_DEGREES, degrees))
+    local previewEvaluation = getPreviewRotationEvaluation()
+	-- 反動値を加算.
+	previewEvaluation += previewImpulseRotationDegrees
+	return previewEvaluation
 end
 
+-- 傾きプレビューの値をラジアンに変換して返す.
 local function getPreviewRotationAngle()
-    return math.rad(getPreviewRotationDegrees())
+    local degrees = getPreviewRotationDegrees()
+    degrees = math.max(-PREVIEW_ROTATION_MAX_DEGREES,
+        math.min(PREVIEW_ROTATION_MAX_DEGREES, degrees))
+	-- 反動値は傾き制限を考慮しない.
+	degrees += previewImpulseRotationDegrees
+    return math.rad(degrees)
 end
 
 local function drawRotatingBoard()
@@ -683,7 +730,6 @@ local function drawBoard()
 end
 
 local function drawHeader()
-    gfx.drawText("ROTATE 2048", 8, 4)
     gfx.drawTextAligned("SCORE " .. tostring(score), 392, 4, kTextAlignment.right)
     gfx.drawText("NEXT", 300, 50)
 
@@ -768,8 +814,11 @@ function pd.update()
     elseif message ~= "" and pd.getCurrentTimeMilliseconds() < messageUntil then
         drawCenteredText(message, 226)
     end
+
+	-- FPSを描画.
+	pd.drawFPS(4, 4)
 end
 
 loadHighScore()
 playMenuBgm()
-pd.display.setRefreshRate(30)
+pd.display.setRefreshRate(DEFAULT_REFRESH_RATE)
