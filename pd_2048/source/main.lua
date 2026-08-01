@@ -17,6 +17,20 @@ local NEXT_BOX_X <const> = 343
 local NEXT_BOX_Y <const> = 48
 local NEXT_BOX_WIDTH <const> = 25
 local NEXT_BOX_HEIGHT <const> = 20
+-- 方向定数.
+local DIRECTION_DOWN <const> = 1
+local DIRECTION_LEFT <const> = 2
+local DIRECTION_RIGHT <const> = 3
+local DIRECTION_UP <const> = 4
+-- 状態定数.
+local GAME_STATE_TITLE <const> = "TITLE"
+local GAME_STATE_PLAYING <const> = "PLAYING"
+local GAME_STATE_DROPPING <const> = "DROPPING"
+local GAME_STATE_MERGING <const> = "MERGING"
+local GAME_STATE_ROTATING <const> = "ROTATING"
+local GAME_STATE_NEXT_ANIM <const> = "NEXT_ANIM"
+local GAME_STATE_PAUSED <const> = "PAUSED"
+local GAME_STATE_GAME_OVER <const> = "GAME_OVER"
 
 local board = Array2D(BOARD_SIZE, BOARD_SIZE, 0) -- 盤面.
 local cursorX = 3 -- カーソル位置.
@@ -24,7 +38,7 @@ local nextValue = 2 -- nextブロック.
 local followingValue = 2 -- nextの次のブロック.
 local score = 0
 local highScore = 0
-local gameState = "TITLE"
+local gameState = GAME_STATE_TITLE
 local message = ""
 local messageUntil = 0
 local animationProgress = 0
@@ -44,19 +58,50 @@ local mergeNextAction = "FINISH"
 local activeMergeX = 0
 local activeMergeY = 0
 local nextAnimationGameOver = false
+local rotationEvaluation = 0
 
+-- メニューBGMの再生.
 local function playMenuBgm()
     sound:setBgmRandomMode(BGMRandomMode.MENU)
     sound:play_bgm(-1, false)
 end
 
+-- メインゲームBGMの再生.
 local function playGameBgm()
     sound:setBgmRandomMode(BGMRandomMode.NOMAL)
-    sound:play_bgm(-1, true)
+    sound:play_bgm(-1, false)
 end
 
 local function isCenter(x, y)
     return x == CENTER and y == CENTER
+end
+
+-- 中央から見たブロックの左右位置を評価する.
+-- 右側を正、左側を負、中央を0とする.
+local function getPositionEvaluation(x)
+    if x > CENTER then
+        return 1
+    elseif x < CENTER then
+        return -1
+    end
+    return 0
+end
+
+-- マージ方向の評価を返す.
+-- 左方向を負、右方向を正とし、上下方向はマージ後の位置を評価する.
+local function getMergeDirectionEvaluation(sourceX, targetX)
+    if targetX < sourceX then
+        return -1
+    elseif targetX > sourceX then
+        return 1
+    end
+    return getPositionEvaluation(targetX)
+end
+
+local function getMergeEvaluation(sourceX, targetX)
+    return -getPositionEvaluation(sourceX)
+        + getPositionEvaluation(targetX)
+        + getMergeDirectionEvaluation(sourceX, targetX)
 end
 
 local function isPlayable(x, y)
@@ -72,6 +117,7 @@ local function setMessage(text, duration)
     messageUntil = pd.getCurrentTimeMilliseconds() + duration
 end
 
+-- ハイスコアのロード.
 local function loadHighScore()
     local ok, value = pcall(pd.datastore.read, "highScore")
     if ok and type(value) == "number" then
@@ -79,6 +125,7 @@ local function loadHighScore()
     end
 end
 
+-- ハイスコアの保存.
 local function saveHighScore()
     if score > highScore then
         highScore = score
@@ -86,6 +133,7 @@ local function saveHighScore()
     end
 end
 
+-- 盤面を初期化する.
 local function clearBoard()
     board = Array2D(BOARD_SIZE, BOARD_SIZE, 0)
     board:set(CENTER, CENTER, 0)
@@ -105,8 +153,7 @@ end
 local function randomBlockValue()
     local maxHalf = math.floor(getMaxTileValue() / 2)
 
-    -- Once the board has a tile above 8, very occasionally introduce half
-    -- of the current maximum. The normal 2/4 distribution remains intact.
+	-- 8以上のブロックがある場合、まれに最大値の半分のブロックを出現させる。通常の2/4の分布は維持される。
     if maxHalf > 4 then
         local roll = math.random(1, 100)
         if roll <= 2 then
@@ -122,6 +169,7 @@ local function randomBlockValue()
     return 2
 end
 
+-- 落下可能かどうかを判定する.
 local function isSupported(x, y)
     if not isPlayable(x, y) or board:get(x, y) ~= 0 then
         return false
@@ -141,8 +189,7 @@ local function isSupported(x, y)
     return false
 end
 
--- Find the first legal cell encountered while falling from the top.
--- The center axis blocks the vertical path in the center column.
+-- 落下可能なセルを見つける.
 local function findDropCell(x)
     for y = 1, BOARD_SIZE do
         if isCenter(x, y) then
@@ -166,15 +213,15 @@ local function addScore(value)
     end
 end
 
--- Gravity is intentionally disabled. Rotation changes the board coordinates,
--- but blocks do not subsequently fall toward the bottom of the screen.
+-- 重力を適用する.
 local function applyGravity()
     board:set(CENTER, CENTER, 0)
 end
 
+-- マージ後もブロックが接続されたままかどうかを判定する.
 local function mergeKeepsBlockConnected(sourceX, sourceY, targetX, targetY)
-    -- The source disappears into the target. The resulting block is
-    -- considered connected when it has any other orthogonal neighbor.
+	-- soruceは targetにマージする.
+	-- 合成したブロック上下左右に隣接するブロックがあれば接続されたとみなす.
     local neighborX = targetX - 1
     if isPlayable(neighborX, targetY) and neighborX ~= sourceX and isOccupied(neighborX, targetY) then
         return true
@@ -194,26 +241,26 @@ local function mergeKeepsBlockConnected(sourceX, sourceY, targetX, targetY)
     return false
 end
 
+-- アクティブなブロックのマージ先を見つける.
 local function findMergeForActiveBlock()
-    -- The active block is the newly dropped block, or the result of the
-    -- previous merge in the current chain. Direction priority is down, left,
-    -- right, up, but preserving a neighbor connection takes precedence.
+	-- Activeブロックは新たに追加されたブロックまたは前回のマージで残ったブロック.
+	-- 方向の優先順位は「下・左・右・上」の順で、最初に見つかったマージ可能なブロックの位置を返す.
     local fallbackSourceX = 0
     local fallbackSourceY = 0
     local fallbackTargetX = 0
     local fallbackTargetY = 0
     local activeValue = board:get(activeMergeX, activeMergeY)
 
-    for direction = 1, 4 do
+    for direction = DIRECTION_DOWN, DIRECTION_UP do
         local dx = 0
         local dy = 0
-        if direction == 1 then
+        if direction == DIRECTION_DOWN then
             dy = 1       -- down
-        elseif direction == 2 then
+        elseif direction == DIRECTION_LEFT then
             dx = -1      -- left
-        elseif direction == 3 then
+        elseif direction == DIRECTION_RIGHT then
             dx = 1       -- right
-        else
+        elseif direction == DIRECTION_UP then
             dy = -1      -- up
         end
         local neighborX = activeMergeX + dx
@@ -275,26 +322,26 @@ local function finishTurn()
     nextAnimationGameOver = not canDropInAnyColumn()
     animationProgress = 0
     animationDuration = 0.30
-    gameState = "NEXT_ANIM"
+    gameState = GAME_STATE_NEXT_ANIM
 end
 
 local function finishNextAnimation()
     if nextAnimationGameOver then
         saveHighScore()
-        gameState = "GAME_OVER"
-        playMenuBgm()
+        gameState = GAME_STATE_GAME_OVER
+        sound:stop_bgm(1.0)
     else
-        gameState = "PLAYING"
+        gameState = GAME_STATE_PLAYING
     end
 end
 
 local function startRotation()
-    if pendingDropX == CENTER then
+    if rotationEvaluation == 0 then
         finishTurn()
         return
     end
 
-    rotationClockwise = pendingDropX > CENTER
+    rotationClockwise = rotationEvaluation > 0
     rotationStartBoard = board
     rotationEndBoard = makeRotatedBoard(rotationStartBoard, rotationClockwise)
 
@@ -310,7 +357,7 @@ local function startRotation()
 
     animationProgress = 0
     animationDuration = 0.38
-    gameState = "ROTATING"
+    gameState = GAME_STATE_ROTATING
 end
 
 local function startResolve(nextAction)
@@ -333,10 +380,11 @@ local function startResolve(nextAction)
     mergeNextAction = nextAction
     animationProgress = 0
     animationDuration = 0.22
-    gameState = "MERGING"
+    gameState = GAME_STATE_MERGING
 end
 
 local function finishMerge()
+    rotationEvaluation += getMergeEvaluation(mergeSourceX, mergeTargetX)
     board:set(mergeSourceX, mergeSourceY, 0)
     board:set(mergeTargetX, mergeTargetY, mergeValue)
     addScore(mergeValue)
@@ -360,14 +408,14 @@ local function advanceAnimation()
     end
 
     animationProgress = 1
-    if gameState == "DROPPING" then
+    if gameState == GAME_STATE_DROPPING then
         finishDrop()
-    elseif gameState == "MERGING" then
+    elseif gameState == GAME_STATE_MERGING then
         finishMerge()
-    elseif gameState == "ROTATING" then
+    elseif gameState == GAME_STATE_ROTATING then
         board = rotationEndBoard
         startResolve("FINISH")
-    elseif gameState == "NEXT_ANIM" then
+    elseif gameState == GAME_STATE_NEXT_ANIM then
         finishNextAnimation()
     end
 end
@@ -387,7 +435,7 @@ local function startGame()
     nextValue = randomBlockValue()
     followingValue = randomBlockValue()
     spawnInitialBlocks()
-    gameState = "PLAYING"
+    gameState = GAME_STATE_PLAYING
     message = ""
     playGameBgm()
 end
@@ -399,7 +447,7 @@ local function beginDrop()
         setMessage("NO SPACE", 700)
         if not canDropInAnyColumn() then
             saveHighScore()
-            gameState = "GAME_OVER"
+            gameState = GAME_STATE_GAME_OVER
             playMenuBgm()
         end
         return
@@ -408,11 +456,13 @@ local function beginDrop()
     pendingDropX = x
     pendingDropY = y
     pendingDropValue = nextValue
+    rotationEvaluation = 0
+    rotationEvaluation += getPositionEvaluation(pendingDropX)
     nextValue = followingValue
     followingValue = randomBlockValue()
     animationProgress = 0
     animationDuration = math.max(0.18, (y + 1) * 0.07)
-    gameState = "DROPPING"
+    gameState = GAME_STATE_DROPPING
 end
 
 local function moveCursor(delta)
@@ -441,6 +491,28 @@ local function drawTileAt(value, px, py)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
+local function rotatePointAroundBoardCenter(px, py, angle)
+    local rotationCenterX = BOARD_X + BOARD_SIZE * CELL_SIZE * 0.5
+    local rotationCenterY = BOARD_Y + BOARD_SIZE * CELL_SIZE * 0.5
+    local relativeX = px - rotationCenterX
+    local relativeY = py - rotationCenterY
+    local cosAngle = math.cos(angle)
+    local sinAngle = math.sin(angle)
+
+    return rotationCenterX + relativeX * cosAngle - relativeY * sinAngle,
+        rotationCenterY + relativeX * sinAngle + relativeY * cosAngle
+end
+
+local function getRotatedTilePosition(px, py, angle)
+    if angle == 0 then
+        return px, py
+    end
+
+    local centerX, centerY = rotatePointAroundBoardCenter(
+        px + CELL_SIZE * 0.5, py + CELL_SIZE * 0.5, angle)
+    return centerX - CELL_SIZE * 0.5, centerY - CELL_SIZE * 0.5
+end
+
 local function drawBoardGrid()
     gfx.setLineWidth(1)
     gfx.drawRect(BOARD_X, BOARD_Y, BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE)
@@ -454,19 +526,25 @@ local function drawBoardGrid()
     gfx.drawCircleAtPoint(BOARD_X + (CENTER - 0.5) * CELL_SIZE, BOARD_Y + (CENTER - 0.5) * CELL_SIZE, 7)
 end
 
-local function drawBoardCells(skipX, skipY)
+local function drawBoardCells(skipX, skipY, rotationAngle)
     board:foreach(function(x, y, value)
         if value ~= 0 and (x ~= skipX or y ~= skipY) then
-            drawTileAt(value, BOARD_X + (x - 1) * CELL_SIZE, BOARD_Y + (y - 1) * CELL_SIZE)
+            local px, py = getRotatedTilePosition(
+                BOARD_X + (x - 1) * CELL_SIZE,
+                BOARD_Y + (y - 1) * CELL_SIZE,
+                rotationAngle)
+            drawTileAt(value, px, py)
         end
     end)
 end
 
-local function drawFallingBlock()
+local function drawFallingBlock(rotationAngle)
     local startY = BOARD_Y - CELL_SIZE
     local targetY = BOARD_Y + (pendingDropY - 1) * CELL_SIZE
     local y = startY + (targetY - startY) * animationProgress
-    drawTileAt(pendingDropValue, BOARD_X + (pendingDropX - 1) * CELL_SIZE, y)
+    local px, py = getRotatedTilePosition(
+        BOARD_X + (pendingDropX - 1) * CELL_SIZE, y, rotationAngle)
+    drawTileAt(pendingDropValue, px, py)
 end
 
 local function drawDropPreview()
@@ -487,6 +565,30 @@ local function easeInOut(value)
     return value * value * (3 - 2 * value)
 end
 
+local function getPreviewRotationEvaluation()
+    local evaluation = rotationEvaluation
+    if gameState == GAME_STATE_MERGING then
+        local mergeEvaluation = getMergeEvaluation(mergeSourceX, mergeTargetX)
+        evaluation += mergeEvaluation * easeInOut(animationProgress)
+    end
+    return evaluation
+end
+
+local function getPreviewRotationDegrees()
+    if gameState ~= GAME_STATE_DROPPING and gameState ~= GAME_STATE_MERGING then
+        return 0
+    end
+
+    local maxTiltDegrees = 10
+    local degreesPerEvaluationPoint = 4
+    local degrees = getPreviewRotationEvaluation() * degreesPerEvaluationPoint
+    return math.max(-maxTiltDegrees, math.min(maxTiltDegrees, degrees))
+end
+
+local function getPreviewRotationAngle()
+    return math.rad(getPreviewRotationDegrees())
+end
+
 local function drawRotatingBoard()
     local progress = easeInOut(animationProgress)
     local angle = math.pi * 0.5 * progress
@@ -494,44 +596,41 @@ local function drawRotatingBoard()
         angle = -angle
     end
 
-    local cosAngle = math.cos(angle)
-    local sinAngle = math.sin(angle)
-    local rotationCenterX = BOARD_X + BOARD_SIZE * CELL_SIZE * 0.5
-    local rotationCenterY = BOARD_Y + BOARD_SIZE * CELL_SIZE * 0.5
-
     rotationStartBoard:foreach(function(x, y, value)
         if value ~= 0 then
-            local tileCenterX = BOARD_X + (x - 0.5) * CELL_SIZE
-            local tileCenterY = BOARD_Y + (y - 0.5) * CELL_SIZE
-            local relativeX = tileCenterX - rotationCenterX
-            local relativeY = tileCenterY - rotationCenterY
-
-            -- Screen coordinates have Y growing downward. With this sign
-            -- convention, a positive angle is a clockwise rotation.
-            local rotatedX = relativeX * cosAngle - relativeY * sinAngle
-            local rotatedY = relativeX * sinAngle + relativeY * cosAngle
-            local rotatedCenterX = rotationCenterX + rotatedX
-            local rotatedCenterY = rotationCenterY + rotatedY
-
-            drawTileAt(value,
-                rotatedCenterX - CELL_SIZE * 0.5,
-                rotatedCenterY - CELL_SIZE * 0.5)
+            local px, py = getRotatedTilePosition(
+                BOARD_X + (x - 1) * CELL_SIZE,
+                BOARD_Y + (y - 1) * CELL_SIZE,
+                angle)
+            drawTileAt(value, px, py)
         end
     end)
 end
 
-local function drawMergeAnimation()
-    drawBoardCells(mergeSourceX, mergeSourceY)
+local function drawMergeAnimation(rotationAngle)
+    drawBoardCells(mergeSourceX, mergeSourceY, rotationAngle)
 
     local progress = easeInOut(animationProgress)
     local sourcePx = BOARD_X + (mergeSourceX - 1) * CELL_SIZE
     local sourcePy = BOARD_Y + (mergeSourceY - 1) * CELL_SIZE
     local targetPx = BOARD_X + (mergeTargetX - 1) * CELL_SIZE
     local targetPy = BOARD_Y + (mergeTargetY - 1) * CELL_SIZE
-    drawTileAt(board:get(mergeTargetX, mergeTargetY), targetPx, targetPy)
+    local rotatedTargetPx, rotatedTargetPy = getRotatedTilePosition(
+        targetPx, targetPy, rotationAngle)
+    drawTileAt(board:get(mergeTargetX, mergeTargetY), rotatedTargetPx, rotatedTargetPy)
+
+    local sourceCenterX = sourcePx + CELL_SIZE * 0.5
+    local sourceCenterY = sourcePy + CELL_SIZE * 0.5
+    local targetCenterX = targetPx + CELL_SIZE * 0.5
+    local targetCenterY = targetPy + CELL_SIZE * 0.5
+    local currentCenterX = sourceCenterX + (targetCenterX - sourceCenterX) * progress
+    local currentCenterY = sourceCenterY + (targetCenterY - sourceCenterY) * progress
+    local rotatedSourcePx, rotatedSourcePy = getRotatedTilePosition(
+        currentCenterX - CELL_SIZE * 0.5,
+        currentCenterY - CELL_SIZE * 0.5,
+        rotationAngle)
     drawTileAt(mergeValue / 2,
-        sourcePx + (targetPx - sourcePx) * progress,
-        sourcePy + (targetPy - sourcePy) * progress)
+        rotatedSourcePx, rotatedSourcePy)
 end
 
 local function drawNextAnimation()
@@ -549,22 +648,23 @@ end
 
 local function drawBoard()
     drawBoardGrid()
+    local previewRotationAngle = getPreviewRotationAngle()
 
-    if gameState == "ROTATING" then
+    if gameState == GAME_STATE_ROTATING then
         drawRotatingBoard()
-    elseif gameState == "MERGING" then
-        drawMergeAnimation()
+    elseif gameState == GAME_STATE_MERGING then
+        drawMergeAnimation(previewRotationAngle)
     else
-        drawBoardCells()
+        drawBoardCells(nil, nil, previewRotationAngle)
     end
 
-    if gameState == "DROPPING" then
-        drawFallingBlock()
+    if gameState == GAME_STATE_DROPPING then
+        drawFallingBlock(previewRotationAngle)
     end
 
-    if gameState == "PLAYING" then
+    if gameState == GAME_STATE_PLAYING then
         drawDropPreview()
-    elseif gameState == "NEXT_ANIM" then
+    elseif gameState == GAME_STATE_NEXT_ANIM then
         drawNextAnimation()
     end
 end
@@ -595,6 +695,7 @@ local function drawTitle()
     drawCenteredText("LEFT / RIGHT: SELECT   DOWN: DROP", 164)
 end
 
+-- ゲームオーバー表示.
 local function drawGameOver()
     gfx.fillRect(122, 86, 156, 68)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
@@ -607,7 +708,7 @@ end
 function pd.update()
     gfx.clear(gfx.kColorWhite)
 
-    if gameState == "TITLE" then
+    if gameState == GAME_STATE_TITLE then
         drawTitle()
         if pd.buttonJustPressed(pd.kButtonA) then
             startGame()
@@ -615,7 +716,7 @@ function pd.update()
         return
     end
 
-    if gameState == "PLAYING" then
+    if gameState == GAME_STATE_PLAYING then
         if pd.buttonJustPressed(pd.kButtonLeft) then
             moveCursor(-1)
         elseif pd.buttonJustPressed(pd.kButtonRight) then
@@ -623,33 +724,33 @@ function pd.update()
         elseif pd.buttonJustPressed(pd.kButtonDown) then
             beginDrop()
         elseif pd.buttonJustPressed(pd.kButtonB) then
-            gameState = "PAUSED"
+            gameState = GAME_STATE_PAUSED
         end
-    elseif gameState == "PAUSED" then
+    elseif gameState == GAME_STATE_PAUSED then
         if pd.buttonJustPressed(pd.kButtonB) then
-            gameState = "PLAYING"
+            gameState = GAME_STATE_PLAYING
         end
-    elseif gameState == "GAME_OVER" then
+    elseif gameState == GAME_STATE_GAME_OVER then
         if pd.buttonJustPressed(pd.kButtonA) then
             startGame()
         end
     end
 
-    if gameState == "DROPPING" or gameState == "MERGING" or gameState == "ROTATING"
-        or gameState == "NEXT_ANIM" then
+    if gameState == GAME_STATE_DROPPING or gameState == GAME_STATE_MERGING
+        or gameState == GAME_STATE_ROTATING or gameState == GAME_STATE_NEXT_ANIM then
         advanceAnimation()
     end
 
     drawHeader()
     drawBoard()
 
-    if gameState == "PAUSED" then
+    if gameState == GAME_STATE_PAUSED then
         gfx.fillRect(145, 93, 110, 44)
         gfx.setImageDrawMode(gfx.kDrawModeInverted)
         drawCenteredText("PAUSED", 102)
         drawCenteredText("B: RESUME", 120)
         gfx.setImageDrawMode(gfx.kDrawModeCopy)
-    elseif gameState == "GAME_OVER" then
+    elseif gameState == GAME_STATE_GAME_OVER then
         drawGameOver()
     elseif message ~= "" and pd.getCurrentTimeMilliseconds() < messageUntil then
         drawCenteredText(message, 226)
