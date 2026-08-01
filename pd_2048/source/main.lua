@@ -26,6 +26,8 @@ local DANGER_ICON_LEFT_X <const> = BOARD_X - DANGER_ICON_SIZE - DANGER_ICON_OFFS
 local DANGER_ICON_LEFT_Y <const> = BOARD_Y + (BOARD_SIZE * CELL_SIZE - DANGER_ICON_SIZE) * 0.5
 local DANGER_ICON_RIGHT_X <const> = BOARD_X + BOARD_SIZE * CELL_SIZE + DANGER_ICON_OFFSET
 local DANGER_ICON_RIGHT_Y <const> = DANGER_ICON_LEFT_Y
+local DANGER_ICON_BLINK_PERIOD <const> = 600
+local DANGER_ICON_BLINK_ON_DURATION <const> = 300
 -- 方向定数.
 local DIRECTION_DOWN <const> = 1
 local DIRECTION_LEFT <const> = 2
@@ -373,27 +375,29 @@ local function canDropInAnyColumn()
     return false
 end
 
--- 外周の各辺が5マスすべて埋まっているかを判定する.
+-- 外周の各辺について、準危険状態と危険状態を判定する.
 local function getDangerEdges()
-    local bottomFull = true
+    local bottomCount = 0
     for x = 1, BOARD_SIZE do
-        if not isOccupied(x, BOARD_SIZE) then
-            bottomFull = false
+        if isOccupied(x, BOARD_SIZE) then
+            bottomCount += 1
         end
     end
 
-    local leftFull = true
-    local rightFull = true
+    local leftCount = 0
+    local rightCount = 0
     for y = 1, BOARD_SIZE do
-        if not isOccupied(1, y) then
-            leftFull = false
+        if isOccupied(1, y) then
+            leftCount += 1
         end
-        if not isOccupied(BOARD_SIZE, y) then
-            rightFull = false
+        if isOccupied(BOARD_SIZE, y) then
+            rightCount += 1
         end
     end
 
-    return bottomFull, leftFull, rightFull
+    return bottomCount >= 4, bottomCount == BOARD_SIZE,
+        leftCount >= 4, leftCount == BOARD_SIZE,
+        rightCount >= 4, rightCount == BOARD_SIZE
 end
 
 local function finishTurn()
@@ -593,7 +597,15 @@ local function drawCenteredText(text, y)
 end
 
 -- 危険標識風のアイコンを描画する.
-local function drawDangerIcon(x, y, size)
+local function drawDangerIcon(x, y, size, blinking)
+    if blinking then
+        local blinkProgress = pd.getCurrentTimeMilliseconds() % DANGER_ICON_BLINK_PERIOD
+        if blinkProgress >= DANGER_ICON_BLINK_ON_DURATION then
+            return
+        end
+        gfx.setImageDrawMode(gfx.kDrawModeXOR)
+    end
+
     local centerX = x + size * 0.5
     local topY = y + 1
     local bottomY = y + size - 1
@@ -608,18 +620,21 @@ local function drawDangerIcon(x, y, size)
     gfx.drawLine(centerX, y + 6, centerX, y + 12)
     gfx.fillCircleAtPoint(centerX, y + 16, 1)
     gfx.setLineWidth(1)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
 local function drawDangerIcons()
-    local bottomDanger, leftDanger, rightDanger = getDangerEdges()
+    local bottomDanger, bottomCritical,
+        leftDanger, leftCritical,
+        rightDanger, rightCritical = getDangerEdges()
     if bottomDanger then
-        drawDangerIcon(DANGER_ICON_BOTTOM_X, DANGER_ICON_BOTTOM_Y, DANGER_ICON_SIZE)
+        drawDangerIcon(DANGER_ICON_BOTTOM_X, DANGER_ICON_BOTTOM_Y, DANGER_ICON_SIZE, bottomCritical)
     end
     if leftDanger then
-        drawDangerIcon(DANGER_ICON_LEFT_X, DANGER_ICON_LEFT_Y, DANGER_ICON_SIZE)
+        drawDangerIcon(DANGER_ICON_LEFT_X, DANGER_ICON_LEFT_Y, DANGER_ICON_SIZE, leftCritical)
     end
     if rightDanger then
-        drawDangerIcon(DANGER_ICON_RIGHT_X, DANGER_ICON_RIGHT_Y, DANGER_ICON_SIZE)
+        drawDangerIcon(DANGER_ICON_RIGHT_X, DANGER_ICON_RIGHT_Y, DANGER_ICON_SIZE, rightCritical)
     end
 end
 
