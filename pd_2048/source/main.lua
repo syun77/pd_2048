@@ -2,6 +2,7 @@ import "CoreLibs/graphics"
 import "CoreLibs/ui"
 import "array2d"
 import "game_context"
+import "easing"
 
 local pd <const> = playdate
 local gfx <const> = pd.graphics
@@ -17,8 +18,8 @@ local LAYOUT_NEXT_OFFSET_X <const> = -24 -- NEXTブロックの横方向の調�
 local BOARD_X <const> = 100 + LAYOUT_BOARD_OFFSET_X
 local BOARD_Y <const> = 48
 -- 盤面とNEXTの間にある右上の空き領域をHOLD表示に使用する.
-local HOLD_BOX_X <const> = 48
-local HOLD_LABEL_X <const> = 48
+local HOLD_BOX_X <const> = 80
+local HOLD_LABEL_X <const> = 64
 local HOLD_BOX_Y <const> = 48
 local NEXT_BOX_X <const> = 343 + LAYOUT_NEXT_OFFSET_X
 local NEXT_LABEL_X <const> = 343 + LAYOUT_NEXT_OFFSET_X
@@ -33,6 +34,8 @@ local NEXT_QUEUE_COUNT <const> = NEXT_PREVIEW_COUNT + 1
 local NEXT_BOX_GAP <const> = 4
 local MAX_UNDO_COUNT <const> = 1
 local MAX_REWIND_USES <const> = 3
+local REWIND_HOLD_DURATION_MS <const> = 500
+local REWIND_GAUGE_WIDTH <const> = 116
 -- 危険アイコン関連.
 local DANGER_ICON_SIZE <const> = 20
 local DANGER_ICON_OFFSET <const> = 4 -- 盤面の外周からアイコンまでの距離.
@@ -99,6 +102,8 @@ local lastRandomBlockValue = 0
 local consecutiveRandomBlockCount = 0
 local undoStates = {}
 local rewindUsesRemaining = 0
+local rewindHoldStartedAt = nil
+local rewindHoldTriggered = false
 local combo = 0
 local comboBonusScore = 0
 local comboDisplayFrame = 0
@@ -316,6 +321,35 @@ local function undoLastTurn()
         gameState = GAME_STATE_PLAYING
     end
     return true
+end
+
+-- Bボタン長押しによる巻き戻し入力を開始する。
+local function beginRewindHold()
+    rewindHoldStartedAt = pd.getCurrentTimeMilliseconds()
+    rewindHoldTriggered = false
+	sound:play_se("rewind_button")
+end
+
+-- Bボタン長押しによる巻き戻し入力を終了する。
+local function endRewindHold()
+    rewindHoldStartedAt = nil
+    rewindHoldTriggered = false
+end
+
+-- Bボタンの長押し時間を更新し、1秒到達時にUNDOを実行する。
+local function updateRewindHold()
+    if rewindHoldStartedAt == nil or not pd.buttonIsPressed(pd.kButtonB) then
+        if rewindHoldStartedAt ~= nil then
+            endRewindHold()
+        end
+        return
+    end
+
+    if not rewindHoldTriggered
+        and pd.getCurrentTimeMilliseconds() - rewindHoldStartedAt >= REWIND_HOLD_DURATION_MS then
+        rewindHoldTriggered = true
+        undoLastTurn()
+    end
 end
 
 local function getMaxTileValue()
@@ -1233,6 +1267,12 @@ local function drawBoard()
     end
 end
 
+-- スコアの描画.
+local function drawScore()
+    gfx.drawTextAligned("SCORE: ", 12 + PANEL_OFFSET_X, PANEL_OFFSET_Y, kTextAlignment.left)
+    gfx.drawTextAligned(tostring(score), 80 + PANEL_OFFSET_X, 24 + PANEL_OFFSET_Y, kTextAlignment.right)
+end
+
 -- コンボの描画.
 local function drawCombo()
 	if combo <= 1 then
@@ -1255,8 +1295,8 @@ local function drawCombo()
 	end
 	gfx.drawText("COMBO: " .. tostring(combo), 12 + PANEL_OFFSET_X, 54 + PANEL_OFFSET_Y)
 	if comboBonusScore > 0 then
-		gfx.drawText("+" .. tostring(comboBonusScore * SCORE_MULTIPLIER),
-			12 + PANEL_OFFSET_X, 72 + PANEL_OFFSET_Y)
+		gfx.drawTextAligned("+" .. tostring(comboBonusScore * SCORE_MULTIPLIER),
+			80 + PANEL_OFFSET_X, 72 + PANEL_OFFSET_Y, kTextAlignment.right)
 	end
 end
 
@@ -1302,7 +1342,7 @@ end
 
 -- HOLDブロックの描画。右上の専用領域を使用する.
 local function drawHoldBlock()
-    gfx.drawText("HOLD", HOLD_LABEL_X, 20)
+    gfx.drawText("A: HOLD", HOLD_LABEL_X, 20)
     gfx.setLineWidth(1)
     gfx.drawRect(HOLD_BOX_X, HOLD_BOX_Y, NEXT_BOX_WIDTH, NEXT_BOX_HEIGHT)
 
@@ -1328,8 +1368,7 @@ end
 
 local function drawHeader()
 	-- スコアの描画.
-    gfx.drawTextAligned("SCORE: ", 12 + PANEL_OFFSET_X, PANEL_OFFSET_Y, kTextAlignment.left)
-    gfx.drawTextAligned(tostring(score), 80 + PANEL_OFFSET_X, 24 + PANEL_OFFSET_Y, kTextAlignment.right)
+	drawScore()
 	-- コンボ数の描画.
     drawCombo()
 
@@ -1352,8 +1391,23 @@ end
 local function drawRewindHint()
     if gameState == GAME_STATE_PLAYING
         and #undoStates > 0 and rewindUsesRemaining > 0 then
+		-- 長押し中は表示とゲージをXORで描画する。
+        local isHolding = rewindHoldStartedAt ~= nil
+        local rewindText = "B: REWIND [" .. tostring(rewindUsesRemaining) .. "]"
 		-- 巻き戻し可能であることを表示.
-        gfx.drawText("B: REWIND [" .. tostring(rewindUsesRemaining) .. "]", 280, 220)
+		gfx.drawText(rewindText, 280, 218)
+		-- 枠の描画.
+        gfx.drawRoundRect(270, 216, REWIND_GAUGE_WIDTH, 20, 4)
+        if isHolding then
+            local elapsed = pd.getCurrentTimeMilliseconds() - rewindHoldStartedAt
+            local progress = math.min(1, Easing.cube_out(elapsed / REWIND_HOLD_DURATION_MS))
+            local previousColor = gfx.getColor()
+			-- XORで反転描画.
+            gfx.setColor(gfx.kColorXOR)
+            gfx.fillRoundRect(270, 216, math.floor(REWIND_GAUGE_WIDTH * progress), 20, 4)
+            gfx.setColor(previousColor)
+        else
+        end
     end
 end
 
@@ -1380,6 +1434,7 @@ function pd.update()
     end
 
     if gameState == GAME_STATE_PLAYING then
+        updateRewindHold()
         if pd.buttonJustPressed(pd.kButtonA) then
             holdCurrentBlock()
         elseif pd.buttonJustPressed(pd.kButtonLeft) then
@@ -1389,7 +1444,7 @@ function pd.update()
         elseif pd.buttonJustPressed(pd.kButtonDown) then
             beginDrop()
         elseif pd.buttonJustPressed(pd.kButtonB) then
-            undoLastTurn()
+            beginRewindHold()
         end
     elseif gameState == GAME_STATE_PAUSED then
         if pd.buttonJustPressed(pd.kButtonB) then

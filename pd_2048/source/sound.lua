@@ -87,6 +87,7 @@ local seTable = {
 	"rotate",
 	"hold",
 	"rewind",
+	"rewind_button",
 	"decide",
 	"gameover",
 	"combo1",
