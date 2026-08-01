@@ -215,10 +215,12 @@ local function isSupported(x, y)
     if not isPlayable(x, y) or board:get(x, y) ~= 0 then
         return false
     end
-    if y == BOARD_SIZE then
+    -- 底面だけでは接続とはみなさない。必ず他のブロックに接している必要がある。
+    if isOccupied(x, y + 1) then
         return true
     end
-    if isOccupied(x, y + 1) then
+    -- 中心軸は見えない固定ブロックとして、その直上を支える。
+    if x == CENTER and y == CENTER - 1 then
         return true
     end
     if x > 1 and isOccupied(x - 1, y) then
@@ -256,6 +258,7 @@ end
 
 -- 重力を適用する.
 local function applyGravity()
+    -- 中心軸は見えない固定ブロックとして常に空けておく。
     board:set(CENTER, CENTER, 0)
 end
 
@@ -282,15 +285,13 @@ local function mergeKeepsBlockConnected(sourceX, sourceY, targetX, targetY)
     return false
 end
 
--- アクティブなブロックのマージ先を見つける.
-local function findMergeForActiveBlock()
-	-- Activeブロックは新たに追加されたブロックまたは前回のマージで残ったブロック.
+-- 指定したブロックのマージ先を見つける.
+local function findMergeForBlock(sourceX, sourceY, activeValue)
 	-- 方向の優先順位は「下・左・右・上」の順で、最初に見つかったマージ可能なブロックの位置を返す.
     local fallbackSourceX = 0
     local fallbackSourceY = 0
     local fallbackTargetX = 0
     local fallbackTargetY = 0
-    local activeValue = board:get(activeMergeX, activeMergeY)
 
     for direction = DIRECTION_DOWN, DIRECTION_UP do
         local dx = 0
@@ -304,16 +305,16 @@ local function findMergeForActiveBlock()
         elseif direction == DIRECTION_UP then
             dy = -1      -- up
         end
-        local neighborX = activeMergeX + dx
-        local neighborY = activeMergeY + dy
+        local neighborX = sourceX + dx
+        local neighborY = sourceY + dy
         if activeValue ~= 0 and isPlayable(neighborX, neighborY)
             and board:get(neighborX, neighborY) == activeValue then
-            if mergeKeepsBlockConnected(activeMergeX, activeMergeY, neighborX, neighborY) then
-                return activeMergeX, activeMergeY, neighborX, neighborY
+            if mergeKeepsBlockConnected(sourceX, sourceY, neighborX, neighborY) then
+                return sourceX, sourceY, neighborX, neighborY
             end
             if fallbackSourceX == 0 then
-                fallbackSourceX = activeMergeX
-                fallbackSourceY = activeMergeY
+                fallbackSourceX = sourceX
+                fallbackSourceY = sourceY
                 fallbackTargetX = neighborX
                 fallbackTargetY = neighborY
             end
@@ -324,6 +325,13 @@ local function findMergeForActiveBlock()
         return fallbackSourceX, fallbackSourceY, fallbackTargetX, fallbackTargetY
     end
     return nil
+end
+
+-- アクティブなブロックのマージ先を見つける.
+local function findMergeForActiveBlock()
+	-- Activeブロックは新たに追加されたブロックまたは前回のマージで残ったブロック.
+    return findMergeForBlock(activeMergeX, activeMergeY,
+        board:get(activeMergeX, activeMergeY))
 end
 
 local function makeRotatedBoard(source, clockwise)
@@ -622,6 +630,54 @@ local function drawFallingBlock(rotationAngle)
     drawTileAt(pendingDropValue, px, py)
 end
 
+-- 落下させたときの着地点を薄いゴースト表示する.
+local function drawLandingPreview()
+    local landingX, landingY = findDropCell(cursorX)
+    if landingX == nil then
+        return
+    end
+
+    local px = BOARD_X + (landingX - 1) * CELL_SIZE
+    local py = BOARD_Y + (landingY - 1) * CELL_SIZE
+
+    gfx.setDitherPattern(0.9, gfx.image.kDitherTypeBayer8x8)
+    gfx.fillRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4)
+    gfx.setColor(gfx.kColorBlack)
+	-- 外枠は表示しない.
+    --gfx.drawRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4)
+    gfx.drawTextAligned(tostring(nextValue),
+        px + CELL_SIZE / 2, py + 14, kTextAlignment.center)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+
+	-- マージ予測方向の描画.
+    local _, _, targetX, targetY = findMergeForBlock(landingX, landingY, nextValue)
+    if targetX ~= nil then
+		-- 方向ベクトルを計算.
+        local sourceCenterX = BOARD_X + (landingX - 0.5) * CELL_SIZE
+        local sourceCenterY = BOARD_Y + (landingY - 0.5) * CELL_SIZE
+        local targetCenterX = BOARD_X + (targetX - 0.5) * CELL_SIZE
+        local targetCenterY = BOARD_Y + (targetY - 0.5) * CELL_SIZE
+        local directionX = targetX - landingX
+        local directionY = targetY - landingY
+        local arrowStartX = sourceCenterX + (targetCenterX - sourceCenterX) * 0.25
+        local arrowStartY = sourceCenterY + (targetCenterY - sourceCenterY) * 0.25
+        local arrowTipX = sourceCenterX + (targetCenterX - sourceCenterX) * 0.75
+        local arrowTipY = sourceCenterY + (targetCenterY - sourceCenterY) * 0.75
+        local arrowBaseX = arrowTipX - directionX * 7
+        local arrowBaseY = arrowTipY - directionY * 7
+        local perpendicularX = -directionY * 4
+        local perpendicularY = directionX * 4
+
+        gfx.setLineWidth(2)
+        gfx.drawLine(arrowStartX, arrowStartY, arrowTipX, arrowTipY)
+        gfx.setLineWidth(1)
+        gfx.drawLine(arrowTipX, arrowTipY,
+            arrowBaseX + perpendicularX, arrowBaseY + perpendicularY)
+        gfx.drawLine(arrowTipX, arrowTipY,
+            arrowBaseX - perpendicularX, arrowBaseY - perpendicularY)
+    end
+end
+
 local function drawDropPreview()
     local px = BOARD_X + (cursorX - 1) * CELL_SIZE
     local py = BOARD_Y - CELL_SIZE
@@ -739,6 +795,10 @@ local function drawBoard()
         drawMergeAnimation(previewRotationAngle)
     else
         drawBoardCells(nil, nil, previewRotationAngle)
+    end
+
+    if gameState == GAME_STATE_PLAYING then
+        drawLandingPreview()
     end
 
     if gameState == GAME_STATE_DROPPING then
