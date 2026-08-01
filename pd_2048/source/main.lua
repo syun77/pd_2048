@@ -133,6 +133,7 @@ local activeMergeY = 0
 local nextAnimationGameOver = false
 local holdAnimationSourceValue = 0 -- HOLD操作前の現在ブロック.
 local holdAnimationReturnValue = 0 -- 交換時にHOLDから現在位置へ移動するブロック.
+local rewindHoldAnimationActive = false -- HOLDを巻き戻している間のXOR演出.
 local finishHoldAnimation
 local rotationEvaluation = 0 -- 傾きプレビューの評価値.
 local previewImpulseRotationDegrees = 0 -- プレビュー反動の角度.
@@ -251,7 +252,7 @@ local function copyBoard(source)
 end
 
 -- 1手前の状態を履歴に保存する。
-local function saveUndoState()
+local function saveUndoState(action)
     local state = {
         board = copyBoard(board),
         score = score,
@@ -262,6 +263,7 @@ local function saveUndoState()
         consecutiveRandomBlockCount = consecutiveRandomBlockCount,
         hasRotation = false,
         rotationClockwise = false,
+        action = action,
         nextValues = {}
     }
     for i = 1, NEXT_QUEUE_COUNT do
@@ -286,6 +288,14 @@ local function undoLastTurn()
     end
 
     local state = table.remove(undoStates)
+    local rewindHoldAnimation = state.action == "HOLD"
+    rewindHoldAnimationActive = rewindHoldAnimation
+    if rewindHoldAnimation then
+        -- HOLD操作後に表示されていたブロックを、復元前のHOLDへ戻す。
+        -- 復元前のHOLDブロックは、復元後の現在ブロックへ向かわせる。
+        holdAnimationSourceValue = nextValues[1]
+        holdAnimationReturnValue = holdValue
+    end
     rewindUsesRemaining -= 1
     local currentBoard = board
     board = state.board
@@ -321,7 +331,13 @@ local function undoLastTurn()
         animationDuration = 0.38
         sound:play_se("rotate")
         gameState = GAME_STATE_UNDO_ROTATING
+    elseif rewindHoldAnimation then
+        animationProgress = 0
+        animationDuration = 0.30
+        gameState = GAME_STATE_HOLD_ANIM
     else
+        holdAnimationSourceValue = 0
+        holdAnimationReturnValue = 0
         gameState = GAME_STATE_PLAYING
     end
     return true
@@ -853,7 +869,7 @@ local function holdCurrentBlock()
         return
     end
 
-    saveUndoState()
+    saveUndoState("HOLD")
 
     local currentValue = nextValues[1]
     holdAnimationSourceValue = currentValue
@@ -868,6 +884,7 @@ local function holdCurrentBlock()
     end
 
     holdAvailable = false
+    rewindHoldAnimationActive = false
     sound:play_se("hold")
 
     animationProgress = 0
@@ -879,6 +896,7 @@ end
 finishHoldAnimation = function()
     holdAnimationSourceValue = 0
     holdAnimationReturnValue = 0
+    rewindHoldAnimationActive = false
     if not canDropInAnyColumn() then
         beginGameOver()
     else
@@ -899,7 +917,7 @@ local function beginDrop()
     end
 
     -- 落下開始.
-    saveUndoState()
+    saveUndoState("DROP")
     combo = 0
     comboBonusScore = 0
     comboDisplayFrame = 0
@@ -1524,7 +1542,7 @@ function pd.update()
 	-- FPSを描画.
 	pd.drawFPS(4, 4)
 
-    if gameState == GAME_STATE_UNDO_ROTATING then
+    if gameState == GAME_STATE_UNDO_ROTATING or rewindHoldAnimationActive then
         -- 巻き戻し中であることを示すため、画面全体をXOR反転する。
         -- kDrawModeXORは画像・フォント用で、fillRectには適用されないため、
         -- プリミティブ用のkColorXORを使う。
