@@ -18,6 +18,14 @@ local NEXT_BOX_X <const> = 343
 local NEXT_BOX_Y <const> = 48
 local NEXT_BOX_WIDTH <const> = 25
 local NEXT_BOX_HEIGHT <const> = 20
+local DANGER_ICON_SIZE <const> = 20
+local DANGER_ICON_OFFSET <const> = 4 -- 盤面の外周からアイコンまでの距離.
+local DANGER_ICON_BOTTOM_X <const> = BOARD_X + (BOARD_SIZE * CELL_SIZE - DANGER_ICON_SIZE) * 0.5
+local DANGER_ICON_BOTTOM_Y <const> = BOARD_Y + BOARD_SIZE * CELL_SIZE + DANGER_ICON_OFFSET
+local DANGER_ICON_LEFT_X <const> = BOARD_X - DANGER_ICON_SIZE - DANGER_ICON_OFFSET
+local DANGER_ICON_LEFT_Y <const> = BOARD_Y + (BOARD_SIZE * CELL_SIZE - DANGER_ICON_SIZE) * 0.5
+local DANGER_ICON_RIGHT_X <const> = BOARD_X + BOARD_SIZE * CELL_SIZE + DANGER_ICON_OFFSET
+local DANGER_ICON_RIGHT_Y <const> = DANGER_ICON_LEFT_Y
 -- 方向定数.
 local DIRECTION_DOWN <const> = 1
 local DIRECTION_LEFT <const> = 2
@@ -365,6 +373,29 @@ local function canDropInAnyColumn()
     return false
 end
 
+-- 外周の各辺が5マスすべて埋まっているかを判定する.
+local function getDangerEdges()
+    local bottomFull = true
+    for x = 1, BOARD_SIZE do
+        if not isOccupied(x, BOARD_SIZE) then
+            bottomFull = false
+        end
+    end
+
+    local leftFull = true
+    local rightFull = true
+    for y = 1, BOARD_SIZE do
+        if not isOccupied(1, y) then
+            leftFull = false
+        end
+        if not isOccupied(BOARD_SIZE, y) then
+            rightFull = false
+        end
+    end
+
+    return bottomFull, leftFull, rightFull
+end
+
 local function finishTurn()
     rotationStartBoard = nil
     rotationEndBoard = nil
@@ -559,6 +590,37 @@ end
 
 local function drawCenteredText(text, y)
     gfx.drawTextAligned(text, 200, y, kTextAlignment.center)
+end
+
+-- 危険標識風のアイコンを描画する.
+local function drawDangerIcon(x, y, size)
+    local centerX = x + size * 0.5
+    local topY = y + 1
+    local bottomY = y + size - 1
+    local leftX = x + 1
+    local rightX = x + size - 1
+
+    gfx.setLineWidth(2)
+    gfx.drawLine(centerX, topY, leftX, bottomY)
+    gfx.drawLine(leftX, bottomY, rightX, bottomY)
+    gfx.drawLine(rightX, bottomY, centerX, topY)
+
+    gfx.drawLine(centerX, y + 6, centerX, y + 12)
+    gfx.fillCircleAtPoint(centerX, y + 16, 1)
+    gfx.setLineWidth(1)
+end
+
+local function drawDangerIcons()
+    local bottomDanger, leftDanger, rightDanger = getDangerEdges()
+    if bottomDanger then
+        drawDangerIcon(DANGER_ICON_BOTTOM_X, DANGER_ICON_BOTTOM_Y, DANGER_ICON_SIZE)
+    end
+    if leftDanger then
+        drawDangerIcon(DANGER_ICON_LEFT_X, DANGER_ICON_LEFT_Y, DANGER_ICON_SIZE)
+    end
+    if rightDanger then
+        drawDangerIcon(DANGER_ICON_RIGHT_X, DANGER_ICON_RIGHT_Y, DANGER_ICON_SIZE)
+    end
 end
 
 local function drawTileAt(value, px, py)
@@ -828,6 +890,7 @@ local function drawHeader()
         NEXT_BOX_Y + 3,
         kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    drawDangerIcons()
 end
 
 local function drawTitle()
