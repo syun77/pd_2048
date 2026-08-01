@@ -18,10 +18,10 @@ local NEXT_BOX_Y <const> = 48
 local NEXT_BOX_WIDTH <const> = 25
 local NEXT_BOX_HEIGHT <const> = 20
 
-local board = Array2D(BOARD_SIZE, BOARD_SIZE, 0)
-local cursorX = 3
-local nextValue = 2
-local followingValue = 2
+local board = Array2D(BOARD_SIZE, BOARD_SIZE, 0) -- 盤面.
+local cursorX = 3 -- カーソル位置.
+local nextValue = 2 -- nextブロック.
+local followingValue = 2 -- nextの次のブロック.
 local score = 0
 local highScore = 0
 local gameState = "TITLE"
@@ -101,6 +101,7 @@ local function getMaxTileValue()
     return maxValue
 end
 
+-- ランダムでブロックを抽選する.
 local function randomBlockValue()
     local maxHalf = math.floor(getMaxTileValue() / 2)
 
@@ -157,10 +158,11 @@ local function findDropCell(x)
     return nil
 end
 
+-- スコアを加算.
 local function addScore(value)
     score += value
     if score > highScore then
-        highScore = score
+        highScore = score -- ハイスコア更新.
     end
 end
 
@@ -390,6 +392,7 @@ local function startGame()
     playGameBgm()
 end
 
+-- 落下開始.
 local function beginDrop()
     local x, y = findDropCell(cursorX)
     if x == nil then
