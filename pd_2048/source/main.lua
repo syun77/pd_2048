@@ -13,9 +13,13 @@ local BOARD_SIZE <const> = 5
 local CENTER <const> = 3
 local CELL_SIZE <const> = 32
 local LAYOUT_BOARD_OFFSET_X <const> = 32 -- 盤面の横方向の調整値.
-local LAYOUT_NEXT_OFFSET_X <const> = 8 -- NEXTブロックの横方向の調整値.
+local LAYOUT_NEXT_OFFSET_X <const> = -24 -- NEXTブロックの横方向の調整値.
 local BOARD_X <const> = 100 + LAYOUT_BOARD_OFFSET_X
 local BOARD_Y <const> = 48
+-- 盤面とNEXTの間にある右上の空き領域をHOLD表示に使用する.
+local HOLD_BOX_X <const> = 48
+local HOLD_LABEL_X <const> = 48
+local HOLD_BOX_Y <const> = 48
 local NEXT_BOX_X <const> = 343 + LAYOUT_NEXT_OFFSET_X
 local NEXT_LABEL_X <const> = 343 + LAYOUT_NEXT_OFFSET_X
 local PANEL_OFFSET_X <const> = 0 -- 左側の情報表示の横方向の調整値.
@@ -85,6 +89,8 @@ for i = 1, NEXT_QUEUE_COUNT do
     nextValues[i] = 2
 end
 local score = 0
+local holdValue = 0 -- HOLD中のブロック。0は空.
+local holdAvailable = true -- 現在の手でHOLDできるか.
 local undoStates = {}
 local rewindUsesRemaining = 0
 local combo = 0
@@ -231,6 +237,8 @@ local function saveUndoState()
         board = copyBoard(board),
         score = score,
         cursorX = cursorX,
+        holdValue = holdValue,
+        holdAvailable = holdAvailable,
         hasRotation = false,
         rotationClockwise = false,
         nextValues = {}
@@ -262,6 +270,8 @@ local function undoLastTurn()
     board = state.board
     score = state.score
     cursorX = state.cursorX
+    holdValue = state.holdValue
+    holdAvailable = state.holdAvailable
     nextValues = state.nextValues
 
     combo = 0
@@ -515,6 +525,8 @@ end
 local function finishTurn()
     rotationStartBoard = nil
     rotationEndBoard = nil
+    -- ブロックを落として手が完了したので、次の手でHOLD可能にする.
+    holdAvailable = true
     advanceNextQueue()
     nextAnimationGameOver = not canDropInAnyColumn()
     animationProgress = 0
@@ -687,6 +699,8 @@ end
 local function startGame()
     clearBoard()
     score = 0
+    holdValue = 0
+    holdAvailable = true
     undoStates = {}
     rewindUsesRemaining = MAX_REWIND_USES
     combo = 0
@@ -703,6 +717,34 @@ local function startGame()
     message = ""
     crisisBgmActive = false
     playGameBgm()
+end
+
+-- 現在のブロックをHOLDする。HOLD自体を1手として履歴に保存する.
+local function holdCurrentBlock()
+    if not holdAvailable then
+        setMessage("HOLD USED", 700)
+        return
+    end
+
+    saveUndoState()
+
+    local currentValue = nextValues[1]
+    if holdValue == 0 then
+        -- 初回は現在ブロックをHOLDし、NEXTの先頭を現在ブロックにする.
+        holdValue = currentValue
+        advanceNextQueue()
+    else
+        -- HOLD済みの場合は現在ブロックと交換する.
+        holdValue, nextValues[1] = currentValue, holdValue
+    end
+
+    holdAvailable = false
+    sound:play_se("decide")
+
+    -- HOLDで出現したブロックをどの列にも置けない場合はゲームオーバーにする.
+    if not canDropInAnyColumn() then
+        beginGameOver()
+    end
 end
 
 -- 落下開始.
@@ -1122,6 +1164,28 @@ local function drawNextBlocks()
     end
 end
 
+-- HOLDブロックの描画。右上の専用領域を使用する.
+local function drawHoldBlock()
+    gfx.drawText("HOLD", HOLD_LABEL_X, 20)
+    gfx.setLineWidth(1)
+    gfx.drawRect(HOLD_BOX_X, HOLD_BOX_Y, NEXT_BOX_WIDTH, NEXT_BOX_HEIGHT)
+
+    if holdValue == 0 then
+        return
+    end
+
+    local shade = math.min(10, math.floor(math.log(holdValue, 2)))
+    if shade % 2 == 0 then
+        gfx.fillRect(HOLD_BOX_X, HOLD_BOX_Y, NEXT_BOX_WIDTH, NEXT_BOX_HEIGHT)
+        gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    end
+    gfx.drawTextAligned(tostring(holdValue),
+        HOLD_BOX_X + NEXT_BOX_WIDTH * 0.5,
+        HOLD_BOX_Y + 3,
+        kTextAlignment.center)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+end
+
 local function drawHeader()
 	-- スコアの描画.
     gfx.drawTextAligned("SCORE: ", 12 + PANEL_OFFSET_X, PANEL_OFFSET_Y, kTextAlignment.left)
@@ -1130,6 +1194,7 @@ local function drawHeader()
     drawCombo()
 
 	-- NEXtの描画.
+	drawHoldBlock()
 	drawNextBlocks()
 
 	-- 危険アイコンの描画.
@@ -1175,7 +1240,9 @@ function pd.update()
     end
 
     if gameState == GAME_STATE_PLAYING then
-        if pd.buttonJustPressed(pd.kButtonLeft) then
+        if pd.buttonJustPressed(pd.kButtonA) then
+            holdCurrentBlock()
+        elseif pd.buttonJustPressed(pd.kButtonLeft) then
             moveCursor(-1)
         elseif pd.buttonJustPressed(pd.kButtonRight) then
             moveCursor(1)
