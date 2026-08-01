@@ -199,6 +199,7 @@ function Sound:setBgmRandomMode(mode)
 		-- すでに同じモードを設定していたら変更しない.
 		return
 	end
+	print("Sound:setBgmRandomMode() - changing BGM random mode to: " .. tostring(mode))
 	self.bgmRandomMode = mode
 	self.bgmRandomCount = 0 -- ランダム再生回数をリセット.
 end

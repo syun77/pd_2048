@@ -88,6 +88,7 @@ local activeMergeY = 0
 local nextAnimationGameOver = false
 local rotationEvaluation = 0 -- 傾きプレビューの評価値.
 local previewImpulseRotationDegrees = 0 -- プレビュー反動の角度.
+local crisisBgmActive = false
 
 -- メニューBGMの再生.
 local function playMenuBgm()
@@ -548,6 +549,7 @@ local function startGame()
     spawnInitialBlocks()
     gameState = GAME_STATE_PLAYING
     message = ""
+    crisisBgmActive = false
     playGameBgm()
 end
 
@@ -627,6 +629,14 @@ local function drawDangerIcons()
     local bottomDanger, bottomCritical,
         leftDanger, leftCritical,
         rightDanger, rightCritical = getDangerEdges()
+    local dangerActive = bottomDanger or leftDanger or rightDanger
+    if dangerActive and not crisisBgmActive then
+        sound:setBgmRandomMode(BGMRandomMode.CRISIS)
+        crisisBgmActive = true
+    elseif not dangerActive and crisisBgmActive then
+		crisisBgmActive = false
+    end
+
     if bottomDanger then
         drawDangerIcon(DANGER_ICON_BOTTOM_X, DANGER_ICON_BOTTOM_Y, DANGER_ICON_SIZE, bottomCritical)
     end
