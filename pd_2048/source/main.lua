@@ -850,6 +850,29 @@ local function startGame()
     comboDisplayFrame = 0
     comboSoundPlayed = false
     cursorX = CENTER
+    rewindHoldStartedAt = nil
+    rewindHoldTriggered = false
+    rewindHoldAnimationActive = false
+    animationProgress = 0
+    animationDuration = 0
+    pendingDropX = 0
+    pendingDropY = 0
+    pendingDropValue = 0
+    rotationStartBoard = nil
+    rotationEndBoard = nil
+    rotationClockwise = false
+    mergeSourceX = 0
+    mergeSourceY = 0
+    mergeTargetX = 0
+    mergeTargetY = 0
+    mergeValue = 0
+    mergeNextAction = "FINISH"
+    activeMergeX = 0
+    activeMergeY = 0
+    nextAnimationGameOver = false
+    holdAnimationSourceValue = 0
+    holdAnimationReturnValue = 0
+    rotationEvaluation = 0
     nextValues = {}
     for i = 1, NEXT_QUEUE_COUNT do
         nextValues[i] = randomBlockValue()
@@ -1556,3 +1579,8 @@ end
 loadHighScore()
 playMenuBgm()
 pd.display.setRefreshRate(DEFAULT_REFRESH_RATE)
+
+-- Playdateのシステムメニューからゲームを最初からやり直せるようにする.
+pd.getSystemMenu():addMenuItem("Retry", function()
+    startGame()
+end)
