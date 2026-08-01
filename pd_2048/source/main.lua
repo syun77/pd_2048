@@ -277,13 +277,18 @@ local function saveUndoState(action)
 end
 
 -- 直前の手を取り消す。取り消しは最大MAX_UNDO_COUNT手分可能。
+local function isRewindAvailable()
+    return rewindUsesRemaining > 0 and #undoStates > 0
+end
+
+-- 巻き戻しを実行.
 local function undoLastTurn()
-    if rewindUsesRemaining <= 0 then
-        setMessage("NO REWINDS", 700)
-        return false
-    end
-    if #undoStates == 0 then
-        setMessage("NO UNDO", 700)
+    if not isRewindAvailable() then
+        if rewindUsesRemaining <= 0 then
+            setMessage("NO REWINDS", 700)
+        else
+            setMessage("NO UNDO", 700)
+        end
         return false
     end
 
@@ -345,6 +350,16 @@ end
 
 -- Bボタン長押しによる巻き戻し入力を開始する。
 local function beginRewindHold()
+    if not isRewindAvailable() then
+		-- 巻き戻しはできない.
+		if rewindUsesRemaining <= 0 then
+            setMessage("NO REWINDS", 700)
+        else
+            setMessage("NO UNDO", 700)
+        end
+		sound:play_se("error")
+        return
+    end
     rewindHoldStartedAt = pd.getCurrentTimeMilliseconds()
     rewindHoldTriggered = false
 	sound:play_se("rewind_button")
@@ -356,10 +371,17 @@ local function endRewindHold()
     rewindHoldTriggered = false
 end
 
--- Bボタンの長押し時間を更新し、1秒到達時にUNDOを実行する。
+-- Bボタンの長押し時間を更新し、
+-- 1秒 (REWIND_HOLD_DURATION_MS) 到達時にUNDOを実行する。
 local function updateRewindHold()
+    if not isRewindAvailable() then
+        endRewindHold()
+        return
+    end
+
     if rewindHoldStartedAt == nil or not pd.buttonIsPressed(pd.kButtonB) then
         if rewindHoldStartedAt ~= nil then
+			-- 長押し完了.
             endRewindHold()
         end
         return
@@ -496,6 +518,11 @@ local function findDropCell(x)
         end
     end
     return nil
+end
+
+-- 現在のカーソル位置からブロックを落とせるかどうかを判定する.
+local function isDropAvailable()
+    return findDropCell(cursorX) ~= nil
 end
 
 -- スコアを加算.
@@ -888,6 +915,7 @@ end
 -- 現在のブロックをHOLDする。HOLD自体を1手として履歴に保存する.
 local function holdCurrentBlock()
     if not holdAvailable then
+        sound:play_se("error")
         setMessage("HOLD USED", 700)
         return
     end
@@ -929,15 +957,13 @@ end
 
 -- 落下開始.
 local function beginDrop()
-    local x, y = findDropCell(cursorX)
-    if x == nil then
+    if not isDropAvailable() then
         setMessage("NO SPACE", 700)
-        if not canDropInAnyColumn() then
-			-- ゲームオーバー開始.
-            beginGameOver()
-        end
+		sound:play_se("error")
         return
     end
+
+    local x, y = findDropCell(cursorX)
 
     -- 落下開始.
     saveUndoState("DROP")
@@ -1128,10 +1154,11 @@ end
 
 -- 落下させたときの着地点を薄いゴースト表示する.
 local function drawLandingPreview()
-    local landingX, landingY = findDropCell(cursorX)
-    if landingX == nil then
+    if not isDropAvailable() then
         return
     end
+
+    local landingX, landingY = findDropCell(cursorX)
 
     local px = BOARD_X + (landingX - 1) * CELL_SIZE
     local py = BOARD_Y + (landingY - 1) * CELL_SIZE
@@ -1463,8 +1490,7 @@ end
 
 -- 巻き戻し可能であることを表示する.
 local function drawRewindHint()
-    if gameState == GAME_STATE_PLAYING
-        and #undoStates > 0 and rewindUsesRemaining > 0 then
+    if gameState == GAME_STATE_PLAYING and isRewindAvailable() then
 		-- 長押し中は表示とゲージをXORで描画する。
         local isHolding = rewindHoldStartedAt ~= nil
         local rewindText = "B: REWIND [" .. tostring(rewindUsesRemaining) .. "]"
@@ -1519,8 +1545,10 @@ function pd.update()
             or pd.buttonJustPressed(pd.kButtonRight) then
             updateCursorKeyRepeat()
         elseif pd.buttonJustPressed(pd.kButtonDown) then
+			-- 落下開始.
             beginDrop()
         elseif pd.buttonJustPressed(pd.kButtonB) then
+			-- 巻き戻し判定開始.
             beginRewindHold()
         elseif cursorRepeatDirection ~= 0 then
             updateCursorKeyRepeat()
