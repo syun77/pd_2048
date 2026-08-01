@@ -24,6 +24,8 @@ local NEXT_BOX_Y <const> = 48
 local NEXT_BOX_WIDTH <const> = 25
 local NEXT_BOX_HEIGHT <const> = 20
 local NEXT_PREVIEW_COUNT <const> = 3
+-- 落下対象を除いたブロックを表示するため、表示数より1つ多く保持する.
+local NEXT_QUEUE_COUNT <const> = NEXT_PREVIEW_COUNT + 1
 local NEXT_BOX_GAP <const> = 4
 local MAX_UNDO_COUNT <const> = 1
 local MAX_REWIND_USES <const> = 3
@@ -78,8 +80,8 @@ local PREVIEW_IMPULSE_DECAY <const> = 0.7
 
 local board = Array2D(BOARD_SIZE, BOARD_SIZE, 0) -- 盤面.
 local cursorX = 3 -- カーソル位置.
-local nextValues = {} -- nextブロックから順番に並んだ先読みキュー.
-for i = 1, NEXT_PREVIEW_COUNT do
+local nextValues = {} -- 落下対象を先頭にした先読みキュー.
+for i = 1, NEXT_QUEUE_COUNT do
     nextValues[i] = 2
 end
 local score = 0
@@ -233,7 +235,7 @@ local function saveUndoState()
         rotationClockwise = false,
         nextValues = {}
     }
-    for i = 1, NEXT_PREVIEW_COUNT do
+    for i = 1, NEXT_QUEUE_COUNT do
         state.nextValues[i] = nextValues[i]
     end
 
@@ -501,9 +503,19 @@ local function getDangerEdges()
         rightCount >= 4, rightCount == BOARD_SIZE
 end
 
+-- 次の手番のブロックを配り、先読みキューを更新する.
+-- 落下開始時ではなく、マージ・回転まで完了した手番の切り替え時に行う.
+local function advanceNextQueue()
+    for i = 1, NEXT_QUEUE_COUNT - 1 do
+        nextValues[i] = nextValues[i + 1]
+    end
+    nextValues[NEXT_QUEUE_COUNT] = randomBlockValue()
+end
+
 local function finishTurn()
     rotationStartBoard = nil
     rotationEndBoard = nil
+    advanceNextQueue()
     nextAnimationGameOver = not canDropInAnyColumn()
     animationProgress = 0
     animationDuration = 0.30
@@ -682,7 +694,7 @@ local function startGame()
     comboSoundPlayed = false
     cursorX = CENTER
     nextValues = {}
-    for i = 1, NEXT_PREVIEW_COUNT do
+    for i = 1, NEXT_QUEUE_COUNT do
         nextValues[i] = randomBlockValue()
     end
     previewImpulseRotationDegrees = 0
@@ -714,10 +726,6 @@ local function beginDrop()
     pendingDropY = y
     pendingDropValue = nextValues[1]
     rotationEvaluation = 0
-    for i = 1, NEXT_PREVIEW_COUNT - 1 do
-        nextValues[i] = nextValues[i + 1]
-    end
-    nextValues[NEXT_PREVIEW_COUNT] = randomBlockValue()
     animationProgress = 0
     animationDuration = math.max(0.18, (y + 1) * 0.07)
 	sound:play_se("fall")
@@ -1091,7 +1099,13 @@ local function drawNextBlocks()
 			gfx.setLineWidth(1)
 		end
 
-        local value = nextValues[i]
+        -- 通常時は落下対象(nextValues[1])を除き、次の次から表示する.
+        -- NEXT_ANIM中だけは、アニメーション元のブロックを1番目に表示する.
+        local valueIndex = i + 1
+        if gameState == GAME_STATE_NEXT_ANIM then
+            valueIndex = i
+        end
+        local value = nextValues[valueIndex]
         local boxY = NEXT_BOX_Y + (i - 1) * (NEXT_BOX_HEIGHT + NEXT_BOX_GAP)
         local shade = math.min(10, math.floor(math.log(value, 2)))
         if shade % 2 == 0 then
