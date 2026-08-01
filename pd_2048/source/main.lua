@@ -1,9 +1,12 @@
 import "CoreLibs/graphics"
 import "CoreLibs/ui"
 import "array2d"
+import "game_context"
 
 local pd <const> = playdate
 local gfx <const> = pd.graphics
+local gameContext <const> = GameContext.getInstance()
+local sound <const> = gameContext.sound
 
 local BOARD_SIZE <const> = 5
 local CENTER <const> = 3
@@ -41,6 +44,16 @@ local mergeNextAction = "FINISH"
 local activeMergeX = 0
 local activeMergeY = 0
 local nextAnimationGameOver = false
+
+local function playMenuBgm()
+    sound:setBgmRandomMode(BGMRandomMode.MENU)
+    sound:play_bgm(-1, false)
+end
+
+local function playGameBgm()
+    sound:setBgmRandomMode(BGMRandomMode.NOMAL)
+    sound:play_bgm(-1, true)
+end
 
 local function isCenter(x, y)
     return x == CENTER and y == CENTER
@@ -267,6 +280,7 @@ local function finishNextAnimation()
     if nextAnimationGameOver then
         saveHighScore()
         gameState = "GAME_OVER"
+        playMenuBgm()
     else
         gameState = "PLAYING"
     end
@@ -373,6 +387,7 @@ local function startGame()
     spawnInitialBlocks()
     gameState = "PLAYING"
     message = ""
+    playGameBgm()
 end
 
 local function beginDrop()
@@ -382,6 +397,7 @@ local function beginDrop()
         if not canDropInAnyColumn() then
             saveHighScore()
             gameState = "GAME_OVER"
+            playMenuBgm()
         end
         return
     end
@@ -638,4 +654,5 @@ function pd.update()
 end
 
 loadHighScore()
+playMenuBgm()
 pd.display.setRefreshRate(30)
