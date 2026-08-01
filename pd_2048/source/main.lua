@@ -12,9 +12,14 @@ local DEFAULT_REFRESH_RATE <const> = 30 -- ディスプレイの更新レート 
 local BOARD_SIZE <const> = 5
 local CENTER <const> = 3
 local CELL_SIZE <const> = 32
-local BOARD_X <const> = 100
+local LAYOUT_BOARD_OFFSET_X <const> = 32 -- 盤面の横方向の調整値.
+local LAYOUT_NEXT_OFFSET_X <const> = 8 -- NEXTブロックの横方向の調整値.
+local BOARD_X <const> = 100 + LAYOUT_BOARD_OFFSET_X
 local BOARD_Y <const> = 48
-local NEXT_BOX_X <const> = 343
+local NEXT_BOX_X <const> = 343 + LAYOUT_NEXT_OFFSET_X
+local NEXT_LABEL_X <const> = 343 + LAYOUT_NEXT_OFFSET_X
+local PANEL_OFFSET_X <const> = 0 -- 左側の情報表示の横方向の調整値.
+local PANEL_OFFSET_Y <const> = 128 -- 左側の情報表示の縦方向の調整値.
 local NEXT_BOX_Y <const> = 48
 local NEXT_BOX_WIDTH <const> = 25
 local NEXT_BOX_HEIGHT <const> = 20
@@ -1063,15 +1068,15 @@ local function drawCombo()
 			< COMBO_BLINK_ON_FRAMES
 		-- 点滅中は枠を描画.
 		if isBlinkOn then
-			gfx.drawRoundRect(4, 50, 88, 24, 4)
+			gfx.drawRoundRect(4 + PANEL_OFFSET_X, 50 + PANEL_OFFSET_Y, 88, 24, 4)
 		end
 	end
-	gfx.drawText("COMBO: " .. tostring(combo), 12, 54)
+	gfx.drawText("COMBO: " .. tostring(combo), 12 + PANEL_OFFSET_X, 54 + PANEL_OFFSET_Y)
 end
 
 -- NEXTブロックの描画.
 local function drawNextBlocks()
-    gfx.drawText("NEXT", 300, 50)
+    gfx.drawText("NEXT", NEXT_LABEL_X, 20)
     for i = 1, NEXT_PREVIEW_COUNT do
 		if i == 1 then
 			-- 1番目は点滅する.
@@ -1105,7 +1110,8 @@ end
 
 local function drawHeader()
 	-- スコアの描画.
-    gfx.drawTextAligned("SCORE " .. tostring(score), 12, 24, kTextAlignment.left)
+    gfx.drawTextAligned("SCORE: ", 12 + PANEL_OFFSET_X, PANEL_OFFSET_Y, kTextAlignment.left)
+    gfx.drawTextAligned(tostring(score), 80 + PANEL_OFFSET_X, 24 + PANEL_OFFSET_Y, kTextAlignment.right)
 	-- コンボ数の描画.
     drawCombo()
 
