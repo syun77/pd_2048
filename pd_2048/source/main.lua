@@ -10,6 +10,8 @@ local gameContext <const> = GameContext.getInstance()
 local sound <const> = gameContext.sound
 
 local DEFAULT_REFRESH_RATE <const> = 30 -- ディスプレイの更新レート (FPS。フレーム毎秒).
+local CURSOR_KEY_REPEAT_INITIAL_DELAY_MS <const> = 300 -- 左右キーを押し続けたとき、最初にリピートするまでの待ち時間.
+local CURSOR_KEY_REPEAT_INTERVAL_MS <const> = 80 -- 左右キーを押し続けたときのリピート間隔.
 local BOARD_SIZE <const> = 5
 local CENTER <const> = 3
 local CELL_SIZE <const> = 32
@@ -34,7 +36,7 @@ local NEXT_QUEUE_COUNT <const> = NEXT_PREVIEW_COUNT + 1
 local NEXT_BOX_GAP <const> = 4
 local MAX_UNDO_COUNT <const> = 1
 local MAX_REWIND_USES <const> = 3
-local REWIND_HOLD_DURATION_MS <const> = 500
+local REWIND_HOLD_DURATION_MS <const> = 800
 local REWIND_GAUGE_WIDTH <const> = 116
 -- 危険アイコン関連.
 local DANGER_ICON_SIZE <const> = 20
@@ -135,6 +137,8 @@ local finishHoldAnimation
 local rotationEvaluation = 0 -- 傾きプレビューの評価値.
 local previewImpulseRotationDegrees = 0 -- プレビュー反動の角度.
 local crisisBgmActive = false
+local cursorRepeatDirection = 0
+local cursorRepeatNextAt = nil
 
 -- メニューBGMの再生.
 local function playMenuBgm()
@@ -926,6 +930,35 @@ local function moveCursor(delta)
 	end
 end
 
+-- 左右キーのリピート状態を解除する.
+local function resetCursorKeyRepeat()
+    cursorRepeatDirection = 0
+    cursorRepeatNextAt = nil
+end
+
+-- 左右キーの押しっぱなしによるカーソル移動を処理する.
+local function updateCursorKeyRepeat()
+    local now = pd.getCurrentTimeMilliseconds()
+
+    if pd.buttonJustPressed(pd.kButtonLeft) then
+        moveCursor(-1)
+        cursorRepeatDirection = -1
+        cursorRepeatNextAt = now + CURSOR_KEY_REPEAT_INITIAL_DELAY_MS
+    elseif pd.buttonJustPressed(pd.kButtonRight) then
+        moveCursor(1)
+        cursorRepeatDirection = 1
+        cursorRepeatNextAt = now + CURSOR_KEY_REPEAT_INITIAL_DELAY_MS
+    elseif cursorRepeatDirection ~= 0 then
+        local button = cursorRepeatDirection < 0 and pd.kButtonLeft or pd.kButtonRight
+        if not pd.buttonIsPressed(button) then
+            resetCursorKeyRepeat()
+        elseif now >= cursorRepeatNextAt then
+            moveCursor(cursorRepeatDirection)
+            cursorRepeatNextAt = now + CURSOR_KEY_REPEAT_INTERVAL_MS
+        end
+    end
+end
+
 local function drawCenteredText(text, y)
     gfx.drawTextAligned(text, 200, y, kTextAlignment.center)
 end
@@ -1424,6 +1457,10 @@ end
 function pd.update()
     gfx.clear(gfx.kColorWhite)
 
+    if gameState ~= GAME_STATE_PLAYING then
+        resetCursorKeyRepeat()
+    end
+
     if gameState == GAME_STATE_TITLE then
         drawTitle()
         if pd.buttonJustPressed(pd.kButtonA) then
@@ -1437,14 +1474,15 @@ function pd.update()
         updateRewindHold()
         if pd.buttonJustPressed(pd.kButtonA) then
             holdCurrentBlock()
-        elseif pd.buttonJustPressed(pd.kButtonLeft) then
-            moveCursor(-1)
-        elseif pd.buttonJustPressed(pd.kButtonRight) then
-            moveCursor(1)
+        elseif pd.buttonJustPressed(pd.kButtonLeft)
+            or pd.buttonJustPressed(pd.kButtonRight) then
+            updateCursorKeyRepeat()
         elseif pd.buttonJustPressed(pd.kButtonDown) then
             beginDrop()
         elseif pd.buttonJustPressed(pd.kButtonB) then
             beginRewindHold()
+        elseif cursorRepeatDirection ~= 0 then
+            updateCursorKeyRepeat()
         end
     elseif gameState == GAME_STATE_PAUSED then
         if pd.buttonJustPressed(pd.kButtonB) then
@@ -1480,7 +1518,7 @@ function pd.update()
     elseif gameState == GAME_STATE_GAME_OVER then
         drawGameOver()
     elseif message ~= "" and pd.getCurrentTimeMilliseconds() < messageUntil then
-        drawCenteredText(message, 226)
+        drawCenteredText(message, 216)
     end
 
 	-- FPSを描画.
