@@ -31,6 +31,19 @@ local GAME_STATE_ROTATING <const> = "ROTATING"
 local GAME_STATE_NEXT_ANIM <const> = "NEXT_ANIM"
 local GAME_STATE_PAUSED <const> = "PAUSED"
 local GAME_STATE_GAME_OVER <const> = "GAME_OVER"
+-- 傾きをわかりやすく見せるための回転角度の最大値と、1ポイントあたりの回転角度.
+local PREVIEW_ROTATION_MAX_DEGREES <const> = 10
+local PREVIEW_ROTATION_DEGREES_PER_POINT <const> = 0.1
+-- 回転方向の評価値.
+local ROTATION_EVALUATION_POSITION_RIGHT <const> = 10 -- 右側の位置を評価する値.
+local ROTATION_EVALUATION_POSITION_LEFT <const> = -10 -- 左側の位置を評価する値.
+local ROTATION_EVALUATION_POSITION_CENTER <const> = 0 -- 中央の位置を評価する値.
+local ROTATION_EVALUATION_DROP_POSITION_WEIGHT <const> = 20 -- 落下位置の評価値の重み.
+local ROTATION_EVALUATION_DISAPPEARED_BLOCK_WEIGHT <const> = -10 -- 消えたブロックの評価値の重み.
+local ROTATION_EVALUATION_MERGED_BLOCK_WEIGHT <const> = 10 -- マージされたブロックの評価値の重み.
+local ROTATION_EVALUATION_MERGE_DIRECTION_LEFT <const> = -5 -- マージ方向の評価値 (左方向).
+local ROTATION_EVALUATION_MERGE_DIRECTION_RIGHT <const> = 5 -- マージ方向の評価値 (右方向).
+local ROTATION_EVALUATION_VERTICAL_DIRECTION_WEIGHT <const> = 10 -- マージ方向が上下の場合の評価値の重み.
 
 local board = Array2D(BOARD_SIZE, BOARD_SIZE, 0) -- 盤面.
 local cursorX = 3 -- カーソル位置.
@@ -80,27 +93,27 @@ end
 -- 右側を正、左側を負、中央を0とする.
 local function getPositionEvaluation(x)
     if x > CENTER then
-        return 1
+        return ROTATION_EVALUATION_POSITION_RIGHT
     elseif x < CENTER then
-        return -1
+        return ROTATION_EVALUATION_POSITION_LEFT
     end
-    return 0
+    return ROTATION_EVALUATION_POSITION_CENTER
 end
 
 -- マージ方向の評価を返す.
 -- 左方向を負、右方向を正とし、上下方向はマージ後の位置を評価する.
 local function getMergeDirectionEvaluation(sourceX, targetX)
     if targetX < sourceX then
-        return -1
+        return ROTATION_EVALUATION_MERGE_DIRECTION_LEFT
     elseif targetX > sourceX then
-        return 1
+        return ROTATION_EVALUATION_MERGE_DIRECTION_RIGHT
     end
-    return getPositionEvaluation(targetX)
+    return ROTATION_EVALUATION_VERTICAL_DIRECTION_WEIGHT * getPositionEvaluation(targetX)
 end
 
 local function getMergeEvaluation(sourceX, targetX)
-    return -getPositionEvaluation(sourceX)
-        + getPositionEvaluation(targetX)
+    return ROTATION_EVALUATION_DISAPPEARED_BLOCK_WEIGHT * getPositionEvaluation(sourceX)
+        + ROTATION_EVALUATION_MERGED_BLOCK_WEIGHT * getPositionEvaluation(targetX)
         + getMergeDirectionEvaluation(sourceX, targetX)
 end
 
@@ -398,6 +411,8 @@ local function finishDrop()
     pendingDropValue = 0
     activeMergeX = pendingDropX
     activeMergeY = pendingDropY
+    rotationEvaluation += ROTATION_EVALUATION_DROP_POSITION_WEIGHT
+        * getPositionEvaluation(pendingDropX)
     startResolve("ROTATE")
 end
 
@@ -457,7 +472,6 @@ local function beginDrop()
     pendingDropY = y
     pendingDropValue = nextValue
     rotationEvaluation = 0
-    rotationEvaluation += getPositionEvaluation(pendingDropX)
     nextValue = followingValue
     followingValue = randomBlockValue()
     animationProgress = 0
@@ -579,10 +593,9 @@ local function getPreviewRotationDegrees()
         return 0
     end
 
-    local maxTiltDegrees = 10
-    local degreesPerEvaluationPoint = 4
-    local degrees = getPreviewRotationEvaluation() * degreesPerEvaluationPoint
-    return math.max(-maxTiltDegrees, math.min(maxTiltDegrees, degrees))
+    local degrees = getPreviewRotationEvaluation() * PREVIEW_ROTATION_DEGREES_PER_POINT
+    return math.max(-PREVIEW_ROTATION_MAX_DEGREES,
+        math.min(PREVIEW_ROTATION_MAX_DEGREES, degrees))
 end
 
 local function getPreviewRotationAngle()
