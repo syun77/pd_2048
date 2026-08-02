@@ -1,4 +1,4 @@
-import "board_transform"
+import "board/board_transform"
 import "game_config"
 
 local Config <const> = GameConfig
