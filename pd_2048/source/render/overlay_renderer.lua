@@ -131,15 +131,52 @@ function OverlayRenderer:drawMessage()
     end
 end
 
+-- 中心座標を基準に、選択可能なメニューを描画する。
+function OverlayRenderer:drawMenu(centerX, centerY, items, selectedIndex)
+    if items == nil or #items == 0 then return end
+
+    local maxTextWidth = 0
+    local textHeight = 0
+    for _, item in ipairs(items) do
+        local textWidth, height = gfx.getTextSize(item)
+        maxTextWidth = math.max(maxTextWidth, textWidth)
+        textHeight = math.max(textHeight, height)
+    end
+
+    local horizontalPadding = 16
+    local verticalPadding = 8
+    local itemHeight = textHeight + 8
+    local menuWidth = maxTextWidth + horizontalPadding * 2
+    local menuHeight = #items * itemHeight + verticalPadding * 2
+    local menuX = math.floor(centerX - menuWidth * 0.5)
+    local menuY = math.floor(centerY - menuHeight * 0.5)
+
+    gfx.fillRoundRect(menuX, menuY, menuWidth, menuHeight, 6)
+    gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    for index, item in ipairs(items) do
+        local itemY = menuY + verticalPadding + (index - 1) * itemHeight
+        self:drawCenteredText(item, itemY)
+    end
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+
+    if selectedIndex == nil then return end
+    selectedIndex = math.max(1, math.min(#items, selectedIndex))
+    local selectedY = menuY + verticalPadding + (selectedIndex - 1) * itemHeight
+	gfx.setColor(gfx.kColorXOR)
+    gfx.drawRoundRect(menuX + 4, selectedY - 4,
+        menuWidth - 8, textHeight + 6, 4)
+	gfx.setColor(gfx.kColorBlack)
+end
+
 -- ゲームオーバーメニューの描画.
 function OverlayRenderer:drawGameOver(selectedIndex)
-    gfx.fillRect(105, 76, 190, 112)
-    gfx.setImageDrawMode(gfx.kDrawModeInverted)
-    self:drawCenteredText("GAME OVER", 88)
-    self:drawCenteredText("SCORE " .. tostring(self.state.score), 110)
-    self:drawCenteredText((selectedIndex == 1 and "> " or "  ") .. "RETRY", 136)
-    self:drawCenteredText((selectedIndex == 2 and "> " or "  ") .. "TITLE", 158)
-    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    selectedIndex = selectedIndex or 1
+    self:drawMenu(200, 130, {
+        "GAME OVER",
+        "SCORE " .. tostring(self.state.score),
+        "RETRY",
+        "TITLE",
+    }, selectedIndex + 2)
 end
 
 _G.OverlayRenderer = OverlayRenderer
