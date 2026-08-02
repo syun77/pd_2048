@@ -1,0 +1,487 @@
+import "array2d"
+import "game_config"
+import "game_state"
+import "game/merge_resolver"
+import "game/game_session"
+import "game/undo_controller"
+import "board/board_transform"
+import "board/board_rules"
+import "tile_generator"
+import "cursor_controller"
+import "input/input_command"
+import "input/auto_player"
+
+local pd <const> = playdate
+local Config <const> = GameConfig
+local GamePhase <const> = Config.GAME_PHASE
+local GameResult <const> = Config.GAME_RESULT
+
+local GameController = {}
+GameController.__index = GameController
+
+function GameController.new(dependencies)
+    local self = setmetatable({}, GameController)
+    self.state = GameState.new()
+    self.sound = dependencies.sound
+    self.playGameBgm = dependencies.playGameBgm
+    self.cursorController = CursorController.new()
+    self.autoPlayer = AutoPlayer.new()
+    self.autoPlayEnabled = false
+    self.session = GameSession.new(self.state)
+    self.undoController = UndoController.new({
+        state = self.state,
+        session = self.session,
+        sound = self.sound,
+        setMessage = function(text, duration)
+            self:setMessage(text, duration)
+        end,
+    })
+    self:loadHighScore()
+    return self
+end
+
+function GameController:setAutoPlayEnabled(value)
+    self.autoPlayEnabled = value
+    self.autoPlayer:reset()
+end
+
+function GameController:setMessage(text, duration)
+    self.state.message = text
+    self.state.messageUntil = pd.getCurrentTimeMilliseconds() + duration
+end
+
+function GameController:loadHighScore()
+    local ok, value = pcall(pd.datastore.read, "highScore")
+    if ok and type(value) == "number" then self.state.highScore = value end
+end
+
+function GameController:saveHighScore()
+    local state = self.state
+    if state.score > state.highScore then
+        state.highScore = state.score
+        pd.datastore.write(state.highScore, "highScore")
+    end
+end
+
+function GameController:clearBoard()
+    local state = self.state
+    state.board = Array2D(Config.BOARD_SIZE, Config.BOARD_SIZE, 0)
+    state.board:set(Config.CENTER, Config.CENTER, 0)
+end
+
+function GameController:addPreviewImpulse(direction)
+    if direction == Config.ROTATION_EVALUATION_POSITION_CENTER then return end
+    if direction > 0 then
+        self.state.previewImpulseRotationDegrees += Config.PREVIEW_IMPULSE_ROTATION_DEGREES
+    else
+        self.state.previewImpulseRotationDegrees -= Config.PREVIEW_IMPULSE_ROTATION_DEGREES
+    end
+end
+
+function GameController:addRotationEvaluation(value)
+    local state = self.state
+    value *= Config.PREVIEW_ROTATION_EVALUATION_MULTIPLIER
+    state.rotationEvaluation += value
+    state.rotationEvaluation = math.max(-Config.PREVIEW_ROTATION_MAX_DEGREES,
+        math.min(Config.PREVIEW_ROTATION_MAX_DEGREES, state.rotationEvaluation))
+end
+
+function GameController:beginRewindHold()
+    local state = self.state
+    if not self.undoController:isAvailable() then
+        if state.rewindUsesRemaining <= 0 then
+            self:setMessage("NO REWINDS", 700)
+        else
+            self:setMessage("NO UNDO", 700)
+        end
+        self.sound:play_se("error")
+        return
+    end
+    state.rewindHoldStartedAt = pd.getCurrentTimeMilliseconds()
+    state.rewindHoldTriggered = false
+    self.sound:play_se("rewind_button")
+end
+
+function GameController:endRewindHold()
+    self.state.rewindHoldStartedAt = nil
+    self.state.rewindHoldTriggered = false
+end
+
+function GameController:updateRewindHold()
+    local state = self.state
+    if not self.undoController:isAvailable() then
+        self:endRewindHold()
+        return
+    end
+    if state.rewindHoldStartedAt == nil or not pd.buttonIsPressed(pd.kButtonB) then
+        if state.rewindHoldStartedAt ~= nil then self:endRewindHold() end
+        return
+    end
+    if not state.rewindHoldTriggered
+        and pd.getCurrentTimeMilliseconds() - state.rewindHoldStartedAt
+            >= Config.REWIND_HOLD_DURATION_MS then
+        state.rewindHoldTriggered = true
+        self.undoController:restore()
+    end
+end
+
+function GameController:findDropCell(column)
+    return BoardRules.findDropCell(self.state.board, column)
+end
+
+function GameController:isDropAvailable()
+    return self:findDropCell(self.state.cursorX) ~= nil
+end
+
+function GameController:findMergeForBlock(sourceX, sourceY, activeValue)
+    return MergeResolver.find(self.state.board, sourceX, sourceY, activeValue)
+end
+
+function GameController:isRewindAvailable()
+    return self.undoController:isAvailable()
+end
+
+function GameController:applyGravity()
+    self.state.board:set(Config.CENTER, Config.CENTER, 0)
+end
+
+function GameController:canDropInAnyColumn()
+    return BoardRules.canDropInAnyColumn(self.state.board)
+end
+
+function GameController:advanceNextQueue()
+    local state = self.state
+    for i = 1, Config.NEXT_QUEUE_COUNT - 1 do
+        state.nextValues[i] = state.nextValues[i + 1]
+    end
+    state.nextValues[Config.NEXT_QUEUE_COUNT] =
+        TileGenerator.nextForState(state.board, state)
+end
+
+function GameController:finishTurn()
+    local state = self.state
+    state.rotationStartBoard = nil
+    state.rotationEndBoard = nil
+    state.holdAvailable = true
+    self:advanceNextQueue()
+    state.nextAnimationGameOver = not self:canDropInAnyColumn()
+    state.animationProgress = 0
+    state.animationDuration = 0.30
+    state.phase = GamePhase.NEXT_ANIM
+end
+
+function GameController:beginGameOver()
+    local state = self.state
+    self:saveHighScore()
+    state.result = GameResult.GAME_OVER
+    state.phase = GamePhase.INPUT
+    self.sound:play_se("gameover")
+    self.sound:stop_bgm(1.0)
+end
+
+function GameController:finishNextAnimation()
+    if self.state.nextAnimationGameOver then
+        self:beginGameOver()
+    else
+        self.state.phase = GamePhase.INPUT
+    end
+end
+
+function GameController:startRotation()
+    local state = self.state
+    if state.rotationEvaluation == 0 then
+        self:finishTurn()
+        return
+    end
+
+    state.rotationClockwise = state.rotationEvaluation > 0
+    local latestUndoState = state.undoStates[#state.undoStates]
+    if latestUndoState ~= nil then
+        latestUndoState.hasRotation = true
+        latestUndoState.rotationClockwise = state.rotationClockwise
+    end
+    state.rotationStartBoard = state.board
+    state.rotationEndBoard = BoardTransform.rotate(
+        state.rotationStartBoard, state.rotationClockwise, BoardRules.isPlayable)
+
+    local oldActiveX, oldActiveY = state.activeMergeX, state.activeMergeY
+    if state.rotationClockwise then
+        state.activeMergeX = Config.BOARD_SIZE + 1 - oldActiveY
+        state.activeMergeY = oldActiveX
+    else
+        state.activeMergeX = oldActiveY
+        state.activeMergeY = Config.BOARD_SIZE + 1 - oldActiveX
+    end
+
+    state.animationProgress = 0
+    state.animationDuration = 0.38
+    self.sound:play_se("rotate")
+    state.phase = GamePhase.ROTATING
+end
+
+function GameController:playComboSoundIfNeeded()
+    local state = self.state
+    if state.combo < 2 or state.comboSoundPlayed then return end
+    state.comboSoundPlayed = true
+    state.comboDisplayFrame = 0
+    if state.combo < 3 then
+        self.sound:play_se("combo1")
+    elseif state.combo < 5 then
+        self.sound:play_se("combo2")
+    else
+        self.sound:play_se("combo3")
+    end
+end
+
+function GameController:startResolve(nextAction)
+    local state = self.state
+    self:applyGravity()
+    local x1, y1, x2, y2 = MergeResolver.findForActive(
+        state.board, state.activeMergeX, state.activeMergeY)
+    if x1 == nil then
+        self:playComboSoundIfNeeded()
+        if nextAction == "ROTATE" then self:startRotation()
+        else self:finishTurn() end
+        return
+    end
+
+    state.mergeSourceX, state.mergeSourceY = x1, y1
+    state.mergeTargetX, state.mergeTargetY = x2, y2
+    state.mergeValue = state.board:get(x1, y1) * 2
+    state.mergeNextAction = nextAction
+    state.animationProgress = 0
+    state.animationDuration = 0.22
+    self.sound:play_se("merge")
+    state.phase = GamePhase.MERGING
+end
+
+function GameController:finishMerge()
+    local state = self.state
+    local evaluation = MergeResolver.getEvaluation(
+        state.mergeSourceX, state.mergeTargetX)
+    self:addRotationEvaluation(evaluation)
+    if state.mergeTargetX < state.mergeSourceX then
+        self:addPreviewImpulse(Config.ROTATION_EVALUATION_MERGE_DIRECTION_LEFT)
+    elseif state.mergeTargetX > state.mergeSourceX then
+        self:addPreviewImpulse(Config.ROTATION_EVALUATION_MERGE_DIRECTION_RIGHT)
+    end
+    state.board:set(state.mergeSourceX, state.mergeSourceY, 0)
+    state.board:set(state.mergeTargetX, state.mergeTargetY, state.mergeValue)
+    self.session:recordMerge(state.mergeValue)
+    state.activeMergeX, state.activeMergeY = state.mergeTargetX, state.mergeTargetY
+    self:startResolve(state.mergeNextAction)
+end
+
+function GameController:finishDrop()
+    local state = self.state
+    state.board:set(state.pendingDropX, state.pendingDropY, state.pendingDropValue)
+    state.pendingDropValue = 0
+    state.activeMergeX, state.activeMergeY = state.pendingDropX, state.pendingDropY
+    self:addRotationEvaluation(Config.ROTATION_EVALUATION_DROP_POSITION_WEIGHT
+        * MergeResolver.getPositionEvaluation(state.pendingDropX))
+    self:addPreviewImpulse(MergeResolver.getPositionEvaluation(state.pendingDropX))
+    self:startResolve("ROTATE")
+    if state.phase ~= GamePhase.MERGING then self.sound:play_se("fixed") end
+end
+
+function GameController:advanceAnimation()
+    local state = self.state
+    state.previewImpulseRotationDegrees *= Config.PREVIEW_IMPULSE_DECAY
+    state.animationProgress += 1
+        / (state.animationDuration * Config.DEFAULT_REFRESH_RATE)
+    if state.animationProgress < 1 then return end
+    state.animationProgress = 1
+
+    if state.phase == GamePhase.DROPPING then
+        self:finishDrop()
+    elseif state.phase == GamePhase.MERGING then
+        self:finishMerge()
+    elseif state.phase == GamePhase.ROTATING then
+        state.board = state.rotationEndBoard
+        state.phase = GamePhase.ROTATING
+        self:startResolve("FINISH")
+    elseif state.phase == GamePhase.UNDO_ROTATING then
+        state.board = state.rotationEndBoard
+        state.rotationStartBoard = nil
+        state.rotationEndBoard = nil
+        state.phase = GamePhase.INPUT
+    elseif state.phase == GamePhase.NEXT_ANIM then
+        self:finishNextAnimation()
+    elseif state.phase == GamePhase.HOLD_ANIM then
+        self:finishHoldAnimation()
+    end
+end
+
+function GameController:spawnInitialBlocks()
+    local state = self.state
+    state.board:set(Config.CENTER - 1, Config.CENTER, 8)
+    state.board:set(Config.CENTER + 1, Config.CENTER, 8)
+end
+
+function GameController:start()
+    local state = self.state
+    self:clearBoard()
+    state.result = nil
+    state.score = 0
+    state.holdValue = 0
+    state.holdAvailable = true
+    state.lastRandomBlockValue = 0
+    state.consecutiveRandomBlockCount = 0
+    state.undoStates = {}
+    state.rewindUsesRemaining = Config.MAX_REWIND_USES
+    self.session:resetCombo()
+    state.cursorX = Config.CENTER
+    state.rewindHoldStartedAt = nil
+    state.rewindHoldTriggered = false
+    state.rewindHoldAnimationActive = false
+    state.animationProgress = 0
+    state.animationDuration = 0
+    state.pendingDropX, state.pendingDropY, state.pendingDropValue = 0, 0, 0
+    state.rotationStartBoard, state.rotationEndBoard = nil, nil
+    state.rotationClockwise = false
+    state.mergeSourceX, state.mergeSourceY = 0, 0
+    state.mergeTargetX, state.mergeTargetY = 0, 0
+    state.mergeValue = 0
+    state.mergeNextAction = "FINISH"
+    state.activeMergeX, state.activeMergeY = 0, 0
+    state.nextAnimationGameOver = false
+    state.holdAnimationSourceValue, state.holdAnimationReturnValue = 0, 0
+    state.rotationEvaluation = 0
+    state.nextValues = {}
+    self.autoPlayer:reset()
+    for i = 1, Config.NEXT_QUEUE_COUNT do
+        state.nextValues[i] = TileGenerator.nextForState(state.board, state)
+    end
+    state.previewImpulseRotationDegrees = 0
+    self:spawnInitialBlocks()
+    state.phase = GamePhase.INPUT
+    state.message = ""
+    state.crisisBgmActive = false
+    self.playGameBgm()
+end
+
+function GameController:holdCurrentBlock()
+    local state = self.state
+    if not state.holdAvailable then
+        self.sound:play_se("error")
+        self:setMessage("HOLD USED", 700)
+        return
+    end
+    self.undoController:save("HOLD")
+    local currentValue = state.nextValues[1]
+    state.holdAnimationSourceValue = currentValue
+    state.holdAnimationReturnValue = state.holdValue
+    if state.holdValue == 0 then
+        state.holdValue = currentValue
+        self:advanceNextQueue()
+    else
+        state.holdValue, state.nextValues[1] = currentValue, state.holdValue
+    end
+    state.holdAvailable = false
+    state.rewindHoldAnimationActive = false
+    self.sound:play_se("hold")
+    state.animationProgress = 0
+    state.animationDuration = 0.30
+    state.phase = GamePhase.HOLD_ANIM
+end
+
+function GameController:finishHoldAnimation()
+    local state = self.state
+    state.holdAnimationSourceValue = 0
+    state.holdAnimationReturnValue = 0
+    state.rewindHoldAnimationActive = false
+    if not self:canDropInAnyColumn() then self:beginGameOver()
+    else state.phase = GamePhase.INPUT end
+end
+
+function GameController:beginDrop()
+    local state = self.state
+    if not self:isDropAvailable() then
+        self:setMessage("NO SPACE", 700)
+        self.sound:play_se("error")
+        return
+    end
+    local x, y = self:findDropCell(state.cursorX)
+    self.undoController:save("DROP")
+    self.session:resetCombo()
+    state.pendingDropX, state.pendingDropY = x, y
+    state.pendingDropValue = state.nextValues[1]
+    state.rotationEvaluation = 0
+    state.animationProgress = 0
+    state.animationDuration = math.max(0.18, (y + 1) * 0.07)
+    self.sound:play_se("fall")
+    state.phase = GamePhase.DROPPING
+end
+
+function GameController:moveCursor(delta)
+    local state = self.state
+    local previous = state.cursorX
+    state.cursorX = math.max(1, math.min(Config.BOARD_SIZE, state.cursorX + delta))
+    if previous ~= state.cursorX then self.sound:play_se("pi") end
+end
+
+function GameController:resetCursorKeyRepeat()
+    CursorController.reset(self.cursorController)
+    self.state.cursorRepeatDirection = 0
+    self.state.cursorRepeatNextAt = nil
+end
+
+function GameController:updateCursorKeyRepeat()
+    local state = self.state
+    CursorController.update(self.cursorController, pd,
+        pd.getCurrentTimeMilliseconds(), function(delta) self:moveCursor(delta) end)
+    state.cursorRepeatDirection = self.cursorController.direction
+    state.cursorRepeatNextAt = self.cursorController.nextAt
+end
+
+function GameController:update()
+    local state = self.state
+    if state.phase ~= GamePhase.INPUT then self:resetCursorKeyRepeat() end
+
+    if state.phase == GamePhase.INPUT then
+        if self.autoPlayEnabled then
+            local command = self.autoPlayer:poll(nil, {
+                phase = state.phase,
+                cursorX = state.cursorX,
+                nextValue = state.nextValues[1],
+                holdValue = state.holdValue,
+                holdAvailable = state.holdAvailable,
+                getCandidates = function(activeValue)
+                    return MergeResolver.getAutoPlayCandidates(state.board, activeValue)
+                end,
+            })
+            if command == InputCommand.HOLD then self:holdCurrentBlock()
+            elseif command == InputCommand.MOVE_LEFT then self:moveCursor(-1)
+            elseif command == InputCommand.MOVE_RIGHT then self:moveCursor(1)
+            elseif command == InputCommand.DROP then self:beginDrop() end
+        else
+            self:updateRewindHold()
+            if pd.buttonJustPressed(pd.kButtonA) then self:holdCurrentBlock()
+            elseif pd.buttonJustPressed(pd.kButtonLeft)
+                or pd.buttonJustPressed(pd.kButtonRight) then
+                self:updateCursorKeyRepeat()
+            elseif pd.buttonJustPressed(pd.kButtonDown) then self:beginDrop()
+            elseif pd.buttonJustPressed(pd.kButtonB) then self:beginRewindHold()
+            elseif state.cursorRepeatDirection ~= 0 then
+                self:updateCursorKeyRepeat()
+            end
+        end
+    elseif state.phase == GamePhase.PAUSED
+        and pd.buttonJustPressed(pd.kButtonB) then
+        state.phase = GamePhase.INPUT
+    end
+
+    if state.phase == GamePhase.DROPPING or state.phase == GamePhase.MERGING
+        or state.phase == GamePhase.ROTATING
+        or state.phase == GamePhase.UNDO_ROTATING
+        or state.phase == GamePhase.NEXT_ANIM
+        or state.phase == GamePhase.HOLD_ANIM then
+        self:advanceAnimation()
+    end
+
+    if state.result ~= nil then return { scene = Config.SCENE.GAME_OVER } end
+    return nil
+end
+
+_G.GameController = GameController
+return GameController

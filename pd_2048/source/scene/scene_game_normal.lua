@@ -10,9 +10,9 @@ function NormalGameScene:enter()
 end
 
 function NormalGameScene:update()
-    local nextScene = self.context.updateGame()
-    if nextScene ~= nil then
-        self.manager:change(nextScene)
+    local result = self.context.game:update()
+    if result ~= nil and result.scene ~= nil then
+        self.manager:change(result.scene)
     end
 end
 

@@ -10,7 +10,7 @@ end
 function GameOverScene:update()
     if playdate.buttonJustPressed(playdate.kButtonA) then
         self.context.playDecideSound()
-        self.context.startGame()
+        self.context.game:start()
         self.manager:change(GameConfig.SCENE.GAME)
     end
 end
