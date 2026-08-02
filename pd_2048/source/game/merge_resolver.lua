@@ -79,6 +79,25 @@ function MergeResolver.findForActive(board, activeX, activeY, mode)
     return MergeResolver.find(board, activeX, activeY, board:get(activeX, activeY), mode)
 end
 
+function MergeResolver.findConnectionValue(board, x, y, activeValue, mode)
+    local minimumValue = activeValue * 2
+    local connectionValue = nil
+    local neighbors = {
+        { x = x - 1, y = y }, { x = x + 1, y = y },
+        { x = x, y = y - 1 }, { x = x, y = y + 1 },
+    }
+    for _, neighbor in ipairs(neighbors) do
+        if BoardRules.isOccupied(board, neighbor.x, neighbor.y, mode) then
+            local value = board:get(neighbor.x, neighbor.y)
+            if value >= minimumValue
+                and (connectionValue == nil or value < connectionValue) then
+                connectionValue = value
+            end
+        end
+    end
+    return connectionValue
+end
+
 function MergeResolver.getAutoPlayCandidates(board, activeValue, mode)
     local candidates = {}
     for column = 1, Config.BOARD_SIZE do
@@ -89,6 +108,8 @@ function MergeResolver.getAutoPlayCandidates(board, activeValue, mode)
             table.insert(candidates, {
                 column = column,
                 merge = sourceX ~= nil,
+                connectionValue = MergeResolver.findConnectionValue(
+                    board, x, y, activeValue, mode),
                 sourceX = sourceX,
                 sourceY = sourceY,
                 targetX = targetX,

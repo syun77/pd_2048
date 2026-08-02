@@ -134,20 +134,28 @@ end
 function OverlayRenderer:drawCoreRushGain()
     local state = self.state
     if state.mode ~= Config.GAME_MODE.CORE_RUSH
-        or state.coreRushGainText == ""
+        or state.coreRushGainUntil == 0
         or pd.getCurrentTimeMilliseconds() >= state.coreRushGainUntil then
         return
     end
 
-    local textWidth, textHeight = gfx.getTextSize(state.coreRushGainText)
-    local boxWidth = textWidth + 32
-    local boxHeight = textHeight + 16
-    local boxX = math.floor((400 - boxWidth) * 0.5)
-    local boxY = math.floor((240 - boxHeight) * 0.5)
+    local comboText = tostring(state.coreRushGainCombo) .. " COMBO"
+    local calculationText = string.format("%d x %d = %d",
+        state.coreRushGainMergeValue, state.coreRushGainCombo,
+        state.coreRushGainTotal)
+    local comboWidth, lineHeight = gfx.getTextSize(comboText)
+    local calculationWidth = gfx.getTextSize(calculationText)
+    local boxWidth = math.max(comboWidth, calculationWidth) + 32
+    local boxHeight = lineHeight * 2 + 20
+    -- 右下のサイドパネル内。NEXTとREWINDの表示領域を避ける。
+    local boxX = 400 - boxWidth - 8
+    local boxY = 148
     gfx.fillRoundRect(boxX, boxY, boxWidth, boxHeight, 6)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
-    gfx.drawTextAligned(state.coreRushGainText, 200,
-        boxY + (boxHeight - textHeight) * 0.5, kTextAlignment.center)
+    local boxCenterX = boxX + boxWidth * 0.5
+    gfx.drawTextAligned(comboText, boxCenterX, boxY + 6, kTextAlignment.center)
+    gfx.drawTextAligned(calculationText, boxCenterX, boxY + 6 + lineHeight,
+        kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
@@ -163,11 +171,11 @@ function OverlayRenderer:drawCoreRushComplete()
     local textWidth, textHeight = gfx.getTextSize(text)
     local boxWidth = textWidth + 32
     local boxHeight = textHeight + 16
-    local boxX = math.floor((400 - boxWidth) * 0.5)
-    local boxY = math.floor((240 - boxHeight) * 0.5)
+    local boxX = math.floor(Config.CORE_RUSH_COMPLETE_CENTER_X - boxWidth * 0.5)
+    local boxY = math.floor(Config.CORE_RUSH_COMPLETE_CENTER_Y - boxHeight * 0.5)
     gfx.fillRoundRect(boxX, boxY, boxWidth, boxHeight, 6)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
-    gfx.drawTextAligned(text, 200,
+    gfx.drawTextAligned(text, Config.CORE_RUSH_COMPLETE_CENTER_X,
         boxY + (boxHeight - textHeight) * 0.5, kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end

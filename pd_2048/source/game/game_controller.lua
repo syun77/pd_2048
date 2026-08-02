@@ -252,11 +252,15 @@ function GameController:addCoreRushValue(mergeValue)
     local state = self.state
     local gain = mergeValue * state.combo
     state.coreRushValue += gain
-    state.coreRushGainText = string.format("%d x %d = %d",
-        mergeValue, state.combo, gain)
+    state.coreRushGainCombo = state.combo
+    state.coreRushGainMergeValue = mergeValue
+    state.coreRushGainTotal = gain
     state.coreRushGainUntil = pd.getCurrentTimeMilliseconds()
         + Config.CORE_RUSH_GAIN_DISPLAY_MS
-    return state.coreRushValue > 2048
+    if state.coreRushValue > 2048 then
+        state.coreRushVictoryPending = true
+    end
+    return false
 end
 
 -- 時間切れ警告音を再生するタイミングか判定する.
@@ -318,7 +322,9 @@ function GameController:updateTimeAttackTimer()
 end
 
 function GameController:finishNextAnimation()
-    if self.state.nextAnimationGameOver then
+    if self.state.coreRushVictoryPending then
+        self:beginVictory()
+    elseif self.state.nextAnimationGameOver then
         self:beginGameOver()
     else
         self.state.phase = GamePhase.INPUT
@@ -408,10 +414,7 @@ function GameController:finishMerge()
     state.board:set(state.mergeTargetX, state.mergeTargetY, state.mergeValue)
     self.session:recordMerge(state.mergeValue)
     state.activeMergeX, state.activeMergeY = state.mergeTargetX, state.mergeTargetY
-    if self:addCoreRushValue(state.mergeValue) then
-        self:beginVictory()
-        return
-    end
+    self:addCoreRushValue(state.mergeValue)
     self:startResolve(state.mergeNextAction)
 end
 
@@ -470,9 +473,12 @@ function GameController:start(mode)
     state.result = nil
     state.score = 0
     state.coreRushValue = 0
-    state.coreRushGainText = ""
+    state.coreRushGainCombo = 0
+    state.coreRushGainMergeValue = 0
+    state.coreRushGainTotal = 0
     state.coreRushGainUntil = 0
     state.coreRushCompleteUntil = 0
+    state.coreRushVictoryPending = false
     state.highScore = state.mode == Config.GAME_MODE.TIME_ATTACK
         and state.timeAttackHighScore or state.normalHighScore
     state.elapsedTimeMs = 0

@@ -33,6 +33,21 @@ local function chooseCandidate(candidates, cursorX, requireMerge)
     return selected
 end
 
+local function chooseConnectionCandidate(candidates, cursorX)
+    local selected = nil
+    for i = 1, #candidates do
+        local candidate = candidates[i]
+        if candidate.connectionValue ~= nil
+            and (selected == nil
+                or candidate.connectionValue < selected.connectionValue
+                or (candidate.connectionValue == selected.connectionValue
+                    and compareCandidate(candidate, selected, cursorX))) then
+            selected = candidate
+        end
+    end
+    return selected
+end
+
 function AutoPlayer:poll(_, context)
     -- 自動プレイ開始時は、まずHOLDを実行してHOLDを考慮した状態にする。
     if self.firstHoldPending then
@@ -52,6 +67,19 @@ function AutoPlayer:poll(_, context)
         if candidate == nil and context.holdAvailable and context.holdValue ~= 0 then
             local holdCandidates = context.getCandidates(context.holdValue)
             if chooseCandidate(holdCandidates, context.cursorX, true) ~= nil then
+                return InputCommand.HOLD
+            end
+        end
+
+        -- 同値マージがなければ、1段階上以上のブロックへ接続できる場所を選ぶ。
+        if candidate == nil then
+            candidate = chooseConnectionCandidate(currentCandidates, context.cursorX)
+        end
+
+        -- 現在ブロックに接続先もない場合は、HOLD中のブロックを検討する。
+        if candidate == nil and context.holdAvailable and context.holdValue ~= 0 then
+            local holdCandidates = context.getCandidates(context.holdValue)
+            if chooseConnectionCandidate(holdCandidates, context.cursorX) ~= nil then
                 return InputCommand.HOLD
             end
         end
