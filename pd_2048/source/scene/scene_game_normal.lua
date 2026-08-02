@@ -16,11 +16,9 @@ function NormalGameScene:update()
     elseif self.context.getGameState() == self.context.states.PAUSED then
         self.context.updatePausedInput()
     end
-
     if self.context.isAnimating(self.context.getGameState()) then
         self.context.advanceAnimation()
     end
-
     if self.context.getGameState() == self.context.states.GAME_OVER then
         self.manager:change("GAME_OVER")
     end

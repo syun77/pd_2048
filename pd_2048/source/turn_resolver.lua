@@ -26,6 +26,7 @@ function TurnResolver.advance(ctx)
     elseif ctx.gameState == s.ROTATING then
         complete()
         ctx.board = ctx.rotationEndBoard
+        ctx.setBoard(ctx.board)
         ctx.startResolve("FINISH")
     elseif ctx.gameState == s.UNDO_ROTATING then
         complete()

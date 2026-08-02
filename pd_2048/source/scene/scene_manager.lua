@@ -12,9 +12,7 @@ function SceneManager:register(name, scene)
 end
 
 function SceneManager:change(name, params)
-    if self.current ~= nil and self.current.exit ~= nil then
-        self.current:exit()
-    end
+    if self.current ~= nil and self.current.exit ~= nil then self.current:exit() end
     local nextScene = self.scenes[name]
     assert(nextScene ~= nil, "Unknown scene: " .. tostring(name))
     self.currentName = name
@@ -23,15 +21,11 @@ function SceneManager:change(name, params)
 end
 
 function SceneManager:update()
-    if self.current ~= nil and self.current.update ~= nil then
-        self.current:update()
-    end
+    if self.current ~= nil and self.current.update ~= nil then self.current:update() end
 end
 
 function SceneManager:draw()
-    if self.current ~= nil and self.current.draw ~= nil then
-        self.current:draw()
-    end
+    if self.current ~= nil and self.current.draw ~= nil then self.current:draw() end
 end
 
 _G.SceneManager = SceneManager

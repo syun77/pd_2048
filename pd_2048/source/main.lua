@@ -13,11 +13,11 @@ import "cursor_controller"
 import "board_renderer"
 import "hud_renderer"
 import "turn_resolver"
-import "scene_manager"
-import "scene_context"
-import "scene_title"
-import "scene_game_normal"
-import "scene_game_over"
+import "scene/scene_manager"
+import "scene/scene_context"
+import "scene/scene_title"
+import "scene/scene_game_normal"
+import "scene/scene_game_over"
 
 local pd <const> = playdate
 local gfx <const> = pd.graphics
@@ -750,6 +750,7 @@ local function advanceAnimation()
         finishNextAnimation = finishNextAnimation,
         finishHoldAnimation = finishHoldAnimation,
         setGameState = function(value) gameState = value end,
+        setBoard = function(value) board = value end,
     }
     TurnResolver.advance(context)
     if not context.completed then
