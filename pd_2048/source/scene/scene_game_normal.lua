@@ -10,18 +10,9 @@ function NormalGameScene:enter()
 end
 
 function NormalGameScene:update()
-    self.context.resetCursorIfNeeded()
-    local phase = self.context.getPhase()
-    if phase == self.context.phases.INPUT then
-        self.context.updatePlayingInput()
-    elseif phase == self.context.phases.PAUSED then
-        self.context.updatePausedInput()
-    end
-    if self.context.isAnimating(self.context.getPhase()) then
-        self.context.advanceAnimation()
-    end
-    if self.context.getResult() ~= nil then
-        self.manager:change("GAME_OVER")
+    local nextScene = self.context.updateGame()
+    if nextScene ~= nil then
+        self.manager:change(nextScene)
     end
 end
 

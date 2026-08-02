@@ -1280,6 +1280,42 @@ local function drawGameOver()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
+-- ゲームシーンを1フレーム進める。Sceneからゲーム内部状態を隠す窓口。
+local function updateGame()
+    if state.phase ~= GamePhase.INPUT then
+        resetCursorKeyRepeat()
+    end
+
+    if state.phase == GamePhase.INPUT then
+        updateRewindHold()
+        if pd.buttonJustPressed(pd.kButtonA) then
+            holdCurrentBlock()
+        elseif pd.buttonJustPressed(pd.kButtonLeft)
+            or pd.buttonJustPressed(pd.kButtonRight) then
+            updateCursorKeyRepeat()
+        elseif pd.buttonJustPressed(pd.kButtonDown) then
+            beginDrop()
+        elseif pd.buttonJustPressed(pd.kButtonB) then
+            beginRewindHold()
+        elseif state.cursorRepeatDirection ~= 0 then
+            updateCursorKeyRepeat()
+        end
+    elseif state.phase == GamePhase.PAUSED then
+        if pd.buttonJustPressed(pd.kButtonB) then
+            state.phase = GamePhase.INPUT
+        end
+    end
+
+    if TurnResolver.isAnimating(state.phase) then
+        advanceAnimation()
+    end
+
+    if state.result ~= nil then
+        return Scene.GAME_OVER
+    end
+    return nil
+end
+
 loadHighScore()
 playMenuBgm()
 pd.display.setRefreshRate(DEFAULT_REFRESH_RATE)
@@ -1295,41 +1331,11 @@ pd.getSystemMenu():addMenuItem("Retry", function()
 end)
 
 local sceneContext = SceneContext.new({
-    sound = sound,
-    phases = {
-        INPUT = GamePhase.INPUT,
-        PAUSED = GamePhase.PAUSED,
-    },
-    getPhase = function() return state.phase end,
-    getResult = function() return state.result end,
+    playDecideSound = function() sound:play_se("decide") end,
     playMenuBgm = playMenuBgm,
     playGameBgm = playGameBgm,
     startGame = startGame,
-    isAnimating = function(phase) return TurnResolver.isAnimating(phase) end,
-    advanceAnimation = advanceAnimation,
-    resetCursorIfNeeded = function()
-        if state.phase ~= GamePhase.INPUT then resetCursorKeyRepeat() end
-    end,
-    updatePlayingInput = function()
-        updateRewindHold()
-        if pd.buttonJustPressed(pd.kButtonA) then
-            holdCurrentBlock()
-        elseif pd.buttonJustPressed(pd.kButtonLeft)
-            or pd.buttonJustPressed(pd.kButtonRight) then
-            updateCursorKeyRepeat()
-        elseif pd.buttonJustPressed(pd.kButtonDown) then
-            beginDrop()
-        elseif pd.buttonJustPressed(pd.kButtonB) then
-            beginRewindHold()
-        elseif state.cursorRepeatDirection ~= 0 then
-            updateCursorKeyRepeat()
-        end
-    end,
-    updatePausedInput = function()
-        if pd.buttonJustPressed(pd.kButtonB) then
-            state.phase = GamePhase.INPUT
-        end
-    end,
+    updateGame = updateGame,
     drawTitle = drawTitle,
     drawNormalFrame = function()
         drawHeader()
