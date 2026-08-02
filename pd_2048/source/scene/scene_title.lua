@@ -14,13 +14,19 @@ function TitleScene.new(context)
         context = context,
         manager = nil,
         selectedIndex = 1,
+        page = "ROOT",
         menuItems = {
             { label = "NORMAL GAME", scene = GameConfig.SCENE.GAME,
               mode = GameConfig.GAME_MODE.NORMAL },
-            { label = "TIME ATTACK", scene = GameConfig.SCENE.GAME,
-              mode = GameConfig.GAME_MODE.TIME_ATTACK },
+            { label = "TIME ATTACK", submenu = true },
             { label = "ACHIEVEMENTS", scene = GameConfig.SCENE.ACHIEVEMENTS },
             { label = "STATISTICS", scene = GameConfig.SCENE.STATISTICS },
+        },
+        timeAttackItems = {
+            { label = "NORMAL TIME ATTACK", scene = GameConfig.SCENE.GAME,
+              mode = GameConfig.GAME_MODE.TIME_ATTACK },
+            { label = "2048 CORE RUSH", scene = GameConfig.SCENE.GAME,
+              mode = GameConfig.GAME_MODE.CORE_RUSH },
         },
     }, TitleScene)
 end
@@ -29,18 +35,25 @@ end
 function TitleScene:enter()
 	-- メニュー用BGMを再生.
     self.context.sound:playMenuBgm()
+    self.page = "ROOT"
 end
 
 -- 更新.
 function TitleScene:update()
-	-- 選択項目.
+	local items = self.page == "ROOT" and self.menuItems or self.timeAttackItems
+    -- 選択項目.
     local previousIndex = self.selectedIndex
-    if pd.buttonJustPressed(pd.kButtonUp) then
+    if pd.buttonJustPressed(pd.kButtonB) and self.page ~= "ROOT" then
+        self.page = "ROOT"
+        self.selectedIndex = 1
+        self.context.sound:play_se("pi")
+        return
+    elseif pd.buttonJustPressed(pd.kButtonUp) then
         self.selectedIndex -= 1
-        if self.selectedIndex < 1 then self.selectedIndex = #self.menuItems end
+        if self.selectedIndex < 1 then self.selectedIndex = #items end
     elseif pd.buttonJustPressed(pd.kButtonDown) then
         self.selectedIndex += 1
-        if self.selectedIndex > #self.menuItems then self.selectedIndex = 1 end
+        if self.selectedIndex > #items then self.selectedIndex = 1 end
     end
 
     if self.selectedIndex ~= previousIndex then
@@ -51,7 +64,12 @@ function TitleScene:update()
 
     if pd.buttonJustPressed(pd.kButtonA) then
         self.context.sound:play_se("decide")
-        local item = self.menuItems[self.selectedIndex]
+        local item = items[self.selectedIndex]
+        if item.submenu then
+            self.page = "TIME_ATTACK"
+            self.selectedIndex = 1
+            return
+        end
         if item.mode ~= nil then
             self.context.game:start(item.mode)
         end
@@ -61,7 +79,9 @@ end
 
 -- 描画.
 function TitleScene:draw()
-    self.context.titleRenderer:drawTitle(self.selectedIndex, self.menuItems)
+    local items = self.page == "ROOT" and self.menuItems or self.timeAttackItems
+    local title = self.page == "ROOT" and nil or "TIME ATTACK"
+    self.context.titleRenderer:drawTitle(self.selectedIndex, items, title)
 end
 
 _G.TitleScene = TitleScene

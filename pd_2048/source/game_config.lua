@@ -21,6 +21,8 @@ local Config = {
     COMBO_BLINK_DURATION_FRAMES = 20,
     COMBO_STEADY_DURATION_FRAMES = 30,
     TIME_ATTACK_LIMIT_MS = 60000,
+    CORE_RUSH_GAIN_DISPLAY_MS = 900,
+    CORE_RUSH_COMPLETE_DISPLAY_MS = 3000, -- CORE RUSHモードのクリア表示時間.
     PREVIEW_ROTATION_MAX_DEGREES = 200,
     PREVIEW_ROTATION_EVALUATION_MULTIPLIER = 0.1,
     PREVIEW_ROTATION_DEGREES_PER_POINT = 0.1,
@@ -48,6 +50,7 @@ local Config = {
     GAME_MODE = {
         NORMAL = "NORMAL",
         TIME_ATTACK = "TIME_ATTACK",
+        CORE_RUSH = "CORE_RUSH",
     },
     GAME_PHASE = {
         INPUT = "INPUT",
@@ -62,6 +65,7 @@ local Config = {
     GAME_RESULT = {
         GAME_OVER = "GAME_OVER",
         TIME_UP = "TIME_UP",
+        VICTORY = "VICTORY",
     },
 }
 

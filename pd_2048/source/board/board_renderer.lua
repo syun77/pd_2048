@@ -26,6 +26,21 @@ function BoardRenderer.tile(value, px, py)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
+function BoardRenderer.centerValue(value)
+    local px = Config.BOARD_X + (Config.CENTER - 1) * Config.CELL_SIZE
+    local py = Config.BOARD_Y + (Config.CENTER - 1) * Config.CELL_SIZE
+    local previousColor = gfx.getColor()
+    local previousDrawMode = gfx.getImageDrawMode()
+    -- 背景はセル内に収め、数字はセル幅でクリップせず描画する。
+    gfx.setColor(gfx.kColorBlack)
+    gfx.fillRect(px + 2, py + 2, Config.CELL_SIZE - 4, Config.CELL_SIZE - 4)
+    gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    gfx.drawTextAligned(tostring(value), px + Config.CELL_SIZE / 2,
+        py + 8, kTextAlignment.center)
+    gfx.setImageDrawMode(previousDrawMode)
+    gfx.setColor(previousColor)
+end
+
 function BoardRenderer.tilePosition(px, py, angle)
     if angle == 0 then return px, py end
     local x, y = rotatePoint(px + Config.CELL_SIZE * 0.5,
@@ -33,7 +48,7 @@ function BoardRenderer.tilePosition(px, py, angle)
     return x - Config.CELL_SIZE * 0.5, y - Config.CELL_SIZE * 0.5
 end
 
-function BoardRenderer.grid()
+function BoardRenderer.grid(showCenterAxis)
     local size = Config.BOARD_SIZE * Config.CELL_SIZE
     gfx.setLineWidth(1)
     gfx.drawRect(Config.BOARD_X, Config.BOARD_Y, size, size)
@@ -43,9 +58,11 @@ function BoardRenderer.grid()
         gfx.drawLine(Config.BOARD_X, Config.BOARD_Y + i * Config.CELL_SIZE,
             Config.BOARD_X + size, Config.BOARD_Y + i * Config.CELL_SIZE)
     end
-    gfx.setLineWidth(2)
-    gfx.drawCircleAtPoint(Config.BOARD_X + (Config.CENTER - 0.5) * Config.CELL_SIZE,
-        Config.BOARD_Y + (Config.CENTER - 0.5) * Config.CELL_SIZE, 7)
+    if showCenterAxis then
+        gfx.setLineWidth(2)
+        gfx.drawCircleAtPoint(Config.BOARD_X + (Config.CENTER - 0.5) * Config.CELL_SIZE,
+            Config.BOARD_Y + (Config.CENTER - 0.5) * Config.CELL_SIZE, 7)
+    end
 end
 
 function BoardRenderer.cells(board, skipX, skipY, angle)

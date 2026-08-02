@@ -23,7 +23,6 @@ function BoardTransform.rotate(source, clockwise, isPlayable)
             if isPlayable(newX, newY) then rotated:set(newX, newY, value) end
         end
     end)
-    rotated:set(Config.CENTER, Config.CENTER, 0)
     return rotated
 end
 

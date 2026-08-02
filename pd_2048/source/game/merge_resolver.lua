@@ -25,7 +25,7 @@ function MergeResolver.getEvaluation(sourceX, targetX)
         + MergeResolver.getDirectionEvaluation(sourceX, targetX)
 end
 
-function MergeResolver.keepsBlockConnected(board, sourceX, sourceY, targetX, targetY)
+function MergeResolver.keepsBlockConnected(board, sourceX, sourceY, targetX, targetY, mode)
     local neighbors = {
         { x = targetX - 1, y = targetY, excludedX = sourceX, excludedY = targetY },
         { x = targetX + 1, y = targetY, excludedX = sourceX, excludedY = targetY },
@@ -33,16 +33,16 @@ function MergeResolver.keepsBlockConnected(board, sourceX, sourceY, targetX, tar
         { x = targetX, y = targetY + 1, excludedX = targetX, excludedY = sourceY },
     }
     for _, neighbor in ipairs(neighbors) do
-        if BoardRules.isPlayable(neighbor.x, neighbor.y)
+        if BoardRules.isPlayable(neighbor.x, neighbor.y, mode)
             and (neighbor.x ~= neighbor.excludedX or neighbor.y ~= neighbor.excludedY)
-            and BoardRules.isOccupied(board, neighbor.x, neighbor.y) then
+            and BoardRules.isOccupied(board, neighbor.x, neighbor.y, mode) then
             return true
         end
     end
     return false
 end
 
-function MergeResolver.find(board, sourceX, sourceY, activeValue)
+function MergeResolver.find(board, sourceX, sourceY, activeValue, mode)
     local directions = Config.DIRECTION
     local fallbackSourceX, fallbackSourceY, fallbackTargetX, fallbackTargetY
     local offsets = {
@@ -56,10 +56,10 @@ function MergeResolver.find(board, sourceX, sourceY, activeValue)
         local offset = offsets[direction]
         local neighborX = sourceX + offset.dx
         local neighborY = sourceY + offset.dy
-        if activeValue ~= 0 and BoardRules.isPlayable(neighborX, neighborY)
+        if activeValue ~= 0 and BoardRules.isPlayable(neighborX, neighborY, mode)
             and board:get(neighborX, neighborY) == activeValue then
             if MergeResolver.keepsBlockConnected(
-                board, sourceX, sourceY, neighborX, neighborY) then
+                board, sourceX, sourceY, neighborX, neighborY, mode) then
                 return sourceX, sourceY, neighborX, neighborY
             end
             if fallbackSourceX == nil then
@@ -75,17 +75,17 @@ function MergeResolver.find(board, sourceX, sourceY, activeValue)
     return nil
 end
 
-function MergeResolver.findForActive(board, activeX, activeY)
-    return MergeResolver.find(board, activeX, activeY, board:get(activeX, activeY))
+function MergeResolver.findForActive(board, activeX, activeY, mode)
+    return MergeResolver.find(board, activeX, activeY, board:get(activeX, activeY), mode)
 end
 
-function MergeResolver.getAutoPlayCandidates(board, activeValue)
+function MergeResolver.getAutoPlayCandidates(board, activeValue, mode)
     local candidates = {}
     for column = 1, Config.BOARD_SIZE do
-        local x, y = BoardRules.findDropCell(board, column)
+        local x, y = BoardRules.findDropCell(board, column, mode)
         if x ~= nil then
             local sourceX, sourceY, targetX, targetY =
-                MergeResolver.find(board, x, y, activeValue)
+                MergeResolver.find(board, x, y, activeValue, mode)
             table.insert(candidates, {
                 column = column,
                 merge = sourceX ~= nil,

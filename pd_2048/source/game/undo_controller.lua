@@ -54,6 +54,9 @@ function UndoController:restore()
     local currentBoard = state.board
     state.board = restored.board
     state.score = restored.score
+    state.coreRushValue = restored.coreRushValue or 0
+    state.coreRushGainText = ""
+    state.coreRushGainUntil = 0
     state.cursorX = restored.cursorX
     state.holdValue = restored.holdValue
     state.holdAvailable = restored.holdAvailable

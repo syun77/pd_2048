@@ -52,6 +52,10 @@ function GameController:isTimeAttack()
     return self.state.mode == Config.GAME_MODE.TIME_ATTACK
 end
 
+function GameController:isCoreRush()
+    return self.state.mode == Config.GAME_MODE.CORE_RUSH
+end
+
 function GameController:isGameOver()
     return self.state.result ~= nil
 end
@@ -70,6 +74,10 @@ function GameController:loadHighScore()
     if okTimeAttack and type(timeAttackValue) == "number" then
         self.state.timeAttackHighScore = timeAttackValue
     end
+    local okCoreRush, coreRushValue = pcall(pd.datastore.read, "coreRushBestTimeMs")
+    if okCoreRush and type(coreRushValue) == "number" then
+        self.state.coreRushBestTimeMs = coreRushValue
+    end
     self.state.highScore = self.state.normalHighScore
 end
 
@@ -80,9 +88,18 @@ function GameController:saveCurrentModeHighScore()
             state.timeAttackHighScore = state.score
             pd.datastore.write(state.timeAttackHighScore, "timeAttackHighScore")
         end
-    elseif state.score > state.normalHighScore then
+    elseif state.mode == Config.GAME_MODE.NORMAL and state.score > state.normalHighScore then
         state.normalHighScore = state.score
         pd.datastore.write(state.normalHighScore, "highScore")
+    end
+end
+
+function GameController:saveCoreRushBestTime()
+    local state = self.state
+    if not self:isCoreRush() or state.result ~= GameResult.VICTORY then return end
+    if state.coreRushBestTimeMs == nil or state.elapsedTimeMs < state.coreRushBestTimeMs then
+        state.coreRushBestTimeMs = state.elapsedTimeMs
+        pd.datastore.write(state.coreRushBestTimeMs, "coreRushBestTimeMs")
     end
 end
 
@@ -154,7 +171,7 @@ function GameController:updateRewindHold()
 end
 
 function GameController:findDropCell(column)
-    return BoardRules.findDropCell(self.state.board, column)
+    return BoardRules.findDropCell(self.state.board, column, self.state.mode)
 end
 
 function GameController:isDropAvailable()
@@ -162,7 +179,7 @@ function GameController:isDropAvailable()
 end
 
 function GameController:findMergeForBlock(sourceX, sourceY, activeValue)
-    return MergeResolver.find(self.state.board, sourceX, sourceY, activeValue)
+    return MergeResolver.find(self.state.board, sourceX, sourceY, activeValue, self.state.mode)
 end
 
 function GameController:isRewindAvailable()
@@ -175,7 +192,7 @@ function GameController:applyGravity()
 end
 
 function GameController:canDropInAnyColumn()
-    return BoardRules.canDropInAnyColumn(self.state.board)
+    return BoardRules.canDropInAnyColumn(self.state.board, self.state.mode)
 end
 
 function GameController:advanceNextQueue()
@@ -219,6 +236,29 @@ function GameController:beginTimeUp()
     self.sound:stop_bgm(1.0)
 end
 
+function GameController:beginVictory()
+    local state = self.state
+    state.coreRushCompleteUntil = pd.getCurrentTimeMilliseconds()
+        + Config.CORE_RUSH_COMPLETE_DISPLAY_MS
+    state.timerStartedAt = nil
+    state.timerLastUpdateAt = nil
+    state.phase = GamePhase.INPUT
+    self.sound:play_se("complete")
+    self.sound:stop_bgm(1.0)
+end
+
+function GameController:addCoreRushValue(mergeValue)
+    if not self:isCoreRush() then return false end
+    local state = self.state
+    local gain = mergeValue * state.combo
+    state.coreRushValue += gain
+    state.coreRushGainText = string.format("%d x %d = %d",
+        mergeValue, state.combo, gain)
+    state.coreRushGainUntil = pd.getCurrentTimeMilliseconds()
+        + Config.CORE_RUSH_GAIN_DISPLAY_MS
+    return state.coreRushValue > 2048
+end
+
 -- 時間切れ警告音を再生するタイミングか判定する.
 function GameController:shouldPlayTimeAttackWarning(
     prevRemainingTimeMs, currentRemainingTimeMs)
@@ -241,7 +281,7 @@ end
 -- タイムアタックモードでの制限時間の更新.
 function GameController:updateTimeAttackTimer()
     local state = self.state
-    if not self:isTimeAttack() or state.result ~= nil
+    if (not self:isTimeAttack() and not self:isCoreRush()) or state.result ~= nil
         or state.timerStartedAt == nil then
 		-- タイムアタックモードでなければ何もしない.
         return
@@ -260,7 +300,12 @@ function GameController:updateTimeAttackTimer()
     state.elapsedTimeMs += math.max(0, now - state.timerLastUpdateAt)
     state.timerLastUpdateAt = now
 	local prevRemainingTimeMs = state.remainingTimeMs
-    state.remainingTimeMs = math.max(0, Config.TIME_ATTACK_LIMIT_MS - state.elapsedTimeMs)
+    if self:isTimeAttack() then
+        state.remainingTimeMs = math.max(0, Config.TIME_ATTACK_LIMIT_MS - state.elapsedTimeMs)
+    end
+
+	if not self:isTimeAttack() then return end
+	-- 60秒タイムアタックのみ時間切れを判定する。
 	if self:shouldPlayTimeAttackWarning(prevRemainingTimeMs, state.remainingTimeMs) then
 		-- 時間切れ警告音の再生.
 		self.sound:play_se("countdown")
@@ -295,7 +340,8 @@ function GameController:startRotation()
     end
     state.rotationStartBoard = state.board
     state.rotationEndBoard = BoardTransform.rotate(
-        state.rotationStartBoard, state.rotationClockwise, BoardRules.isPlayable)
+        state.rotationStartBoard, state.rotationClockwise,
+        function(x, y) return BoardRules.isPlayable(x, y, state.mode) end)
 
     local oldActiveX, oldActiveY = state.activeMergeX, state.activeMergeY
     if state.rotationClockwise then
@@ -330,7 +376,7 @@ function GameController:startResolve(nextAction)
     local state = self.state
     self:applyGravity()
     local x1, y1, x2, y2 = MergeResolver.findForActive(
-        state.board, state.activeMergeX, state.activeMergeY)
+        state.board, state.activeMergeX, state.activeMergeY, state.mode)
     if x1 == nil then
         self:playComboSoundIfNeeded()
         if nextAction == "ROTATE" then self:startRotation()
@@ -362,6 +408,10 @@ function GameController:finishMerge()
     state.board:set(state.mergeTargetX, state.mergeTargetY, state.mergeValue)
     self.session:recordMerge(state.mergeValue)
     state.activeMergeX, state.activeMergeY = state.mergeTargetX, state.mergeTargetY
+    if self:addCoreRushValue(state.mergeValue) then
+        self:beginVictory()
+        return
+    end
     self:startResolve(state.mergeNextAction)
 end
 
@@ -407,8 +457,10 @@ end
 
 function GameController:spawnInitialBlocks()
     local state = self.state
-    state.board:set(Config.CENTER - 1, Config.CENTER, 8)
-    state.board:set(Config.CENTER + 1, Config.CENTER, 8)
+    if not self:isCoreRush() then
+        state.board:set(Config.CENTER - 1, Config.CENTER, 8)
+        state.board:set(Config.CENTER + 1, Config.CENTER, 8)
+    end
 end
 
 function GameController:start(mode)
@@ -417,6 +469,10 @@ function GameController:start(mode)
     self:clearBoard()
     state.result = nil
     state.score = 0
+    state.coreRushValue = 0
+    state.coreRushGainText = ""
+    state.coreRushGainUntil = 0
+    state.coreRushCompleteUntil = 0
     state.highScore = state.mode == Config.GAME_MODE.TIME_ATTACK
         and state.timeAttackHighScore or state.normalHighScore
     state.elapsedTimeMs = 0
@@ -451,13 +507,13 @@ function GameController:start(mode)
     state.rotationEvaluation = 0
     state.nextValues = {}
     self.autoPlayer:reset()
+    state.previewImpulseRotationDegrees = 0
+    self:spawnInitialBlocks()
     for i = 1, Config.NEXT_QUEUE_COUNT do
         state.nextValues[i] = TileGenerator.nextForState(state.board, state)
     end
-    state.previewImpulseRotationDegrees = 0
-    self:spawnInitialBlocks()
     state.phase = GamePhase.INPUT
-    if state.mode == Config.GAME_MODE.TIME_ATTACK then
+    if state.mode == Config.GAME_MODE.TIME_ATTACK or self:isCoreRush() then
         state.timerStartedAt = pd.getCurrentTimeMilliseconds()
         state.timerLastUpdateAt = state.timerStartedAt
     end
@@ -543,6 +599,17 @@ end
 function GameController:update()
     local state = self.state
     self:updateTimeAttackTimer()
+
+    if state.coreRushCompleteUntil ~= 0 then
+        if pd.getCurrentTimeMilliseconds() >= state.coreRushCompleteUntil then
+            state.coreRushCompleteUntil = 0
+            state.result = GameResult.VICTORY
+            self:saveCoreRushBestTime()
+            return { scene = Config.SCENE.GAME_OVER }
+        end
+        return nil
+    end
+
     if state.phase ~= GamePhase.INPUT then self:resetCursorKeyRepeat() end
 
     if state.phase == GamePhase.INPUT then
@@ -556,7 +623,8 @@ function GameController:update()
                 holdValue = state.holdValue,
                 holdAvailable = state.holdAvailable,
                 getCandidates = function(activeValue)
-                    return MergeResolver.getAutoPlayCandidates(state.board, activeValue)
+                    return MergeResolver.getAutoPlayCandidates(
+                        state.board, activeValue, state.mode)
                 end,
             })
             if command == InputCommand.HOLD then self:holdCurrentBlock()

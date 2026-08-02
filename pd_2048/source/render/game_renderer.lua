@@ -249,7 +249,7 @@ end
 
 function GameRenderer:drawBoard()
     local state = self.state
-    BoardRenderer.grid()
+    BoardRenderer.grid(state.mode ~= Config.GAME_MODE.CORE_RUSH)
     local previewRotationAngle = self:getPreviewRotationAngle()
 
     if state.phase == GamePhase.ROTATING or state.phase == GamePhase.UNDO_ROTATING then
@@ -275,6 +275,9 @@ function GameRenderer:drawBoard()
     elseif state.phase == GamePhase.HOLD_ANIM then
         self:drawHoldAnimation()
     end
+    if state.mode == Config.GAME_MODE.CORE_RUSH then
+        BoardRenderer.centerValue(state.coreRushValue)
+    end
 end
 
 function GameRenderer:drawHeader()
@@ -285,6 +288,8 @@ function GameRenderer:drawHeader()
         comboBonusScore = state.comboBonusScore, holdValue = state.holdValue,
         nextValues = state.nextValues, phase = state.phase,
         mode = state.mode, remainingTimeMs = state.remainingTimeMs,
+        elapsedTimeMs = state.elapsedTimeMs,
+        coreRushValue = state.coreRushValue,
     })
     state.comboDisplayFrame += 1
 end
@@ -294,6 +299,8 @@ function GameRenderer:drawNormalFrame()
     self:drawHeader()
     self.overlay:drawDangerIcons()
     self:drawBoard()
+    self.overlay:drawCoreRushGain()
+    self.overlay:drawCoreRushComplete()
     self.overlay:drawRewindHint()
     if state.phase == GamePhase.PAUSED then
         self.overlay:drawPause()
@@ -306,6 +313,7 @@ function GameRenderer:drawGameOverFrame(selectedIndex)
     self:drawHeader()
     self.overlay:drawDangerIcons()
     self:drawBoard()
+    self.overlay:drawCoreRushGain()
     self.overlay:drawGameOver(selectedIndex)
 end
 

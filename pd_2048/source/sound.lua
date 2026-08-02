@@ -90,6 +90,7 @@ local seTable = {
 	"rewind_button",
 	"decide",
 	"error",
+	"complete",
 	"gameover",
 	"combo1",
 	"combo2",

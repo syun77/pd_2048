@@ -7,6 +7,7 @@ local UndoHistory = {}
 function UndoHistory.push(history, state, action)
     local snapshot = {
         board = BoardTransform.copy(state.board), score = state.score,
+        coreRushValue = state.coreRushValue,
         cursorX = state.cursorX, holdValue = state.holdValue,
         holdAvailable = state.holdAvailable,
         lastRandomBlockValue = state.lastRandomBlockValue,

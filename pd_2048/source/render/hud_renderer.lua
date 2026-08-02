@@ -37,6 +37,15 @@ function HudRenderer.timeAttack(remainingTimeMs, totalTimeMs)
 	gfx.drawRoundRect(barX, barY, barWidth, barHeight, 4)
 end
 
+function HudRenderer.coreRush(elapsedTimeMs)
+    local totalCentiseconds = math.floor(math.max(0, elapsedTimeMs) / 10)
+    local seconds = math.floor(totalCentiseconds / 100)
+    local centiseconds = totalCentiseconds % 100
+    gfx.drawText("TIME: ", 152, 4)
+    gfx.drawTextAligned(string.format("%02d.%02d", seconds, centiseconds),
+        248, 4, kTextAlignment.right)
+end
+
 function HudRenderer.combo(combo, comboDisplayFrame, comboBonusScore)
     if combo <= 1 then return end
     if comboDisplayFrame >= Config.COMBO_BLINK_DURATION_FRAMES
@@ -95,6 +104,8 @@ end
 function HudRenderer.header(ctx)
     if ctx.mode == Config.GAME_MODE.TIME_ATTACK then
         HudRenderer.timeAttack(ctx.remainingTimeMs, Config.TIME_ATTACK_LIMIT_MS)
+    elseif ctx.mode == Config.GAME_MODE.CORE_RUSH then
+        HudRenderer.coreRush(ctx.elapsedTimeMs)
     end
     HudRenderer.score(ctx.score)
     ctx.comboDisplayFrame += 1

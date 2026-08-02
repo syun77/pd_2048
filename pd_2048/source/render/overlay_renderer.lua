@@ -131,6 +131,47 @@ function OverlayRenderer:drawMessage()
     end
 end
 
+function OverlayRenderer:drawCoreRushGain()
+    local state = self.state
+    if state.mode ~= Config.GAME_MODE.CORE_RUSH
+        or state.coreRushGainText == ""
+        or pd.getCurrentTimeMilliseconds() >= state.coreRushGainUntil then
+        return
+    end
+
+    local textWidth, textHeight = gfx.getTextSize(state.coreRushGainText)
+    local boxWidth = textWidth + 32
+    local boxHeight = textHeight + 16
+    local boxX = math.floor((400 - boxWidth) * 0.5)
+    local boxY = math.floor((240 - boxHeight) * 0.5)
+    gfx.fillRoundRect(boxX, boxY, boxWidth, boxHeight, 6)
+    gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    gfx.drawTextAligned(state.coreRushGainText, 200,
+        boxY + (boxHeight - textHeight) * 0.5, kTextAlignment.center)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+end
+
+function OverlayRenderer:drawCoreRushComplete()
+    local state = self.state
+    if state.mode ~= Config.GAME_MODE.CORE_RUSH
+        or state.coreRushCompleteUntil == 0
+        or pd.getCurrentTimeMilliseconds() >= state.coreRushCompleteUntil then
+        return
+    end
+
+    local text = "COMPLETE"
+    local textWidth, textHeight = gfx.getTextSize(text)
+    local boxWidth = textWidth + 32
+    local boxHeight = textHeight + 16
+    local boxX = math.floor((400 - boxWidth) * 0.5)
+    local boxY = math.floor((240 - boxHeight) * 0.5)
+    gfx.fillRoundRect(boxX, boxY, boxWidth, boxHeight, 6)
+    gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    gfx.drawTextAligned(text, 200,
+        boxY + (boxHeight - textHeight) * 0.5, kTextAlignment.center)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+end
+
 -- 中心座標を基準に、選択可能なメニューを描画する。
 function OverlayRenderer:drawMenu(centerX, centerY, items, selectedIndex, backgroundColor)
     if items == nil or #items == 0 then return end
@@ -192,11 +233,21 @@ end
 -- ゲームオーバーメニューの描画.
 function OverlayRenderer:drawGameOver(selectedIndex)
     selectedIndex = selectedIndex or 1
-    local resultTitle = self.state.result == Config.GAME_RESULT.TIME_UP
-        and "TIME UP" or "GAME OVER"
+    local resultTitle = "GAME OVER"
+    if self.state.result == Config.GAME_RESULT.TIME_UP then
+        resultTitle = "TIME UP"
+    elseif self.state.result == Config.GAME_RESULT.VICTORY then
+        resultTitle = "VICTORY"
+    end
+    local resultDetail = "SCORE " .. tostring(self.state.score)
+    if self.state.result == Config.GAME_RESULT.VICTORY then
+        local centiseconds = math.floor(self.state.elapsedTimeMs / 10)
+        resultDetail = string.format("TIME %02d.%02d",
+            math.floor(centiseconds / 100), centiseconds % 100)
+    end
     self:drawMenu(200, 130, {
         resultTitle,
-        "SCORE " .. tostring(self.state.score),
+        resultDetail,
         "RETRY",
         "TITLE",
     }, selectedIndex + 2)
