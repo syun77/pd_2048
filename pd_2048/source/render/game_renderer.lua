@@ -2,7 +2,7 @@ import "CoreLibs/graphics"
 import "easing"
 import "game_config"
 import "board/board_renderer"
-import "hud_renderer"
+import "render/hud_renderer"
 
 local pd <const> = playdate
 local gfx <const> = pd.graphics
