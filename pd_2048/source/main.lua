@@ -3,11 +3,20 @@ import "CoreLibs/ui"
 import "array2d"
 import "game_context"
 import "easing"
+import "game_config"
+import "game_state"
+import "board_transform"
+import "tile_generator"
+import "undo_history"
+import "board_rules"
+import "cursor_controller"
 
 local pd <const> = playdate
 local gfx <const> = pd.graphics
 local gameContext <const> = GameContext.getInstance()
 local sound <const> = gameContext.sound
+local Config <const> = GameConfig
+local cursorController <const> = CursorController.new()
 
 local DEFAULT_REFRESH_RATE <const> = 30 -- ディスプレイの更新レート (FPS。フレーム毎秒).
 local CURSOR_KEY_REPEAT_INITIAL_DELAY_MS <const> = 300 -- 左右キーを押し続けたとき、最初にリピートするまでの待ち時間.
@@ -162,7 +171,7 @@ local function playGameBgm()
 end
 
 local function isCenter(x, y)
-    return x == CENTER and y == CENTER
+    return BoardRules.isCenter(x, y)
 end
 
 -- 中央から見たブロックの左右位置を評価する.
@@ -216,11 +225,11 @@ local function addRotationEvaluation(value)
 end
 
 local function isPlayable(x, y)
-    return x >= 1 and x <= BOARD_SIZE and y >= 1 and y <= BOARD_SIZE and not isCenter(x, y)
+    return BoardRules.isPlayable(x, y)
 end
 
 local function isOccupied(x, y)
-    return isPlayable(x, y) and board:get(x, y) ~= 0
+    return BoardRules.isOccupied(board, x, y)
 end
 
 local function setMessage(text, duration)
@@ -252,41 +261,23 @@ end
 
 -- 盤面を値ごと複製する。Array2Dは参照型なので、取り消し用に別の盤面を作る。
 local function copyBoard(source)
-    local copied = Array2D(BOARD_SIZE, BOARD_SIZE, 0)
-    source:foreach(function(x, y, value)
-        copied:set(x, y, value)
-    end)
-    return copied
+    return BoardTransform.copy(source)
 end
 
 -- 1手前の状態を履歴に保存する。
 local function saveUndoState(action)
-    local state = {
-        board = copyBoard(board),
-        score = score,
-        cursorX = cursorX,
-        holdValue = holdValue,
-        holdAvailable = holdAvailable,
+    UndoHistory.push(undoStates, {
+        board = board, score = score, cursorX = cursorX,
+        holdValue = holdValue, holdAvailable = holdAvailable,
         lastRandomBlockValue = lastRandomBlockValue,
         consecutiveRandomBlockCount = consecutiveRandomBlockCount,
-        hasRotation = false,
-        rotationClockwise = false,
-        action = action,
-        nextValues = {}
-    }
-    for i = 1, NEXT_QUEUE_COUNT do
-        state.nextValues[i] = nextValues[i]
-    end
-
-    table.insert(undoStates, state)
-    if #undoStates > MAX_UNDO_COUNT then
-        table.remove(undoStates, 1)
-    end
+        nextValues = nextValues,
+    }, action)
 end
 
 -- 直前の手を取り消す。取り消しは最大MAX_UNDO_COUNT手分可能。
 local function isRewindAvailable()
-    return rewindUsesRemaining > 0 and #undoStates > 0
+    return UndoHistory.canRestore(undoStates, rewindUsesRemaining)
 end
 
 -- 巻き戻しを実行.
@@ -300,7 +291,7 @@ local function undoLastTurn()
         return false
     end
 
-    local state = table.remove(undoStates)
+    local state = UndoHistory.pop(undoStates)
     local rewindHoldAnimation = state.action == "HOLD"
     rewindHoldAnimationActive = rewindHoldAnimation
     if rewindHoldAnimation then
@@ -414,80 +405,14 @@ end
 
 -- ランダムでブロックを抽選する.
 local function randomBlockValue()
-    local maxValue = getMaxTileValue()
-    local maxQuarter = math.floor(maxValue / 4)
-    local suppressedValue = nil
-    if consecutiveRandomBlockCount >= 3 then
-        suppressedValue = lastRandomBlockValue
-    end
-
-    local selectedValue
-
-    -- 最大値が16以上になったら、2から最大値の1/4までを候補にする。
-    -- 重みは1/値とし、最大値の1/4だけ重みを半分にして出現率を抑える。
-    if maxValue >= 16 then
-        local totalWeight = 0
-        local value = 2
-        while value <= maxQuarter do
-            local weight = 1 / value
-            if value == maxQuarter then
-                weight *= 0.5
-            end
-            if value ~= suppressedValue then
-                totalWeight += weight
-            end
-            value *= 2
-        end
-
-        local roll = math.random() * totalWeight
-        local cumulativeWeight = 0
-        value = 2
-        while value <= maxQuarter do
-            local weight = 1 / value
-            if value == maxQuarter then
-                weight *= 0.5
-            end
-            if value ~= suppressedValue then
-                cumulativeWeight += weight
-                if roll < cumulativeWeight then
-                    selectedValue = value
-                    break
-                end
-            end
-            value *= 2
-        end
-
-        -- 浮動小数点誤差などで未選択になった場合の安全策。
-        if selectedValue == nil then
-            value = 2
-            while value <= maxQuarter do
-                if value ~= suppressedValue then
-                    selectedValue = value
-                    break
-                end
-                value *= 2
-            end
-        end
-    else
-        if math.random(1, 10) == 10 then
-            selectedValue = 4
-        else
-            selectedValue = 2
-        end
-
-        -- 同じ値が3回連続した場合、次回はその値を出さない。
-        if selectedValue == suppressedValue then
-            selectedValue = (selectedValue == 2) and 4 or 2
-        end
-    end
-
-    if selectedValue == lastRandomBlockValue then
-        consecutiveRandomBlockCount += 1
-    else
-        lastRandomBlockValue = selectedValue
-        consecutiveRandomBlockCount = 1
-    end
-    return selectedValue
+    local randomState = {
+        lastValue = lastRandomBlockValue,
+        consecutiveCount = consecutiveRandomBlockCount,
+    }
+    local value = TileGenerator.next(board, randomState, getMaxTileValue)
+    lastRandomBlockValue = randomState.lastValue
+    consecutiveRandomBlockCount = randomState.consecutiveCount
+    return value
 end
 
 -- 落下可能かどうかを判定する.
@@ -514,18 +439,7 @@ end
 
 -- 落下可能なセルを見つける.
 local function findDropCell(x)
-    for y = 1, BOARD_SIZE do
-        if isCenter(x, y) then
-            return nil
-        end
-        if board:get(x, y) ~= 0 then
-            return nil
-        end
-        if isSupported(x, y) then
-            return x, y
-        end
-    end
-    return nil
+    return BoardRules.findDropCell(board, x)
 end
 
 -- 現在のカーソル位置からブロックを落とせるかどうかを判定する.
@@ -620,34 +534,11 @@ local function findMergeForActiveBlock()
 end
 
 local function makeRotatedBoard(source, clockwise)
-    local rotated = Array2D(BOARD_SIZE, BOARD_SIZE, 0)
-    source:foreach(function(x, y, value)
-        if isPlayable(x, y) and value ~= 0 then
-            local newX
-            local newY
-            if clockwise then
-                newX = BOARD_SIZE + 1 - y
-                newY = x
-            else
-                newX = y
-                newY = BOARD_SIZE + 1 - x
-            end
-            if isPlayable(newX, newY) then
-                rotated:set(newX, newY, value)
-            end
-        end
-    end)
-    rotated:set(CENTER, CENTER, 0)
-    return rotated
+    return BoardTransform.rotate(source, clockwise, isPlayable)
 end
 
 local function canDropInAnyColumn()
-    for x = 1, BOARD_SIZE do
-        if findDropCell(x) ~= nil then
-            return true
-        end
-    end
-    return false
+    return BoardRules.canDropInAnyColumn(board)
 end
 
 -- 外周の各辺について、準危険状態と危険状態を判定する.
@@ -1007,31 +898,16 @@ end
 
 -- 左右キーのリピート状態を解除する.
 local function resetCursorKeyRepeat()
+    CursorController.reset(cursorController)
     cursorRepeatDirection = 0
     cursorRepeatNextAt = nil
 end
 
 -- 左右キーの押しっぱなしによるカーソル移動を処理する.
 local function updateCursorKeyRepeat()
-    local now = pd.getCurrentTimeMilliseconds()
-
-    if pd.buttonJustPressed(pd.kButtonLeft) then
-        moveCursor(-1)
-        cursorRepeatDirection = -1
-        cursorRepeatNextAt = now + CURSOR_KEY_REPEAT_INITIAL_DELAY_MS
-    elseif pd.buttonJustPressed(pd.kButtonRight) then
-        moveCursor(1)
-        cursorRepeatDirection = 1
-        cursorRepeatNextAt = now + CURSOR_KEY_REPEAT_INITIAL_DELAY_MS
-    elseif cursorRepeatDirection ~= 0 then
-        local button = cursorRepeatDirection < 0 and pd.kButtonLeft or pd.kButtonRight
-        if not pd.buttonIsPressed(button) then
-            resetCursorKeyRepeat()
-        elseif now >= cursorRepeatNextAt then
-            moveCursor(cursorRepeatDirection)
-            cursorRepeatNextAt = now + CURSOR_KEY_REPEAT_INTERVAL_MS
-        end
-    end
+    CursorController.update(cursorController, pd, pd.getCurrentTimeMilliseconds(), moveCursor)
+    cursorRepeatDirection = cursorController.direction
+    cursorRepeatNextAt = cursorController.nextAt
 end
 
 local function drawCenteredText(text, y)
