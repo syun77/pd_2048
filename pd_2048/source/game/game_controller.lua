@@ -23,7 +23,6 @@ function GameController.new(dependencies)
     local self = setmetatable({}, GameController)
     self.state = GameState.new()
     self.sound = dependencies.sound
-    self.playGameBgm = dependencies.playGameBgm
     self.cursorController = CursorController.new()
     self.autoPlayer = AutoPlayer.new()
     self.autoPlayEnabled = false
@@ -43,6 +42,14 @@ end
 function GameController:setAutoPlayEnabled(value)
     self.autoPlayEnabled = value
     self.autoPlayer:reset()
+end
+
+function GameController:getState()
+    return self.state
+end
+
+function GameController:isGameOver()
+    return self.state.result == GameResult.GAME_OVER
 end
 
 function GameController:setMessage(text, duration)
@@ -357,7 +364,7 @@ function GameController:start()
     state.phase = GamePhase.INPUT
     state.message = ""
     state.crisisBgmActive = false
-    self.playGameBgm()
+    self.sound:playGameBgm()
 end
 
 function GameController:holdCurrentBlock()

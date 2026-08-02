@@ -211,6 +211,16 @@ function Sound:setBgmRandomMode(mode)
 	self.bgmRandomCount = 0 -- ランダム再生回数をリセット.
 end
 
+function Sound:playMenuBgm()
+	self:setBgmRandomMode(BGMRandomMode.MENU)
+	self:play_bgm(-1, false)
+end
+
+function Sound:playGameBgm()
+	self:setBgmRandomMode(BGMRandomMode.NOMAL)
+	self:play_bgm(-1, false)
+end
+
 function Sound:onBgmFinished(player)
 	if self.isChangingBgm or player ~= self.player then
 		return

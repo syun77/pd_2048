@@ -6,7 +6,7 @@ function NormalGameScene.new(context)
 end
 
 function NormalGameScene:enter()
-    self.context.playGameBgm()
+    self.context.sound:playGameBgm()
 end
 
 function NormalGameScene:update()

@@ -20,25 +20,12 @@ local DEFAULT_REFRESH_RATE <const> = Config.DEFAULT_REFRESH_RATE
 local Scene <const> = Config.SCENE
 local GamePhase <const> = Config.GAME_PHASE
 
--- メニューBGMの再生.
-local function playMenuBgm()
-    sound:setBgmRandomMode(BGMRandomMode.MENU)
-    sound:play_bgm(-1, false)
-end
-
--- メインゲームBGMの再生.
-local function playGameBgm()
-    sound:setBgmRandomMode(BGMRandomMode.NOMAL)
-    sound:play_bgm(-1, false)
-end
-
 local gameController = GameController.new({
     sound = sound,
-    playGameBgm = playGameBgm,
 })
 local state = gameController.state
 
-playMenuBgm()
+sound:playMenuBgm()
 pd.display.setRefreshRate(DEFAULT_REFRESH_RATE)
 
 local sceneManager
@@ -73,9 +60,7 @@ local gameRenderer = GameRenderer.new({
 local sceneContext = SceneContext.new({
     game = gameController,
     renderer = gameRenderer,
-    playDecideSound = function() sound:play_se("decide") end,
-    playMenuBgm = playMenuBgm,
-    playGameBgm = playGameBgm,
+    sound = sound,
 })
 
 sceneManager = SceneManager.new(sceneContext)
