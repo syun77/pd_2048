@@ -1,7 +1,6 @@
 import "CoreLibs/graphics"
 import "array2d"
 import "game_context"
-import "easing"
 import "game_config"
 import "game_state"
 import "board/board_transform"
@@ -11,8 +10,8 @@ import "board/board_rules"
 import "cursor_controller"
 import "input/input_command"
 import "input/auto_player"
-import "board/board_renderer"
-import "hud_renderer"
+import "render/game_renderer"
+import "render/overlay_renderer"
 import "turn_resolver"
 import "scene/scene_manager"
 import "scene/scene_context"
@@ -34,32 +33,10 @@ local CURSOR_KEY_REPEAT_INITIAL_DELAY_MS <const> = Config.CURSOR_KEY_REPEAT_INIT
 local CURSOR_KEY_REPEAT_INTERVAL_MS <const> = Config.CURSOR_KEY_REPEAT_INTERVAL_MS -- 左右キーを押し続けたときのリピート間隔.
 local BOARD_SIZE <const> = Config.BOARD_SIZE
 local CENTER <const> = Config.CENTER
-local CELL_SIZE <const> = Config.CELL_SIZE
-local BOARD_X <const> = Config.BOARD_X
-local BOARD_Y <const> = Config.BOARD_Y
--- 盤面とNEXTの間にある右上の空き領域をHOLD表示に使用する.
-local HOLD_BOX_X <const> = Config.HOLD_BOX_X
-local HOLD_BOX_Y <const> = Config.HOLD_BOX_Y
-local NEXT_BOX_X <const> = Config.NEXT_BOX_X
-local NEXT_BOX_Y <const> = Config.NEXT_BOX_Y
-local NEXT_BOX_WIDTH <const> = Config.NEXT_BOX_WIDTH
-local NEXT_BOX_HEIGHT <const> = Config.NEXT_BOX_HEIGHT
 -- 落下対象を除いたブロックを表示するため、表示数より1つ多く保持する.
 local NEXT_QUEUE_COUNT <const> = Config.NEXT_QUEUE_COUNT
 local MAX_REWIND_USES <const> = Config.MAX_REWIND_USES
 local REWIND_HOLD_DURATION_MS <const> = Config.REWIND_HOLD_DURATION_MS
-local REWIND_GAUGE_WIDTH <const> = Config.REWIND_GAUGE_WIDTH
--- 危険アイコン関連.
-local DANGER_ICON_SIZE <const> = Config.DANGER_ICON_SIZE
-local DANGER_ICON_OFFSET <const> = Config.DANGER_ICON_OFFSET -- 盤面の外周からアイコンまでの距離.
-local DANGER_ICON_BOTTOM_X <const> = BOARD_X + (BOARD_SIZE * CELL_SIZE - DANGER_ICON_SIZE) * 0.5
-local DANGER_ICON_BOTTOM_Y <const> = BOARD_Y + BOARD_SIZE * CELL_SIZE + DANGER_ICON_OFFSET
-local DANGER_ICON_LEFT_X <const> = BOARD_X - DANGER_ICON_SIZE - DANGER_ICON_OFFSET
-local DANGER_ICON_LEFT_Y <const> = BOARD_Y + (BOARD_SIZE * CELL_SIZE - DANGER_ICON_SIZE) * 0.5
-local DANGER_ICON_RIGHT_X <const> = BOARD_X + BOARD_SIZE * CELL_SIZE + DANGER_ICON_OFFSET
-local DANGER_ICON_RIGHT_Y <const> = DANGER_ICON_LEFT_Y
-local DANGER_ICON_BLINK_PERIOD <const> = Config.DANGER_ICON_BLINK_PERIOD
-local DANGER_ICON_BLINK_ON_DURATION <const> = Config.DANGER_ICON_BLINK_ON_DURATION
 -- コンボ表示時間.
 local COMBO_SCORE_COEFFICIENT <const> = Config.COMBO_SCORE_COEFFICIENT
 local COMBO_SCORE_EXPONENT <const> = Config.COMBO_SCORE_EXPONENT
@@ -72,10 +49,9 @@ local DIRECTION_UP <const> = Config.DIRECTION.UP
 local Scene <const> = Config.SCENE
 local GamePhase <const> = Config.GAME_PHASE
 local GameResult <const> = Config.GAME_RESULT
--- 傾きをわかりやすく見せるための回転角度の最大値と、1ポイントあたりの回転角度.
 local PREVIEW_ROTATION_MAX_DEGREES <const> = Config.PREVIEW_ROTATION_MAX_DEGREES
-local PREVIEW_ROTATION_EVALUATION_MULTIPLIER <const> = Config.PREVIEW_ROTATION_EVALUATION_MULTIPLIER -- 評価値に対する倍率.
-local PREVIEW_ROTATION_DEGREES_PER_POINT <const> = Config.PREVIEW_ROTATION_DEGREES_PER_POINT -- 最終的な角度に対する倍率.
+local PREVIEW_ROTATION_EVALUATION_MULTIPLIER <const> = Config.PREVIEW_ROTATION_EVALUATION_MULTIPLIER
+local PREVIEW_IMPULSE_ROTATION_DEGREES <const> = Config.PREVIEW_IMPULSE_ROTATION_DEGREES
 -- 回転方向の評価値.
 local ROTATION_EVALUATION_POSITION_RIGHT <const> = Config.ROTATION_EVALUATION_POSITION_RIGHT -- 右側の位置を評価する値.
 local ROTATION_EVALUATION_POSITION_LEFT <const> = Config.ROTATION_EVALUATION_POSITION_LEFT -- 左側の位置を評価する値.
@@ -86,17 +62,6 @@ local ROTATION_EVALUATION_MERGED_BLOCK_WEIGHT <const> = Config.ROTATION_EVALUATI
 local ROTATION_EVALUATION_MERGE_DIRECTION_LEFT <const> = Config.ROTATION_EVALUATION_MERGE_DIRECTION_LEFT -- マージ方向の評価値 (左方向).
 local ROTATION_EVALUATION_MERGE_DIRECTION_RIGHT <const> = Config.ROTATION_EVALUATION_MERGE_DIRECTION_RIGHT -- マージ方向の評価値 (右方向).
 local ROTATION_EVALUATION_VERTICAL_DIRECTION_WEIGHT <const> = Config.ROTATION_EVALUATION_VERTICAL_DIRECTION_WEIGHT -- マージ方向が上下の場合の評価値の重み.
--- プレビュー反動の設定.
-local PREVIEW_IMPULSE_ROTATION_DEGREES <const> = Config.PREVIEW_IMPULSE_ROTATION_DEGREES
-local PREVIEW_IMPULSE_DECAY <const> = Config.PREVIEW_IMPULSE_DECAY
--- 回転予測の矢印.
-local ROTATION_DIRECTION_ARROW_OFFSET_Y <const> = Config.ROTATION_DIRECTION_ARROW_OFFSET_Y -- 矢印の中心位置のY座標をずらす値.
-local ROTATION_DIRECTION_ARROW_MIN_LENGTH <const> = Config.ROTATION_DIRECTION_ARROW_MIN_LENGTH
-local ROTATION_DIRECTION_ARROW_MAX_LENGTH <const> = Config.ROTATION_DIRECTION_ARROW_MAX_LENGTH
-local ROTATION_DIRECTION_ARROW_HEAD_LENGTH <const> = Config.ROTATION_DIRECTION_ARROW_HEAD_LENGTH
-local ROTATION_DIRECTION_ARROW_HEAD_WIDTH <const> = Config.ROTATION_DIRECTION_ARROW_HEAD_WIDTH
-local ROTATION_DIRECTION_ARROW_MAX_EVALUATION <const> = Config.ROTATION_DIRECTION_ARROW_MAX_EVALUATION
-
 local state = GameState.new()
 local finishHoldAnimation
 
@@ -842,380 +807,6 @@ local function updateCursorKeyRepeat()
     state.cursorRepeatNextAt = cursorController.nextAt
 end
 
-local function drawCenteredText(text, y)
-    gfx.drawTextAligned(text, 200, y, kTextAlignment.center)
-end
-
--- 危険標識風のアイコンを描画する.
-local function drawDangerIcon(x, y, size, blinking)
-    if blinking then
-        local blinkProgress = pd.getCurrentTimeMilliseconds() % DANGER_ICON_BLINK_PERIOD
-        if blinkProgress >= DANGER_ICON_BLINK_ON_DURATION then
-            return
-        end
-        gfx.setImageDrawMode(gfx.kDrawModeXOR)
-    end
-
-    local centerX = x + size * 0.5
-    local topY = y + 1
-    local bottomY = y + size - 1
-    local leftX = x + 1
-    local rightX = x + size - 1
-
-    gfx.setLineWidth(2)
-    gfx.drawLine(centerX, topY, leftX, bottomY)
-    gfx.drawLine(leftX, bottomY, rightX, bottomY)
-    gfx.drawLine(rightX, bottomY, centerX, topY)
-
-    gfx.drawLine(centerX, y + 6, centerX, y + 12)
-    gfx.fillCircleAtPoint(centerX, y + 16, 1)
-    gfx.setLineWidth(1)
-    gfx.setImageDrawMode(gfx.kDrawModeCopy)
-end
-
-local function drawDangerIcons()
-    local bottomDanger, bottomCritical,
-        leftDanger, leftCritical,
-        rightDanger, rightCritical = getDangerEdges()
-    local dangerActive = bottomDanger or leftDanger or rightDanger
-    if dangerActive and not state.crisisBgmActive then
-        sound:setBgmRandomMode(BGMRandomMode.CRISIS)
-        state.crisisBgmActive = true
-    elseif not dangerActive and state.crisisBgmActive then
-		state.crisisBgmActive = false
-    end
-
-    if bottomDanger then
-        drawDangerIcon(DANGER_ICON_BOTTOM_X, DANGER_ICON_BOTTOM_Y, DANGER_ICON_SIZE, bottomCritical)
-    end
-    if leftDanger then
-        drawDangerIcon(DANGER_ICON_LEFT_X, DANGER_ICON_LEFT_Y, DANGER_ICON_SIZE, leftCritical)
-    end
-    if rightDanger then
-        drawDangerIcon(DANGER_ICON_RIGHT_X, DANGER_ICON_RIGHT_Y, DANGER_ICON_SIZE, rightCritical)
-    end
-end
-
-local function getRotatedTilePosition(px, py, angle)
-    return BoardRenderer.tilePosition(px, py, angle)
-end
-
--- 落下するブロックの描画.
-local function drawFallingBlock(rotationAngle)
-    local startY = BOARD_Y - CELL_SIZE
-    local targetY = BOARD_Y + (state.pendingDropY - 1) * CELL_SIZE
-    local y = startY + (targetY - startY) * state.animationProgress
-    local px, py = getRotatedTilePosition(
-        BOARD_X + (state.pendingDropX - 1) * CELL_SIZE, y, rotationAngle)
-    BoardRenderer.tile(state.pendingDropValue, px, py)
-end
-
--- 落下させたときの着地点を薄いゴースト表示する.
-local function drawLandingPreview()
-    if not isDropAvailable() then
-        return
-    end
-
-    local landingX, landingY = findDropCell(state.cursorX)
-
-    local px = BOARD_X + (landingX - 1) * CELL_SIZE
-    local py = BOARD_Y + (landingY - 1) * CELL_SIZE
-
-    gfx.setDitherPattern(0.9, gfx.image.kDitherTypeBayer8x8)
-    gfx.fillRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4)
-    gfx.setColor(gfx.kColorBlack)
-	-- 外枠は表示しない.
-    --gfx.drawRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4)
-	-- 数字の描画.
-    gfx.drawTextAligned(tostring(state.nextValues[1]),
-        px + CELL_SIZE / 2, py + 8, kTextAlignment.center)
-    gfx.setImageDrawMode(gfx.kDrawModeCopy)
-
-	-- マージ予測方向の描画.
-    local _, _, targetX, targetY = findMergeForBlock(landingX, landingY, state.nextValues[1])
-    if targetX ~= nil then
-		-- 方向ベクトルを計算.
-        local sourceCenterX = BOARD_X + (landingX - 0.5) * CELL_SIZE
-        local sourceCenterY = BOARD_Y + (landingY - 0.5) * CELL_SIZE
-        local targetCenterX = BOARD_X + (targetX - 0.5) * CELL_SIZE
-        local targetCenterY = BOARD_Y + (targetY - 0.5) * CELL_SIZE
-        local directionX = targetX - landingX
-        local directionY = targetY - landingY
-        local arrowStartX = sourceCenterX + (targetCenterX - sourceCenterX) * 0.25
-        local arrowStartY = sourceCenterY + (targetCenterY - sourceCenterY) * 0.25
-        local arrowTipX = sourceCenterX + (targetCenterX - sourceCenterX) * 0.75
-        local arrowTipY = sourceCenterY + (targetCenterY - sourceCenterY) * 0.75
-        local arrowBaseX = arrowTipX - directionX * 7
-        local arrowBaseY = arrowTipY - directionY * 7
-        local perpendicularX = -directionY * 4
-        local perpendicularY = directionX * 4
-
-        gfx.setLineWidth(2)
-        gfx.drawLine(arrowStartX, arrowStartY, arrowTipX, arrowTipY)
-        gfx.setLineWidth(1)
-        gfx.drawLine(arrowTipX, arrowTipY,
-            arrowBaseX + perpendicularX, arrowBaseY + perpendicularY)
-        gfx.drawLine(arrowTipX, arrowTipY,
-            arrowBaseX - perpendicularX, arrowBaseY - perpendicularY)
-    end
-end
-
-local function drawDropPreview()
-    local px = BOARD_X + (state.cursorX - 1) * CELL_SIZE
-    local py = BOARD_Y - CELL_SIZE
-
-    BoardRenderer.tile(state.nextValues[1], px, py)
-
-    -- Blink the outline around the tile to make the active column obvious.
-    if (pd.getCurrentTimeMilliseconds() % 600) < 300 then
-        gfx.setLineWidth(2)
-        gfx.drawRect(px, py, CELL_SIZE, CELL_SIZE)
-        gfx.setLineWidth(1)
-    end
-end
-
-local function easeInOut(value)
-    return value * value * (3 - 2 * value)
-end
-
-local function getPreviewRotationEvaluation()
-    local evaluation = state.rotationEvaluation
-    if state.phase == GamePhase.MERGING then
-        local mergeEvaluation = getMergeEvaluation(state.mergeSourceX, state.mergeTargetX)
-        evaluation += mergeEvaluation * easeInOut(state.animationProgress)
-    end
-
-	-- 最終的な倍率を加算した値を返す.
-    return evaluation * PREVIEW_ROTATION_DEGREES_PER_POINT
-end
-
-local function getPreviewRotationDegrees()
-    if state.phase ~= GamePhase.DROPPING and state.phase ~= GamePhase.MERGING then
-        return 0
-    end
-
-    local previewEvaluation = getPreviewRotationEvaluation()
-	-- 反動値を加算.
-	previewEvaluation += state.previewImpulseRotationDegrees
-	return previewEvaluation
-end
-
--- 傾きプレビューの値をラジアンに変換して返す.
-local function getPreviewRotationAngle()
-    local degrees = getPreviewRotationDegrees()
-    degrees = math.max(-PREVIEW_ROTATION_MAX_DEGREES,
-        math.min(PREVIEW_ROTATION_MAX_DEGREES, degrees))
-	-- 反動値は傾き制限を考慮しない.
-	degrees += state.previewImpulseRotationDegrees
-    return math.rad(degrees)
-end
-
-local function drawRotatingBoard()
-    local progress = Easing.back_out(state.animationProgress)
-    local angle = math.pi * 0.5 * progress
-    if not state.rotationClockwise then
-        angle = -angle
-    end
-
-    state.rotationStartBoard:foreach(function(x, y, value)
-        if value ~= 0 then
-            local px, py = getRotatedTilePosition(
-                BOARD_X + (x - 1) * CELL_SIZE,
-                BOARD_Y + (y - 1) * CELL_SIZE,
-                angle)
-        BoardRenderer.tile(value, px, py)
-        end
-    end)
-end
-
--- 回転アニメーション中の回転方向を、中央の回転軸に表示する.
-local function drawRotationDirectionArrow()
-    if state.phase ~= GamePhase.MERGING and state.phase ~= GamePhase.ROTATING then
-		-- マージ中と回転中のみ描画する.
-        return
-    end
-
-    local evaluation = getPreviewRotationEvaluation()
-    if evaluation == 0 then
-		-- 回転しないのであれば描画しない.
-        return
-    end
-
-    local centerX = BOARD_X + (CENTER - 0.5) * CELL_SIZE
-    local centerY = BOARD_Y + (CENTER - 0.5) * CELL_SIZE
-	centerY += ROTATION_DIRECTION_ARROW_OFFSET_Y -- オフセットを適用.
-    local direction = evaluation > 0 and 1 or -1
-    local evaluationRatio = math.min(1,
-        math.abs(evaluation) / ROTATION_DIRECTION_ARROW_MAX_EVALUATION)
-    local arrowLength = ROTATION_DIRECTION_ARROW_MIN_LENGTH
-        + (ROTATION_DIRECTION_ARROW_MAX_LENGTH - ROTATION_DIRECTION_ARROW_MIN_LENGTH)
-        * evaluationRatio
-    local arrowStartX = centerX - direction * arrowLength * 0.5
-    local arrowTipX = centerX + direction * arrowLength * 0.5
-    local arrowBaseX = arrowTipX - direction * ROTATION_DIRECTION_ARROW_HEAD_LENGTH
-
-    gfx.setLineWidth(2)
-    gfx.drawLine(arrowStartX, centerY, arrowTipX, centerY)
-    gfx.setLineWidth(1)
-    gfx.drawLine(arrowTipX, centerY,
-        arrowBaseX, centerY - ROTATION_DIRECTION_ARROW_HEAD_WIDTH)
-    gfx.drawLine(arrowTipX, centerY,
-        arrowBaseX, centerY + ROTATION_DIRECTION_ARROW_HEAD_WIDTH)
-end
-
-local function drawMergeAnimation(rotationAngle)
-    BoardRenderer.cells(state.board, state.mergeSourceX, state.mergeSourceY, rotationAngle)
-
-    local progress = easeInOut(state.animationProgress)
-    local sourcePx = BOARD_X + (state.mergeSourceX - 1) * CELL_SIZE
-    local sourcePy = BOARD_Y + (state.mergeSourceY - 1) * CELL_SIZE
-    local targetPx = BOARD_X + (state.mergeTargetX - 1) * CELL_SIZE
-    local targetPy = BOARD_Y + (state.mergeTargetY - 1) * CELL_SIZE
-    local rotatedTargetPx, rotatedTargetPy = getRotatedTilePosition(
-        targetPx, targetPy, rotationAngle)
-    BoardRenderer.tile(state.board:get(state.mergeTargetX, state.mergeTargetY),
-        rotatedTargetPx, rotatedTargetPy)
-
-    local sourceCenterX = sourcePx + CELL_SIZE * 0.5
-    local sourceCenterY = sourcePy + CELL_SIZE * 0.5
-    local targetCenterX = targetPx + CELL_SIZE * 0.5
-    local targetCenterY = targetPy + CELL_SIZE * 0.5
-    local currentCenterX = sourceCenterX + (targetCenterX - sourceCenterX) * progress
-    local currentCenterY = sourceCenterY + (targetCenterY - sourceCenterY) * progress
-    local rotatedSourcePx, rotatedSourcePy = getRotatedTilePosition(
-        currentCenterX - CELL_SIZE * 0.5,
-        currentCenterY - CELL_SIZE * 0.5,
-        rotationAngle)
-    BoardRenderer.tile(math.floor(state.mergeValue / 2),
-        rotatedSourcePx, rotatedSourcePy)
-end
-
-local function drawNextAnimation()
-    local progress = easeInOut(state.animationProgress)
-    local sourceCenterX = NEXT_BOX_X + NEXT_BOX_WIDTH * 0.5
-    local sourceCenterY = NEXT_BOX_Y + NEXT_BOX_HEIGHT * 0.5
-    local sourceX = sourceCenterX - CELL_SIZE * 0.5
-    local sourceY = sourceCenterY - CELL_SIZE * 0.5
-    local targetX = BOARD_X + (state.cursorX - 1) * CELL_SIZE
-    local targetY = BOARD_Y - CELL_SIZE
-    BoardRenderer.tile(state.nextValues[1],
-        sourceX + (targetX - sourceX) * progress,
-        sourceY + (targetY - sourceY) * progress)
-end
-
--- HOLD枠の中央を基準にしたブロックの左上座標を返す.
-local function getHoldTilePosition()
-    return HOLD_BOX_X + (NEXT_BOX_WIDTH - CELL_SIZE) * 0.5,
-        HOLD_BOX_Y + (NEXT_BOX_HEIGHT - CELL_SIZE) * 0.5
-end
-
--- 現在ブロックとHOLDブロックを移動させるアニメーションを描画する.
-local function drawHoldAnimation()
-    local progress = easeInOut(state.animationProgress)
-    local currentX = BOARD_X + (state.cursorX - 1) * CELL_SIZE
-    local currentY = BOARD_Y - CELL_SIZE
-    local holdX, holdY = getHoldTilePosition()
-
-    if state.holdAnimationSourceValue ~= 0 then
-        BoardRenderer.tile(state.holdAnimationSourceValue,
-            currentX + (holdX - currentX) * progress,
-            currentY + (holdY - currentY) * progress)
-    end
-
-    if state.holdAnimationReturnValue ~= 0 then
-        BoardRenderer.tile(state.holdAnimationReturnValue,
-            holdX + (currentX - holdX) * progress,
-            holdY + (currentY - holdY) * progress)
-    end
-end
-
--- 盤面の描画.
-local function drawBoard()
-    BoardRenderer.grid()
-    local previewRotationAngle = getPreviewRotationAngle()
-
-    if state.phase == GamePhase.ROTATING or state.phase == GamePhase.UNDO_ROTATING then
-        drawRotatingBoard()
-    elseif state.phase == GamePhase.MERGING then
-        drawMergeAnimation(previewRotationAngle)
-    else
-        BoardRenderer.cells(state.board, nil, nil, previewRotationAngle)
-    end
-
-    if state.phase == GamePhase.MERGING or state.phase == GamePhase.ROTATING then
-        drawRotationDirectionArrow()
-    end
-
-    if state.phase == GamePhase.INPUT then
-        drawLandingPreview()
-    end
-
-    if state.phase == GamePhase.DROPPING then
-		-- 落下ブロックの描画.
-        drawFallingBlock(previewRotationAngle)
-    end
-
-    if state.phase == GamePhase.INPUT then
-        drawDropPreview()
-    elseif state.phase == GamePhase.NEXT_ANIM then
-        drawNextAnimation()
-    end
-
-    if state.phase == GamePhase.HOLD_ANIM then
-        drawHoldAnimation()
-    end
-end
-
-local function drawHeader()
-    HudRenderer.header({
-        score = state.score, combo = state.combo, comboDisplayFrame = state.comboDisplayFrame,
-        comboBonusScore = state.comboBonusScore, holdValue = state.holdValue,
-        nextValues = state.nextValues, phase = state.phase,
-    })
-    state.comboDisplayFrame = state.comboDisplayFrame + 1
-    drawDangerIcons()
-end
-
-local function drawTitle()
-    drawCenteredText("ROTATE 2048", 62)
-    drawCenteredText("5 x 5 MERGE PUZZLE", 88)
-    drawCenteredText("PRESS A TO START", 132)
-    drawCenteredText("LEFT / RIGHT: SELECT   DOWN: DROP", 164)
-end
-
--- 巻き戻し可能であることを表示する.
-local function drawRewindHint()
-    if state.phase == GamePhase.INPUT and isRewindAvailable() then
-		-- 長押し中は表示とゲージをXORで描画する。
-        local isHolding = state.rewindHoldStartedAt ~= nil
-        local rewindText = "B: REWIND [" .. tostring(state.rewindUsesRemaining) .. "]"
-		-- 巻き戻し可能であることを表示.
-		gfx.drawText(rewindText, 280, 218)
-		-- 枠の描画.
-        gfx.drawRoundRect(270, 216, REWIND_GAUGE_WIDTH, 20, 4)
-        if isHolding then
-            local elapsed = pd.getCurrentTimeMilliseconds() - state.rewindHoldStartedAt
-            local progress = math.min(1, Easing.cube_out(elapsed / REWIND_HOLD_DURATION_MS))
-            local previousColor = gfx.getColor()
-			-- XORで反転描画.
-            gfx.setColor(gfx.kColorXOR)
-            gfx.fillRoundRect(270, 216, math.floor(REWIND_GAUGE_WIDTH * progress), 20, 4)
-            gfx.setColor(previousColor)
-        else
-        end
-    end
-end
-
--- ゲームオーバー表示.
-local function drawGameOver()
-    gfx.fillRect(122, 86, 156, 68)
-    gfx.setImageDrawMode(gfx.kDrawModeInverted)
-    drawCenteredText("GAME OVER", 96)
-    drawCenteredText("SCORE " .. tostring(state.score), 116)
-    drawCenteredText("A: RETRY", 136)
-    gfx.setImageDrawMode(gfx.kDrawModeCopy)
-end
-
 -- ゲームシーンを1フレーム進める。Sceneからゲーム内部状態を隠す窓口。
 local function updateGame()
     if state.phase ~= GamePhase.INPUT then
@@ -1291,31 +882,44 @@ pd.getSystemMenu():addMenuItem("Retry", function()
     end
 end)
 
+local gameRenderer = GameRenderer.new({
+    state = state,
+    findDropCell = findDropCell,
+    findMergeForBlock = findMergeForBlock,
+})
+
+local overlayRenderer = OverlayRenderer.new({
+    state = state,
+    sound = sound,
+    getDangerEdges = getDangerEdges,
+    isRewindAvailable = isRewindAvailable,
+})
+
 local sceneContext = SceneContext.new({
     playDecideSound = function() sound:play_se("decide") end,
     playMenuBgm = playMenuBgm,
     playGameBgm = playGameBgm,
     startGame = startGame,
     updateGame = updateGame,
-    drawTitle = drawTitle,
+    drawTitle = function()
+        overlayRenderer:drawTitle()
+    end,
     drawNormalFrame = function()
-        drawHeader()
-        drawBoard()
-        drawRewindHint()
+        gameRenderer:drawHeader()
+        overlayRenderer:drawDangerIcons()
+        gameRenderer:drawBoard()
+        overlayRenderer:drawRewindHint()
         if state.phase == GamePhase.PAUSED then
-            gfx.fillRect(145, 93, 110, 44)
-            gfx.setImageDrawMode(gfx.kDrawModeInverted)
-            drawCenteredText("PAUSED", 102)
-            drawCenteredText("B: RESUME", 120)
-            gfx.setImageDrawMode(gfx.kDrawModeCopy)
-        elseif state.message ~= "" and pd.getCurrentTimeMilliseconds() < state.messageUntil then
-            drawCenteredText(state.message, 216)
+            overlayRenderer:drawPause()
+        else
+            overlayRenderer:drawMessage()
         end
     end,
     drawGameOverFrame = function()
-        drawHeader()
-        drawBoard()
-        drawGameOver()
+        gameRenderer:drawHeader()
+        overlayRenderer:drawDangerIcons()
+        gameRenderer:drawBoard()
+        overlayRenderer:drawGameOver()
     end,
 })
 
