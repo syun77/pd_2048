@@ -37,6 +37,7 @@ function App.new()
     })
     self.titleRenderer = TitleRenderer.new({
         state = self.game:getState(),
+        menuRenderer = self.overlayRenderer,
     })
     self.renderer = GameRenderer.new({
         state = self.game:getState(),

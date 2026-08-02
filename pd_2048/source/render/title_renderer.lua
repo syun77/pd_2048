@@ -6,7 +6,10 @@ local TitleRenderer = {}
 TitleRenderer.__index = TitleRenderer
 
 function TitleRenderer.new(dependencies)
-    return setmetatable({ state = dependencies.state }, TitleRenderer)
+    return setmetatable({
+        state = dependencies.state,
+        menuRenderer = dependencies.menuRenderer,
+    }, TitleRenderer)
 end
 
 function TitleRenderer:drawCenteredText(text, y)
@@ -14,14 +17,14 @@ function TitleRenderer:drawCenteredText(text, y)
 end
 
 function TitleRenderer:drawTitle(selectedIndex, menuItems)
-    self:drawCenteredText("ROTATE 2048", 62)
-    self:drawCenteredText("5 x 5 MERGE PUZZLE", 88)
-    for index, item in ipairs(menuItems) do
-        local y = 118 + (index - 1) * 22
-        local label = (index == selectedIndex and "> " or "  ") .. item.label
-        self:drawCenteredText(label, y)
+    self:drawCenteredText("ROTATE 2048", 32)
+    self:drawCenteredText("5 x 5 MERGE PUZZLE", 56)
+    local labels = {}
+    for _, item in ipairs(menuItems) do
+        table.insert(labels, item.label)
     end
-    self:drawCenteredText("UP / DOWN: SELECT    A: ENTER", 198)
+    self.menuRenderer:drawMenu(200, 132, labels, selectedIndex, gfx.kColorWhite)
+    self:drawCenteredText("UP / DOWN: SELECT    A: ENTER", 218)
 end
 
 function TitleRenderer:drawMenuPage(title)

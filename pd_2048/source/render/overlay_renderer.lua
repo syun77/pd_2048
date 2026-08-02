@@ -132,8 +132,9 @@ function OverlayRenderer:drawMessage()
 end
 
 -- 中心座標を基準に、選択可能なメニューを描画する。
-function OverlayRenderer:drawMenu(centerX, centerY, items, selectedIndex)
+function OverlayRenderer:drawMenu(centerX, centerY, items, selectedIndex, backgroundColor)
     if items == nil or #items == 0 then return end
+    backgroundColor = backgroundColor or gfx.kColorBlack
 
     local maxTextWidth = 0
     local textHeight = 0
@@ -151,21 +152,38 @@ function OverlayRenderer:drawMenu(centerX, centerY, items, selectedIndex)
     local menuX = math.floor(centerX - menuWidth * 0.5)
     local menuY = math.floor(centerY - menuHeight * 0.5)
 
+    local previousColor = gfx.getColor()
+    local previousDrawMode = gfx.getImageDrawMode()
+    gfx.setColor(backgroundColor)
     gfx.fillRoundRect(menuX, menuY, menuWidth, menuHeight, 6)
-    gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    if backgroundColor == gfx.kColorBlack then
+        gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    else
+        gfx.setImageDrawMode(gfx.kDrawModeCopy)
+        gfx.setColor(gfx.kColorBlack)
+    end
     for index, item in ipairs(items) do
         local itemY = menuY + verticalPadding + (index - 1) * itemHeight
         self:drawCenteredText(item, itemY)
     end
-    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    gfx.setImageDrawMode(previousDrawMode)
 
-    if selectedIndex == nil then return end
+    if selectedIndex == nil then
+        gfx.setColor(previousColor)
+        return
+    end
     selectedIndex = math.max(1, math.min(#items, selectedIndex))
     local selectedY = menuY + verticalPadding + (selectedIndex - 1) * itemHeight
+
+	-- カーソルを XORで描画.
 	gfx.setColor(gfx.kColorXOR)
-    gfx.drawRoundRect(menuX + 4, selectedY - 4,
-        menuWidth - 8, textHeight + 6, 4)
+	if backgroundColor == gfx.kColorBlack then
+		gfx.drawRoundRect(menuX + 4, selectedY - 4, menuWidth - 8, textHeight + 6, 4)
+	else
+	    gfx.fillRoundRect(menuX + 4, selectedY - 4, menuWidth - 8, textHeight + 6, 4)
+	end
 	gfx.setColor(gfx.kColorBlack)
+    gfx.setColor(previousColor)
 end
 
 -- ゲームオーバーメニューの描画.
