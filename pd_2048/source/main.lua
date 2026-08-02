@@ -13,6 +13,11 @@ import "cursor_controller"
 import "board_renderer"
 import "hud_renderer"
 import "turn_resolver"
+import "scene_manager"
+import "scene_context"
+import "scene_title"
+import "scene_game_normal"
+import "scene_game_over"
 
 local pd <const> = playdate
 local gfx <const> = pd.graphics
@@ -1354,7 +1359,7 @@ local function drawGameOver()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
-function pd.update()
+local function legacyUpdate()
     gfx.clear(gfx.kColorWhite)
 
     if gameState ~= GAME_STATE_PLAYING then
@@ -1407,6 +1412,7 @@ function pd.update()
 	-- 盤面の描画.
     drawBoard()
 
+	-- 巻き戻し可能であることを表示.
     drawRewindHint()
 
     if gameState == GAME_STATE_PAUSED then
@@ -1439,7 +1445,90 @@ loadHighScore()
 playMenuBgm()
 pd.display.setRefreshRate(DEFAULT_REFRESH_RATE)
 
+local sceneManager
+
 -- Playdateのシステムメニューからゲームを最初からやり直せるようにする.
 pd.getSystemMenu():addMenuItem("Retry", function()
     startGame()
+    if sceneManager ~= nil then
+        sceneManager:change("GAME_NORMAL")
+    end
 end)
+
+local sceneContext = SceneContext.new({
+    sound = sound,
+    states = {
+        PLAYING = GAME_STATE_PLAYING,
+        PAUSED = GAME_STATE_PAUSED,
+        GAME_OVER = GAME_STATE_GAME_OVER,
+    },
+    getGameState = function() return gameState end,
+    playMenuBgm = playMenuBgm,
+    playGameBgm = playGameBgm,
+    startGame = startGame,
+    isAnimating = function(state) return TurnResolver.isAnimating(state) end,
+    advanceAnimation = advanceAnimation,
+    resetCursorIfNeeded = function()
+        if gameState ~= GAME_STATE_PLAYING then resetCursorKeyRepeat() end
+    end,
+    updatePlayingInput = function()
+        updateRewindHold()
+        if pd.buttonJustPressed(pd.kButtonA) then
+            holdCurrentBlock()
+        elseif pd.buttonJustPressed(pd.kButtonLeft)
+            or pd.buttonJustPressed(pd.kButtonRight) then
+            updateCursorKeyRepeat()
+        elseif pd.buttonJustPressed(pd.kButtonDown) then
+            beginDrop()
+        elseif pd.buttonJustPressed(pd.kButtonB) then
+            beginRewindHold()
+        elseif cursorRepeatDirection ~= 0 then
+            updateCursorKeyRepeat()
+        end
+    end,
+    updatePausedInput = function()
+        if pd.buttonJustPressed(pd.kButtonB) then
+            gameState = GAME_STATE_PLAYING
+        end
+    end,
+    drawTitle = drawTitle,
+    drawNormalFrame = function()
+        drawHeader()
+        drawBoard()
+        drawRewindHint()
+        if gameState == GAME_STATE_PAUSED then
+            gfx.fillRect(145, 93, 110, 44)
+            gfx.setImageDrawMode(gfx.kDrawModeInverted)
+            drawCenteredText("PAUSED", 102)
+            drawCenteredText("B: RESUME", 120)
+            gfx.setImageDrawMode(gfx.kDrawModeCopy)
+        elseif message ~= "" and pd.getCurrentTimeMilliseconds() < messageUntil then
+            drawCenteredText(message, 216)
+        end
+    end,
+    drawGameOverFrame = function()
+        drawHeader()
+        drawBoard()
+        drawGameOver()
+    end,
+})
+
+sceneManager = SceneManager.new(sceneContext)
+sceneManager:register("TITLE", TitleScene.new(sceneContext))
+sceneManager:register("GAME_NORMAL", NormalGameScene.new(sceneContext))
+sceneManager:register("GAME_OVER", GameOverScene.new(sceneContext))
+sceneManager:change("TITLE")
+
+function pd.update()
+    gfx.clear(gfx.kColorWhite)
+    sceneManager:update()
+    sceneManager:draw()
+    pd.drawFPS(4, 4)
+
+    if gameState == GAME_STATE_UNDO_ROTATING or rewindHoldAnimationActive then
+        local previousColor = gfx.getColor()
+        gfx.setColor(gfx.kColorXOR)
+        gfx.fillRect(0, 0, 400, 240)
+        gfx.setColor(previousColor)
+    end
+end
