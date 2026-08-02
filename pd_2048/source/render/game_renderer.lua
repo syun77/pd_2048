@@ -288,10 +288,6 @@ function GameRenderer:drawHeader()
     state.comboDisplayFrame += 1
 end
 
-function GameRenderer:drawTitle()
-    self.overlay:drawTitle()
-end
-
 function GameRenderer:drawNormalFrame()
     local state = self.state
     self:drawHeader()

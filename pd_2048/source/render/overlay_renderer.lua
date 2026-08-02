@@ -129,13 +129,6 @@ function OverlayRenderer:drawMessage()
     end
 end
 
-function OverlayRenderer:drawTitle()
-    self:drawCenteredText("ROTATE 2048", 62)
-    self:drawCenteredText("5 x 5 MERGE PUZZLE", 88)
-    self:drawCenteredText("PRESS A TO START", 132)
-    self:drawCenteredText("LEFT / RIGHT: SELECT   DOWN: DROP", 164)
-end
-
 function OverlayRenderer:drawGameOver()
     gfx.fillRect(122, 86, 156, 68)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)

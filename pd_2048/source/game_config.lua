@@ -1,14 +1,16 @@
 -- ゲーム全体で共有する設定値。
 local Config = {
-    BOARD_SIZE = 5,
-    CENTER = 3,
-    CELL_SIZE = 32,
-    DEFAULT_REFRESH_RATE = 30,
+	-- システム.
+    DEFAULT_REFRESH_RATE = 30, -- FPS.
+	-- メインゲーム.
+    BOARD_SIZE = 5, -- 盤面のサイズ.
+    CENTER = 3, -- 盤面の中心.
+    CELL_SIZE = 32, -- 盤面のセルのサイズ.
     CURSOR_KEY_REPEAT_INITIAL_DELAY_MS = 300,
     CURSOR_KEY_REPEAT_INTERVAL_MS = 80,
     NEXT_PREVIEW_COUNT = 3,
-    MAX_UNDO_COUNT = 1,
-    MAX_REWIND_USES = 3,
+    MAX_UNDO_COUNT = 1, -- UNDOで戻せる手数の最大.
+    MAX_REWIND_USES = 3, -- UNDOの使用回数の最大.
     REWIND_HOLD_DURATION_MS = 800,
     REWIND_GAUGE_WIDTH = 116,
     SCORE_MULTIPLIER = 100,
@@ -32,11 +34,15 @@ local Config = {
     ROTATION_EVALUATION_MERGE_DIRECTION_LEFT = -5,
     ROTATION_EVALUATION_MERGE_DIRECTION_RIGHT = 5,
     ROTATION_EVALUATION_VERTICAL_DIRECTION_WEIGHT = 10,
+	-- 方向.
     DIRECTION = { DOWN = 1, LEFT = 2, RIGHT = 3, UP = 4 },
+	-- シーンID.
     SCENE = {
         TITLE = "TITLE",
         GAME = "GAME",
         GAME_OVER = "GAME_OVER",
+        ACHIEVEMENTS = "ACHIEVEMENTS",
+        STATISTICS = "STATISTICS",
     },
     GAME_PHASE = {
         INPUT = "INPUT",
