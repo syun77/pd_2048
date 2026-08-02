@@ -622,6 +622,7 @@ function GameController:update()
                 nextValue = state.nextValues[1],
                 holdValue = state.holdValue,
                 holdAvailable = state.holdAvailable,
+                mode = state.mode,
                 getCandidates = function(activeValue)
                     return MergeResolver.getAutoPlayCandidates(
                         state.board, activeValue, state.mode)

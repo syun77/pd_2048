@@ -40,7 +40,8 @@ function AutoPlayer:poll(_, context)
             self.firstHoldPending = false
             return InputCommand.HOLD
         end
-        return nil
+        -- 自動プレイを途中で有効にした場合など、HOLD不可でも停止しない。
+        self.firstHoldPending = false
     end
 
     if self.targetColumn == nil then
