@@ -38,8 +38,8 @@ end
 
 function TitleRenderer:drawStatistics()
     self:drawMenuPage("STATISTICS")
-    self:drawCenteredText("HIGH SCORE  " .. tostring(self.state.highScore), 124)
-    self:drawCenteredText("MORE STATS COMING SOON", 148)
+    self:drawCenteredText("NORMAL  " .. tostring(self.state.normalHighScore), 120)
+    self:drawCenteredText("TIME ATTACK  " .. tostring(self.state.timeAttackHighScore), 144)
 end
 
 _G.TitleRenderer = TitleRenderer

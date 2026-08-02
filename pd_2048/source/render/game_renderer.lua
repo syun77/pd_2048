@@ -284,6 +284,7 @@ function GameRenderer:drawHeader()
         comboDisplayFrame = state.comboDisplayFrame,
         comboBonusScore = state.comboBonusScore, holdValue = state.holdValue,
         nextValues = state.nextValues, phase = state.phase,
+        mode = state.mode, remainingTimeMs = state.remainingTimeMs,
     })
     state.comboDisplayFrame += 1
 end

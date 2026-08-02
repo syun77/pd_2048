@@ -82,7 +82,7 @@ function App:registerSystemMenu()
         self.sceneManager:change(GameConfig.SCENE.TITLE)
     end)
     pd.getSystemMenu():addMenuItem("Retry", function()
-        self.game:start()
+        self.game:start(self.game:getState().mode)
         self.sceneManager:change(GameConfig.SCENE.GAME)
     end)
 end

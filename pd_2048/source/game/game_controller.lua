@@ -48,8 +48,12 @@ function GameController:getState()
     return self.state
 end
 
+function GameController:isTimeAttack()
+    return self.state.mode == Config.GAME_MODE.TIME_ATTACK
+end
+
 function GameController:isGameOver()
-    return self.state.result == GameResult.GAME_OVER
+    return self.state.result ~= nil
 end
 
 function GameController:setMessage(text, duration)
@@ -59,14 +63,26 @@ end
 
 function GameController:loadHighScore()
     local ok, value = pcall(pd.datastore.read, "highScore")
-    if ok and type(value) == "number" then self.state.highScore = value end
+    if ok and type(value) == "number" then
+        self.state.normalHighScore = value
+    end
+    local okTimeAttack, timeAttackValue = pcall(pd.datastore.read, "timeAttackHighScore")
+    if okTimeAttack and type(timeAttackValue) == "number" then
+        self.state.timeAttackHighScore = timeAttackValue
+    end
+    self.state.highScore = self.state.normalHighScore
 end
 
-function GameController:saveHighScore()
+function GameController:saveCurrentModeHighScore()
     local state = self.state
-    if state.score > state.highScore then
-        state.highScore = state.score
-        pd.datastore.write(state.highScore, "highScore")
+    if state.mode == Config.GAME_MODE.TIME_ATTACK then
+        if state.score > state.timeAttackHighScore then
+            state.timeAttackHighScore = state.score
+            pd.datastore.write(state.timeAttackHighScore, "timeAttackHighScore")
+        end
+    elseif state.score > state.normalHighScore then
+        state.normalHighScore = state.score
+        pd.datastore.write(state.normalHighScore, "highScore")
     end
 end
 
@@ -95,6 +111,11 @@ end
 
 function GameController:beginRewindHold()
     local state = self.state
+    if self:isTimeAttack() then
+        self:setMessage("REWIND UNAVAILABLE", 700)
+        self.sound:play_se("error")
+        return
+    end
     if not self.undoController:isAvailable() then
         if state.rewindUsesRemaining <= 0 then
             self:setMessage("NO REWINDS", 700)
@@ -145,6 +166,7 @@ function GameController:findMergeForBlock(sourceX, sourceY, activeValue)
 end
 
 function GameController:isRewindAvailable()
+    if self:isTimeAttack() then return false end
     return self.undoController:isAvailable()
 end
 
@@ -179,11 +201,43 @@ end
 
 function GameController:beginGameOver()
     local state = self.state
-    self:saveHighScore()
+    self:saveCurrentModeHighScore()
     state.result = GameResult.GAME_OVER
     state.phase = GamePhase.INPUT
     self.sound:play_se("gameover")
     self.sound:stop_bgm(1.0)
+end
+
+function GameController:beginTimeUp()
+    local state = self.state
+    state.remainingTimeMs = 0
+    state.timeoutPending = false
+    state.result = GameResult.TIME_UP
+    state.phase = GamePhase.INPUT
+    self:saveCurrentModeHighScore()
+    self.sound:play_se("gameover")
+    self.sound:stop_bgm(1.0)
+end
+
+function GameController:updateTimeAttackTimer()
+    local state = self.state
+    if not self:isTimeAttack() or state.result ~= nil
+        or state.timerStartedAt == nil then
+        return
+    end
+
+    local now = pd.getCurrentTimeMilliseconds()
+    if state.timerLastUpdateAt == nil then state.timerLastUpdateAt = now end
+    if state.phase == GamePhase.PAUSED then
+        state.timerLastUpdateAt = now
+        return
+    end
+    state.elapsedTimeMs += math.max(0, now - state.timerLastUpdateAt)
+    state.timerLastUpdateAt = now
+    state.remainingTimeMs = math.max(0, Config.TIME_ATTACK_LIMIT_MS - state.elapsedTimeMs)
+    if state.remainingTimeMs <= 0 then
+        state.timeoutPending = true
+    end
 end
 
 function GameController:finishNextAnimation()
@@ -325,11 +379,20 @@ function GameController:spawnInitialBlocks()
     state.board:set(Config.CENTER + 1, Config.CENTER, 8)
 end
 
-function GameController:start()
+function GameController:start(mode)
     local state = self.state
+    state.mode = mode or Config.GAME_MODE.NORMAL
     self:clearBoard()
     state.result = nil
     state.score = 0
+    state.highScore = state.mode == Config.GAME_MODE.TIME_ATTACK
+        and state.timeAttackHighScore or state.normalHighScore
+    state.elapsedTimeMs = 0
+    state.remainingTimeMs = state.mode == Config.GAME_MODE.TIME_ATTACK
+        and Config.TIME_ATTACK_LIMIT_MS or nil
+    state.timerStartedAt = nil
+    state.timerLastUpdateAt = nil
+    state.timeoutPending = false
     state.holdValue = 0
     state.holdAvailable = true
     state.lastRandomBlockValue = 0
@@ -362,6 +425,10 @@ function GameController:start()
     state.previewImpulseRotationDegrees = 0
     self:spawnInitialBlocks()
     state.phase = GamePhase.INPUT
+    if state.mode == Config.GAME_MODE.TIME_ATTACK then
+        state.timerStartedAt = pd.getCurrentTimeMilliseconds()
+        state.timerLastUpdateAt = state.timerStartedAt
+    end
     state.message = ""
     state.crisisBgmActive = false
     self.sound:playGameBgm()
@@ -443,10 +510,13 @@ end
 
 function GameController:update()
     local state = self.state
+    self:updateTimeAttackTimer()
     if state.phase ~= GamePhase.INPUT then self:resetCursorKeyRepeat() end
 
     if state.phase == GamePhase.INPUT then
-        if self.autoPlayEnabled then
+        if state.timeoutPending then
+            self:beginTimeUp()
+        elseif self.autoPlayEnabled then
             local command = self.autoPlayer:poll(nil, {
                 phase = state.phase,
                 cursorX = state.cursorX,
@@ -484,6 +554,11 @@ function GameController:update()
         or state.phase == GamePhase.NEXT_ANIM
         or state.phase == GamePhase.HOLD_ANIM then
         self:advanceAnimation()
+    end
+
+    if state.timeoutPending and state.phase == GamePhase.INPUT
+        and state.result == nil then
+        self:beginTimeUp()
     end
 
     if state.result ~= nil then return { scene = Config.SCENE.GAME_OVER } end

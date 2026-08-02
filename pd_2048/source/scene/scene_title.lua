@@ -15,7 +15,10 @@ function TitleScene.new(context)
         manager = nil,
         selectedIndex = 1,
         menuItems = {
-            { label = "NORMAL GAME", scene = GameConfig.SCENE.GAME },
+            { label = "NORMAL GAME", scene = GameConfig.SCENE.GAME,
+              mode = GameConfig.GAME_MODE.NORMAL },
+            { label = "TIME ATTACK", scene = GameConfig.SCENE.GAME,
+              mode = GameConfig.GAME_MODE.TIME_ATTACK },
             { label = "ACHIEVEMENTS", scene = GameConfig.SCENE.ACHIEVEMENTS },
             { label = "STATISTICS", scene = GameConfig.SCENE.STATISTICS },
         },
@@ -49,8 +52,8 @@ function TitleScene:update()
     if pd.buttonJustPressed(pd.kButtonA) then
         self.context.sound:play_se("decide")
         local item = self.menuItems[self.selectedIndex]
-        if item.scene == GameConfig.SCENE.GAME then
-            self.context.game:start()
+        if item.mode ~= nil then
+            self.context.game:start(item.mode)
         end
         self.manager:change(item.scene)
     end

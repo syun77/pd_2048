@@ -13,6 +13,14 @@ function HudRenderer.score(score)
         24 + Config.PANEL_OFFSET_Y, kTextAlignment.right)
 end
 
+function HudRenderer.timeAttack(remainingTimeMs)
+    local totalTenths = math.max(0, math.floor(remainingTimeMs / 100))
+    local seconds = math.floor(totalTenths / 10)
+    local tenths = totalTenths % 10
+    local text = string.format("TIME %02d.%d", seconds, tenths)
+    gfx.drawTextAligned(text, 200, 4, kTextAlignment.center)
+end
+
 function HudRenderer.combo(combo, comboDisplayFrame, comboBonusScore)
     if combo <= 1 then return end
     if comboDisplayFrame >= Config.COMBO_BLINK_DURATION_FRAMES
@@ -69,6 +77,9 @@ function HudRenderer.hold(value, phase)
 end
 
 function HudRenderer.header(ctx)
+    if ctx.mode == Config.GAME_MODE.TIME_ATTACK then
+        HudRenderer.timeAttack(ctx.remainingTimeMs)
+    end
     HudRenderer.score(ctx.score)
     ctx.comboDisplayFrame += 1
     HudRenderer.combo(ctx.combo, ctx.comboDisplayFrame, ctx.comboBonusScore)

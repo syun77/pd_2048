@@ -20,6 +20,7 @@ local Config = {
     COMBO_BLINK_ON_FRAMES = 1,
     COMBO_BLINK_DURATION_FRAMES = 20,
     COMBO_STEADY_DURATION_FRAMES = 30,
+    TIME_ATTACK_LIMIT_MS = 60000,
     PREVIEW_ROTATION_MAX_DEGREES = 200,
     PREVIEW_ROTATION_EVALUATION_MULTIPLIER = 0.1,
     PREVIEW_ROTATION_DEGREES_PER_POINT = 0.1,
@@ -44,6 +45,10 @@ local Config = {
         ACHIEVEMENTS = "ACHIEVEMENTS",
         STATISTICS = "STATISTICS",
     },
+    GAME_MODE = {
+        NORMAL = "NORMAL",
+        TIME_ATTACK = "TIME_ATTACK",
+    },
     GAME_PHASE = {
         INPUT = "INPUT",
         DROPPING = "DROPPING",
@@ -56,12 +61,13 @@ local Config = {
     },
     GAME_RESULT = {
         GAME_OVER = "GAME_OVER",
+        TIME_UP = "TIME_UP",
     },
 }
 
 Config.NEXT_QUEUE_COUNT = Config.NEXT_PREVIEW_COUNT + 1
 Config.BOARD_X = 100 + 32
-Config.BOARD_Y = 48
+Config.BOARD_Y = 54
 Config.NEXT_BOX_X = 343 - 24
 Config.NEXT_LABEL_X = Config.NEXT_BOX_X
 Config.NEXT_BOX_Y = 48

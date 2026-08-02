@@ -171,8 +171,10 @@ end
 -- ゲームオーバーメニューの描画.
 function OverlayRenderer:drawGameOver(selectedIndex)
     selectedIndex = selectedIndex or 1
+    local resultTitle = self.state.result == Config.GAME_RESULT.TIME_UP
+        and "TIME UP" or "GAME OVER"
     self:drawMenu(200, 130, {
-        "GAME OVER",
+        resultTitle,
         "SCORE " .. tostring(self.state.score),
         "RETRY",
         "TITLE",

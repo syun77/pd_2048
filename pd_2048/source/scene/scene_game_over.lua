@@ -29,7 +29,7 @@ function GameOverScene:update()
     if playdate.buttonJustPressed(playdate.kButtonA) then
         self.context.sound:play_se("decide")
         if self.selectedIndex == 1 then
-            self.context.game:start()
+            self.context.game:start(self.context.game:getState().mode)
             self.manager:change(GameConfig.SCENE.GAME)
         else
             self.manager:change(GameConfig.SCENE.TITLE)
