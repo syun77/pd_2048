@@ -219,6 +219,25 @@ function GameController:beginTimeUp()
     self.sound:stop_bgm(1.0)
 end
 
+-- 時間切れ警告音を再生するタイミングか判定する.
+function GameController:shouldPlayTimeAttackWarning(
+    prevRemainingTimeMs, currentRemainingTimeMs)
+    local prevSec = math.floor(prevRemainingTimeMs / 1000)
+    local currentSec = math.floor(currentRemainingTimeMs / 1000)
+    local prevMs = prevRemainingTimeMs % 1000
+    local currentMs = currentRemainingTimeMs % 1000
+
+    if prevSec ~= currentSec then
+		-- 9秒以下のときは再生.
+        return currentSec <= 9
+    end
+
+	-- 5秒以下は、0.5秒ごとに再生.
+    return currentSec < 5
+        and currentMs < 500
+        and prevMs >= 500
+end
+
 -- タイムアタックモードでの制限時間の更新.
 function GameController:updateTimeAttackTimer()
     local state = self.state
@@ -242,24 +261,9 @@ function GameController:updateTimeAttackTimer()
     state.timerLastUpdateAt = now
 	local prevRemainingTimeMs = state.remainingTimeMs
     state.remainingTimeMs = math.max(0, Config.TIME_ATTACK_LIMIT_MS - state.elapsedTimeMs)
-	-- 秒の区切りをチェックする.
-	local prevSec = math.floor(prevRemainingTimeMs / 1000)
-	local currentSec = math.floor(state.remainingTimeMs / 1000)
-	local prevMs = prevRemainingTimeMs % 1000
-	local currentMs = state.remainingTimeMs % 1000
-	if prevSec ~= currentSec then
-		-- 秒が変わったタイミングでの処理をここに書く.
-		if currentSec <= 9 then
-			-- 残り9秒以下の間は警告SEを再生.
-			self.sound:play_se("countdown")
-		end
-	else
-		if currentSec < 5 then
-			if currentMs < 500 and prevMs >= 500 then
-				-- 1〜4秒は0.5秒ごとに警告SEを再生.
-				self.sound:play_se("countdown")
-			end
-		end
+	if self:shouldPlayTimeAttackWarning(prevRemainingTimeMs, state.remainingTimeMs) then
+		-- 時間切れ警告音の再生.
+		self.sound:play_se("countdown")
 	end
 
     if state.remainingTimeMs <= 0 then
