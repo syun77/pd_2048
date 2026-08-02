@@ -6,11 +6,12 @@ local AutoPlayer = {}
 AutoPlayer.__index = AutoPlayer
 
 function AutoPlayer.new()
-    return setmetatable({ targetColumn = nil }, AutoPlayer)
+    return setmetatable({ targetColumn = nil, firstHoldPending = true }, AutoPlayer)
 end
 
 function AutoPlayer:reset()
     self.targetColumn = nil
+    self.firstHoldPending = true
 end
 
 local function compareCandidate(a, b, cursorX)
@@ -33,6 +34,15 @@ local function chooseCandidate(candidates, cursorX, requireMerge)
 end
 
 function AutoPlayer:poll(_, context)
+    -- 自動プレイ開始時は、まずHOLDを実行してHOLDを考慮した状態にする。
+    if self.firstHoldPending then
+        if context.holdAvailable then
+            self.firstHoldPending = false
+            return InputCommand.HOLD
+        end
+        return nil
+    end
+
     if self.targetColumn == nil then
         local currentCandidates = context.getCandidates(context.nextValue)
         local candidate = chooseCandidate(currentCandidates, context.cursorX, true)
