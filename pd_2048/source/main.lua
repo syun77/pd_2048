@@ -10,6 +10,8 @@ import "tile_generator"
 import "undo_history"
 import "board/board_rules"
 import "cursor_controller"
+import "input/input_command"
+import "input/auto_player"
 import "board/board_renderer"
 import "hud_renderer"
 import "turn_resolver"
@@ -25,6 +27,8 @@ local gameContext <const> = GameContext.getInstance()
 local sound <const> = gameContext.sound
 local Config <const> = GameConfig
 local cursorController <const> = CursorController.new()
+local autoPlayer <const> = AutoPlayer.new()
+local autoPlayEnabled = false
 
 local DEFAULT_REFRESH_RATE <const> = 30 -- ディスプレイの更新レート (FPS。フレーム毎秒).
 local CURSOR_KEY_REPEAT_INITIAL_DELAY_MS <const> = 300 -- 左右キーを押し続けたとき、最初にリピートするまでの待ち時間.
@@ -486,6 +490,28 @@ local function findMergeForActiveBlock()
         state.board:get(state.activeMergeX, state.activeMergeY))
 end
 
+-- 自動プレイ用に、各列へ落とした場合の候補を作る。
+-- マージ判定は通常プレイと同じ findMergeForBlock を使用する。
+local function getAutoPlayCandidates(activeValue)
+    local candidates = {}
+    for column = 1, BOARD_SIZE do
+        local x, y = findDropCell(column)
+        if x ~= nil then
+            local sourceX, sourceY, targetX, targetY =
+                findMergeForBlock(x, y, activeValue)
+            table.insert(candidates, {
+                column = column,
+                merge = sourceX ~= nil,
+                sourceX = sourceX,
+                sourceY = sourceY,
+                targetX = targetX,
+                targetY = targetY,
+            })
+        end
+    end
+    return candidates
+end
+
 local function makeRotatedBoard(source, clockwise)
     return BoardTransform.rotate(source, clockwise, isPlayable)
 end
@@ -758,6 +784,7 @@ local function startGame()
     state.holdAnimationReturnValue = 0
     state.rotationEvaluation = 0
     state.nextValues = {}
+    autoPlayer:reset()
     for i = 1, NEXT_QUEUE_COUNT do
         state.nextValues[i] = randomBlockValue()
     end
@@ -1287,18 +1314,38 @@ local function updateGame()
     end
 
     if state.phase == GamePhase.INPUT then
-        updateRewindHold()
-        if pd.buttonJustPressed(pd.kButtonA) then
-            holdCurrentBlock()
-        elseif pd.buttonJustPressed(pd.kButtonLeft)
-            or pd.buttonJustPressed(pd.kButtonRight) then
-            updateCursorKeyRepeat()
-        elseif pd.buttonJustPressed(pd.kButtonDown) then
-            beginDrop()
-        elseif pd.buttonJustPressed(pd.kButtonB) then
-            beginRewindHold()
-        elseif state.cursorRepeatDirection ~= 0 then
-            updateCursorKeyRepeat()
+        if autoPlayEnabled then
+            local command = autoPlayer:poll(nil, {
+                phase = state.phase,
+                cursorX = state.cursorX,
+                nextValue = state.nextValues[1],
+                holdValue = state.holdValue,
+                holdAvailable = state.holdAvailable,
+                getCandidates = getAutoPlayCandidates,
+            })
+            if command == InputCommand.HOLD then
+                holdCurrentBlock()
+            elseif command == InputCommand.MOVE_LEFT then
+                moveCursor(-1)
+            elseif command == InputCommand.MOVE_RIGHT then
+                moveCursor(1)
+            elseif command == InputCommand.DROP then
+                beginDrop()
+            end
+        else
+            updateRewindHold()
+            if pd.buttonJustPressed(pd.kButtonA) then
+                holdCurrentBlock()
+            elseif pd.buttonJustPressed(pd.kButtonLeft)
+                or pd.buttonJustPressed(pd.kButtonRight) then
+                updateCursorKeyRepeat()
+            elseif pd.buttonJustPressed(pd.kButtonDown) then
+                beginDrop()
+            elseif pd.buttonJustPressed(pd.kButtonB) then
+                beginRewindHold()
+            elseif state.cursorRepeatDirection ~= 0 then
+                updateCursorKeyRepeat()
+            end
         end
     elseif state.phase == GamePhase.PAUSED then
         if pd.buttonJustPressed(pd.kButtonB) then
@@ -1323,6 +1370,11 @@ pd.display.setRefreshRate(DEFAULT_REFRESH_RATE)
 local sceneManager
 
 -- Playdateのシステムメニューからゲームを最初からやり直せるようにする.
+pd.getSystemMenu():addCheckmarkMenuItem("Auto Play", autoPlayEnabled, function(value)
+    autoPlayEnabled = value
+    autoPlayer:reset()
+end)
+
 pd.getSystemMenu():addMenuItem("Retry", function()
     startGame()
     if sceneManager ~= nil then
