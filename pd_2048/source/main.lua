@@ -3,9 +3,11 @@ import "array2d"
 import "game_context"
 import "game_config"
 import "game_state"
+import "game/merge_resolver"
+import "game/game_session"
+import "game/undo_controller"
 import "board/board_transform"
 import "tile_generator"
-import "undo_history"
 import "board/board_rules"
 import "cursor_controller"
 import "input/input_command"
@@ -38,14 +40,6 @@ local NEXT_QUEUE_COUNT <const> = Config.NEXT_QUEUE_COUNT
 local MAX_REWIND_USES <const> = Config.MAX_REWIND_USES
 local REWIND_HOLD_DURATION_MS <const> = Config.REWIND_HOLD_DURATION_MS
 -- コンボ表示時間.
-local COMBO_SCORE_COEFFICIENT <const> = Config.COMBO_SCORE_COEFFICIENT
-local COMBO_SCORE_EXPONENT <const> = Config.COMBO_SCORE_EXPONENT
-local SCORE_MULTIPLIER <const> = Config.SCORE_MULTIPLIER
--- 方向定数.
-local DIRECTION_DOWN <const> = Config.DIRECTION.DOWN
-local DIRECTION_LEFT <const> = Config.DIRECTION.LEFT
-local DIRECTION_RIGHT <const> = Config.DIRECTION.RIGHT
-local DIRECTION_UP <const> = Config.DIRECTION.UP
 local Scene <const> = Config.SCENE
 local GamePhase <const> = Config.GAME_PHASE
 local GameResult <const> = Config.GAME_RESULT
@@ -53,15 +47,10 @@ local PREVIEW_ROTATION_MAX_DEGREES <const> = Config.PREVIEW_ROTATION_MAX_DEGREES
 local PREVIEW_ROTATION_EVALUATION_MULTIPLIER <const> = Config.PREVIEW_ROTATION_EVALUATION_MULTIPLIER
 local PREVIEW_IMPULSE_ROTATION_DEGREES <const> = Config.PREVIEW_IMPULSE_ROTATION_DEGREES
 -- 回転方向の評価値.
-local ROTATION_EVALUATION_POSITION_RIGHT <const> = Config.ROTATION_EVALUATION_POSITION_RIGHT -- 右側の位置を評価する値.
-local ROTATION_EVALUATION_POSITION_LEFT <const> = Config.ROTATION_EVALUATION_POSITION_LEFT -- 左側の位置を評価する値.
 local ROTATION_EVALUATION_POSITION_CENTER <const> = Config.ROTATION_EVALUATION_POSITION_CENTER -- 中央の位置を評価する値.
 local ROTATION_EVALUATION_DROP_POSITION_WEIGHT <const> = Config.ROTATION_EVALUATION_DROP_POSITION_WEIGHT -- 落下位置の評価値の重み.
-local ROTATION_EVALUATION_DISAPPEARED_BLOCK_WEIGHT <const> = Config.ROTATION_EVALUATION_DISAPPEARED_BLOCK_WEIGHT -- 消えたブロックの評価値の重み.
-local ROTATION_EVALUATION_MERGED_BLOCK_WEIGHT <const> = Config.ROTATION_EVALUATION_MERGED_BLOCK_WEIGHT -- マージされたブロックの評価値の重み.
 local ROTATION_EVALUATION_MERGE_DIRECTION_LEFT <const> = Config.ROTATION_EVALUATION_MERGE_DIRECTION_LEFT -- マージ方向の評価値 (左方向).
 local ROTATION_EVALUATION_MERGE_DIRECTION_RIGHT <const> = Config.ROTATION_EVALUATION_MERGE_DIRECTION_RIGHT -- マージ方向の評価値 (右方向).
-local ROTATION_EVALUATION_VERTICAL_DIRECTION_WEIGHT <const> = Config.ROTATION_EVALUATION_VERTICAL_DIRECTION_WEIGHT -- マージ方向が上下の場合の評価値の重み.
 local state = GameState.new()
 local finishHoldAnimation
 
@@ -75,34 +64,6 @@ end
 local function playGameBgm()
     sound:setBgmRandomMode(BGMRandomMode.NOMAL)
     sound:play_bgm(-1, false)
-end
-
--- 中央から見たブロックの左右位置を評価する.
--- 右側を正、左側を負、中央を0とする.
-local function getPositionEvaluation(x)
-    if x > CENTER then
-        return ROTATION_EVALUATION_POSITION_RIGHT
-    elseif x < CENTER then
-        return ROTATION_EVALUATION_POSITION_LEFT
-    end
-    return ROTATION_EVALUATION_POSITION_CENTER
-end
-
--- マージ方向の評価を返す.
--- 左方向を負、右方向を正とし、上下方向はマージ後の位置を評価する.
-local function getMergeDirectionEvaluation(sourceX, targetX)
-    if targetX < sourceX then
-        return ROTATION_EVALUATION_MERGE_DIRECTION_LEFT
-    elseif targetX > sourceX then
-        return ROTATION_EVALUATION_MERGE_DIRECTION_RIGHT
-    end
-    return ROTATION_EVALUATION_VERTICAL_DIRECTION_WEIGHT * getPositionEvaluation(targetX)
-end
-
-local function getMergeEvaluation(sourceX, targetX)
-    return ROTATION_EVALUATION_DISAPPEARED_BLOCK_WEIGHT * getPositionEvaluation(sourceX)
-        + ROTATION_EVALUATION_MERGED_BLOCK_WEIGHT * getPositionEvaluation(targetX)
-        + getMergeDirectionEvaluation(sourceX, targetX)
 end
 
 -- 方向の力を一時的なプレビュー反動として加算する.
@@ -132,6 +93,14 @@ local function setMessage(text, duration)
     state.messageUntil = pd.getCurrentTimeMilliseconds() + duration
 end
 
+local gameSession = GameSession.new(state)
+local undoController = UndoController.new({
+    state = state,
+    session = gameSession,
+    sound = sound,
+    setMessage = setMessage,
+})
+
 -- ハイスコアのロード.
 local function loadHighScore()
     local ok, value = pcall(pd.datastore.read, "highScore")
@@ -154,92 +123,9 @@ local function clearBoard()
     state.board:set(CENTER, CENTER, 0)
 end
 
--- 1手前の状態を履歴に保存する。
-local function saveUndoState(action)
-    UndoHistory.push(state.undoStates, {
-        board = state.board, score = state.score, cursorX = state.cursorX,
-        holdValue = state.holdValue, holdAvailable = state.holdAvailable,
-        lastRandomBlockValue = state.lastRandomBlockValue,
-        consecutiveRandomBlockCount = state.consecutiveRandomBlockCount,
-        nextValues = state.nextValues,
-    }, action)
-end
-
--- 直前の手を取り消す。取り消しは最大MAX_UNDO_COUNT手分可能。
-local function isRewindAvailable()
-    return UndoHistory.canRestore(state.undoStates, state.rewindUsesRemaining)
-end
-
--- 巻き戻しを実行.
-local function undoLastTurn()
-    if not isRewindAvailable() then
-        if state.rewindUsesRemaining <= 0 then
-            setMessage("NO REWINDS", 700)
-        else
-            setMessage("NO UNDO", 700)
-        end
-        return false
-    end
-
-    local restored = UndoHistory.pop(state.undoStates)
-    local rewindHoldAnimation = restored.action == "HOLD"
-    state.rewindHoldAnimationActive = rewindHoldAnimation
-    if rewindHoldAnimation then
-        -- HOLD操作後に表示されていたブロックを、復元前のHOLDへ戻す。
-        -- 復元前のHOLDブロックは、復元後の現在ブロックへ向かわせる。
-        state.holdAnimationSourceValue = state.nextValues[1]
-        state.holdAnimationReturnValue = state.holdValue
-    end
-    state.rewindUsesRemaining -= 1
-    local currentBoard = state.board
-    state.board = restored.board
-    state.score = restored.score
-    state.cursorX = restored.cursorX
-    state.holdValue = restored.holdValue
-    state.holdAvailable = restored.holdAvailable
-    state.lastRandomBlockValue = restored.lastRandomBlockValue or 0
-    state.consecutiveRandomBlockCount = restored.consecutiveRandomBlockCount or 0
-    state.nextValues = restored.nextValues
-
-    state.combo = 0
-    state.comboBonusScore = 0
-    state.comboDisplayFrame = 0
-    state.comboSoundPlayed = false
-    state.rotationEvaluation = 0
-    state.previewImpulseRotationDegrees = 0
-    state.pendingDropValue = 0
-    state.rotationStartBoard = nil
-    state.rotationEndBoard = nil
-    state.nextAnimationGameOver = false
-    state.message = ""
-    state.crisisBgmActive = false
-
-	sound:play_se("rewind")
-    if restored.hasRotation then
-        -- 現在の盤面を逆回転させながら、取り消し前の盤面へ戻す。
-        state.board = currentBoard
-        state.rotationStartBoard = currentBoard
-        state.rotationEndBoard = restored.board
-        state.rotationClockwise = not restored.rotationClockwise
-        state.animationProgress = 0
-        state.animationDuration = 0.38
-        sound:play_se("rotate")
-        state.phase = GamePhase.UNDO_ROTATING
-    elseif rewindHoldAnimation then
-        state.animationProgress = 0
-        state.animationDuration = 0.30
-        state.phase = GamePhase.HOLD_ANIM
-    else
-        state.holdAnimationSourceValue = 0
-        state.holdAnimationReturnValue = 0
-        state.phase = GamePhase.INPUT
-    end
-    return true
-end
-
 -- Bボタン長押しによる巻き戻し入力を開始する。
 local function beginRewindHold()
-    if not isRewindAvailable() then
+    if not undoController:isAvailable() then
 		-- 巻き戻しはできない.
 		if state.rewindUsesRemaining <= 0 then
             setMessage("NO REWINDS", 700)
@@ -263,7 +149,7 @@ end
 -- Bボタンの長押し時間を更新し、
 -- 1秒 (REWIND_HOLD_DURATION_MS) 到達時にUNDOを実行する。
 local function updateRewindHold()
-    if not isRewindAvailable() then
+    if not undoController:isAvailable() then
         endRewindHold()
         return
     end
@@ -279,30 +165,8 @@ local function updateRewindHold()
     if not state.rewindHoldTriggered
         and pd.getCurrentTimeMilliseconds() - state.rewindHoldStartedAt >= REWIND_HOLD_DURATION_MS then
         state.rewindHoldTriggered = true
-        undoLastTurn()
+        undoController:restore()
     end
-end
-
-local function getMaxTileValue()
-    local maxValue = 0
-    state.board:foreach(function(x, y, value)
-        if value > maxValue then
-            maxValue = value
-        end
-    end)
-    return maxValue
-end
-
--- ランダムでブロックを抽選する.
-local function randomBlockValue()
-    local randomState = {
-        lastValue = state.lastRandomBlockValue,
-        consecutiveCount = state.consecutiveRandomBlockCount,
-    }
-    local value = TileGenerator.next(state.board, randomState, getMaxTileValue)
-    state.lastRandomBlockValue = randomState.lastValue
-    state.consecutiveRandomBlockCount = randomState.consecutiveCount
-    return value
 end
 
 -- 落下可能なセルを見つける.
@@ -315,116 +179,10 @@ local function isDropAvailable()
     return findDropCell(state.cursorX) ~= nil
 end
 
--- スコアを加算.
-local function addScore(value)
-    state.score += value * SCORE_MULTIPLIER
-    if state.score > state.highScore then
-        state.highScore = state.score -- ハイスコア更新.
-    end
-end
-
 -- 中心軸を空けておく.
 local function applyGravity()
     -- 中心軸は見えない固定ブロックとして常に空けておく。
     state.board:set(CENTER, CENTER, 0)
-end
-
--- マージ後もブロックが接続されたままかどうかを判定する.
-local function mergeKeepsBlockConnected(sourceX, sourceY, targetX, targetY)
-	-- soruceは targetにマージする.
-	-- 合成したブロック上下左右に隣接するブロックがあれば接続されたとみなす.
-    local neighborX = targetX - 1
-    if BoardRules.isPlayable(neighborX, targetY) and neighborX ~= sourceX
-        and BoardRules.isOccupied(state.board, neighborX, targetY) then
-        return true
-    end
-    neighborX = targetX + 1
-    if BoardRules.isPlayable(neighborX, targetY) and neighborX ~= sourceX
-        and BoardRules.isOccupied(state.board, neighborX, targetY) then
-        return true
-    end
-    local neighborY = targetY - 1
-    if BoardRules.isPlayable(targetX, neighborY) and neighborY ~= sourceY
-        and BoardRules.isOccupied(state.board, targetX, neighborY) then
-        return true
-    end
-    neighborY = targetY + 1
-    if BoardRules.isPlayable(targetX, neighborY) and neighborY ~= sourceY
-        and BoardRules.isOccupied(state.board, targetX, neighborY) then
-        return true
-    end
-    return false
-end
-
--- 指定したブロックのマージ先を見つける.
-local function findMergeForBlock(sourceX, sourceY, activeValue)
-	-- 方向の優先順位は「下・左・右・上」の順で、最初に見つかったマージ可能なブロックの位置を返す.
-    local fallbackSourceX = 0
-    local fallbackSourceY = 0
-    local fallbackTargetX = 0
-    local fallbackTargetY = 0
-
-    for direction = DIRECTION_DOWN, DIRECTION_UP do
-        local dx = 0
-        local dy = 0
-        if direction == DIRECTION_DOWN then
-            dy = 1       -- down
-        elseif direction == DIRECTION_LEFT then
-            dx = -1      -- left
-        elseif direction == DIRECTION_RIGHT then
-            dx = 1       -- right
-        elseif direction == DIRECTION_UP then
-            dy = -1      -- up
-        end
-        local neighborX = sourceX + dx
-        local neighborY = sourceY + dy
-        if activeValue ~= 0 and BoardRules.isPlayable(neighborX, neighborY)
-            and state.board:get(neighborX, neighborY) == activeValue then
-            if mergeKeepsBlockConnected(sourceX, sourceY, neighborX, neighborY) then
-                return sourceX, sourceY, neighborX, neighborY
-            end
-            if fallbackSourceX == 0 then
-                fallbackSourceX = sourceX
-                fallbackSourceY = sourceY
-                fallbackTargetX = neighborX
-                fallbackTargetY = neighborY
-            end
-        end
-    end
-
-    if fallbackSourceX ~= 0 then
-        return fallbackSourceX, fallbackSourceY, fallbackTargetX, fallbackTargetY
-    end
-    return nil
-end
-
--- アクティブなブロックのマージ先を見つける.
-local function findMergeForActiveBlock()
-	-- Activeブロックは新たに追加されたブロックまたは前回のマージで残ったブロック.
-    return findMergeForBlock(state.activeMergeX, state.activeMergeY,
-        state.board:get(state.activeMergeX, state.activeMergeY))
-end
-
--- 自動プレイ用に、各列へ落とした場合の候補を作る。
--- マージ判定は通常プレイと同じ findMergeForBlock を使用する。
-local function getAutoPlayCandidates(activeValue)
-    local candidates = {}
-    for column = 1, BOARD_SIZE do
-        local x, y = findDropCell(column)
-        if x ~= nil then
-            local sourceX, sourceY, targetX, targetY =
-                findMergeForBlock(x, y, activeValue)
-            table.insert(candidates, {
-                column = column,
-                merge = sourceX ~= nil,
-                sourceX = sourceX,
-                sourceY = sourceY,
-                targetX = targetX,
-                targetY = targetY,
-            })
-        end
-    end
-    return candidates
 end
 
 local function canDropInAnyColumn()
@@ -462,7 +220,7 @@ local function advanceNextQueue()
     for i = 1, NEXT_QUEUE_COUNT - 1 do
         state.nextValues[i] = state.nextValues[i + 1]
     end
-    state.nextValues[NEXT_QUEUE_COUNT] = randomBlockValue()
+    state.nextValues[NEXT_QUEUE_COUNT] = TileGenerator.nextForState(state.board, state)
 end
 
 local function finishTurn()
@@ -547,7 +305,8 @@ end
 
 local function startResolve(nextAction)
     applyGravity()
-    local x1, y1, x2, y2 = findMergeForActiveBlock()
+    local x1, y1, x2, y2 = MergeResolver.findForActive(
+        state.board, state.activeMergeX, state.activeMergeY)
     if x1 == nil then
         if nextAction == "ROTATE" then
             -- これ以上マージが発生しないことが確定した直後に再生する.
@@ -576,8 +335,7 @@ local function startResolve(nextAction)
 end
 
 local function finishMerge()
-    state.combo += 1
-    local v = getMergeEvaluation(state.mergeSourceX, state.mergeTargetX)
+    local v = MergeResolver.getEvaluation(state.mergeSourceX, state.mergeTargetX)
     addRotationEvaluation(v)
     if state.mergeTargetX < state.mergeSourceX then
         addPreviewImpulse(ROTATION_EVALUATION_MERGE_DIRECTION_LEFT)
@@ -586,17 +344,7 @@ local function finishMerge()
     end
     state.board:set(state.mergeSourceX, state.mergeSourceY, 0)
     state.board:set(state.mergeTargetX, state.mergeTargetY, state.mergeValue)
-    addScore(state.mergeValue)
-
-    -- 1コンボ目は通常のマージ得点のみとし、2コンボ目以降に差分ボーナスを加算する.
-    -- 累積値は係数 * (コンボ回数 ^ 指数 - 1)になる.
-    state.comboBonusScore = 0
-    if state.combo >= 2 then
-        local currentComboScore = COMBO_SCORE_COEFFICIENT * (state.combo ^ COMBO_SCORE_EXPONENT)
-        local previousComboScore = COMBO_SCORE_COEFFICIENT * ((state.combo - 1) ^ COMBO_SCORE_EXPONENT)
-        state.comboBonusScore = math.floor(currentComboScore - previousComboScore)
-        addScore(state.comboBonusScore)
-    end
+    gameSession:recordMerge(state.mergeValue)
 
     state.activeMergeX = state.mergeTargetX
     state.activeMergeY = state.mergeTargetY
@@ -610,9 +358,9 @@ local function finishDrop()
     state.activeMergeX = state.pendingDropX
     state.activeMergeY = state.pendingDropY
     addRotationEvaluation(ROTATION_EVALUATION_DROP_POSITION_WEIGHT
-        * getPositionEvaluation(state.pendingDropX)
+        * MergeResolver.getPositionEvaluation(state.pendingDropX)
     )
-    addPreviewImpulse(getPositionEvaluation(state.pendingDropX))
+    addPreviewImpulse(MergeResolver.getPositionEvaluation(state.pendingDropX))
     startResolve("ROTATE")
 	if state.phase ~= GamePhase.MERGING then
 		sound:play_se("fixed")
@@ -667,10 +415,7 @@ local function startGame()
     state.consecutiveRandomBlockCount = 0
     state.undoStates = {}
     state.rewindUsesRemaining = MAX_REWIND_USES
-    state.combo = 0
-    state.comboBonusScore = 0
-    state.comboDisplayFrame = 0
-    state.comboSoundPlayed = false
+    gameSession:resetCombo()
     state.cursorX = CENTER
     state.rewindHoldStartedAt = nil
     state.rewindHoldTriggered = false
@@ -698,7 +443,7 @@ local function startGame()
     state.nextValues = {}
     autoPlayer:reset()
     for i = 1, NEXT_QUEUE_COUNT do
-        state.nextValues[i] = randomBlockValue()
+        state.nextValues[i] = TileGenerator.nextForState(state.board, state)
     end
     state.previewImpulseRotationDegrees = 0
     spawnInitialBlocks()
@@ -716,7 +461,7 @@ local function holdCurrentBlock()
         return
     end
 
-    saveUndoState("HOLD")
+    undoController:save("HOLD")
 
     local currentValue = state.nextValues[1]
     state.holdAnimationSourceValue = currentValue
@@ -762,11 +507,8 @@ local function beginDrop()
     local x, y = findDropCell(state.cursorX)
 
     -- 落下開始.
-    saveUndoState("DROP")
-    state.combo = 0
-    state.comboBonusScore = 0
-    state.comboDisplayFrame = 0
-    state.comboSoundPlayed = false
+    undoController:save("DROP")
+    gameSession:resetCombo()
     state.pendingDropX = x
     state.pendingDropY = y
     state.pendingDropValue = state.nextValues[1]
@@ -821,7 +563,9 @@ local function updateGame()
                 nextValue = state.nextValues[1],
                 holdValue = state.holdValue,
                 holdAvailable = state.holdAvailable,
-                getCandidates = getAutoPlayCandidates,
+                getCandidates = function(activeValue)
+                    return MergeResolver.getAutoPlayCandidates(state.board, activeValue)
+                end,
             })
             if command == InputCommand.HOLD then
                 holdCurrentBlock()
@@ -885,14 +629,18 @@ end)
 local gameRenderer = GameRenderer.new({
     state = state,
     findDropCell = findDropCell,
-    findMergeForBlock = findMergeForBlock,
+    findMergeForBlock = function(sourceX, sourceY, activeValue)
+        return MergeResolver.find(state.board, sourceX, sourceY, activeValue)
+    end,
 })
 
 local overlayRenderer = OverlayRenderer.new({
     state = state,
     sound = sound,
     getDangerEdges = getDangerEdges,
-    isRewindAvailable = isRewindAvailable,
+    isRewindAvailable = function()
+        return undoController:isAvailable()
+    end,
 })
 
 local sceneContext = SceneContext.new({

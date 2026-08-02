@@ -3,7 +3,15 @@ import "game_config"
 local Config <const> = GameConfig
 local TileGenerator = {}
 
-function TileGenerator.next(board, randomState, getMaxTileValue)
+local function getMaxTileValue(board)
+    local maxValue = 0
+    board:foreach(function(_, _, value)
+        if value > maxValue then maxValue = value end
+    end)
+    return maxValue
+end
+
+function TileGenerator.next(board, randomState)
     local maxValue = getMaxTileValue(board)
     local maxQuarter = math.floor(maxValue / 4)
     local suppressedValue = nil
@@ -47,6 +55,17 @@ function TileGenerator.next(board, randomState, getMaxTileValue)
         randomState.consecutiveCount = 1
     end
     return selectedValue
+end
+
+function TileGenerator.nextForState(board, state)
+    local randomState = {
+        lastValue = state.lastRandomBlockValue,
+        consecutiveCount = state.consecutiveRandomBlockCount,
+    }
+    local value = TileGenerator.next(board, randomState)
+    state.lastRandomBlockValue = randomState.lastValue
+    state.consecutiveRandomBlockCount = randomState.consecutiveCount
+    return value
 end
 
 _G.TileGenerator = TileGenerator
