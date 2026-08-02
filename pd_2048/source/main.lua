@@ -90,6 +90,14 @@ local ROTATION_EVALUATION_VERTICAL_DIRECTION_WEIGHT <const> = 10 -- マージ方
 -- プレビュー反動の設定.
 local PREVIEW_IMPULSE_ROTATION_DEGREES <const> = 5
 local PREVIEW_IMPULSE_DECAY <const> = 0.7
+-- 回転予測の矢印.
+local ROTATION_DIRECTION_ARROW_OFFSET_Y <const> = -CELL_SIZE * 0.4 -- 矢印の中心位置のY座標をずらす値.
+local ROTATION_DIRECTION_ARROW_MIN_LENGTH <const> = 12
+local ROTATION_DIRECTION_ARROW_MAX_LENGTH <const> = 24
+local ROTATION_DIRECTION_ARROW_HEAD_LENGTH <const> = 6
+local ROTATION_DIRECTION_ARROW_HEAD_WIDTH <const> = 4
+local ROTATION_DIRECTION_ARROW_MAX_EVALUATION <const> =
+    PREVIEW_ROTATION_MAX_DEGREES * PREVIEW_ROTATION_DEGREES_PER_POINT
 
 local board = Array2D(BOARD_SIZE, BOARD_SIZE, 0) -- 盤面.
 local cursorX = 3 -- カーソル位置.
@@ -1270,6 +1278,41 @@ local function drawRotatingBoard()
     end)
 end
 
+-- 回転アニメーション中の回転方向を、中央の回転軸に表示する.
+local function drawRotationDirectionArrow()
+    if gameState ~= GAME_STATE_MERGING and gameState ~= GAME_STATE_ROTATING then
+		-- マージ中と回転中のみ描画する.
+        return
+    end
+
+    local evaluation = getPreviewRotationEvaluation()
+    if evaluation == 0 then
+		-- 回転しないのであれば描画しない.
+        return
+    end
+
+    local centerX = BOARD_X + (CENTER - 0.5) * CELL_SIZE
+    local centerY = BOARD_Y + (CENTER - 0.5) * CELL_SIZE
+	centerY += ROTATION_DIRECTION_ARROW_OFFSET_Y -- オフセットを適用.
+    local direction = evaluation > 0 and 1 or -1
+    local evaluationRatio = math.min(1,
+        math.abs(evaluation) / ROTATION_DIRECTION_ARROW_MAX_EVALUATION)
+    local arrowLength = ROTATION_DIRECTION_ARROW_MIN_LENGTH
+        + (ROTATION_DIRECTION_ARROW_MAX_LENGTH - ROTATION_DIRECTION_ARROW_MIN_LENGTH)
+        * evaluationRatio
+    local arrowStartX = centerX - direction * arrowLength * 0.5
+    local arrowTipX = centerX + direction * arrowLength * 0.5
+    local arrowBaseX = arrowTipX - direction * ROTATION_DIRECTION_ARROW_HEAD_LENGTH
+
+    gfx.setLineWidth(2)
+    gfx.drawLine(arrowStartX, centerY, arrowTipX, centerY)
+    gfx.setLineWidth(1)
+    gfx.drawLine(arrowTipX, centerY,
+        arrowBaseX, centerY - ROTATION_DIRECTION_ARROW_HEAD_WIDTH)
+    gfx.drawLine(arrowTipX, centerY,
+        arrowBaseX, centerY + ROTATION_DIRECTION_ARROW_HEAD_WIDTH)
+end
+
 local function drawMergeAnimation(rotationAngle)
     drawBoardCells(mergeSourceX, mergeSourceY, rotationAngle)
 
@@ -1346,6 +1389,10 @@ local function drawBoard()
         drawMergeAnimation(previewRotationAngle)
     else
         drawBoardCells(nil, nil, previewRotationAngle)
+    end
+
+    if gameState == GAME_STATE_MERGING or gameState == GAME_STATE_ROTATING then
+        drawRotationDirectionArrow()
     end
 
     if gameState == GAME_STATE_PLAYING then
