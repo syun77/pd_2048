@@ -144,11 +144,14 @@ function OverlayRenderer:drawMenu(centerX, centerY, items, selectedIndex, backgr
         textHeight = math.max(textHeight, height)
     end
 
+	local mergin = 32 -- 左右の余白を32pxに設定.
     local horizontalPadding = 16
     local verticalPadding = 8
     local itemHeight = textHeight + 8
     local menuWidth = maxTextWidth + horizontalPadding * 2
     local menuHeight = #items * itemHeight + verticalPadding * 2
+	menuWidth += mergin * 2 -- 左右に余白を追加.
+
     local menuX = math.floor(centerX - menuWidth * 0.5)
     local menuY = math.floor(centerY - menuHeight * 0.5)
 
