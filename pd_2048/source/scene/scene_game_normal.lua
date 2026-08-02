@@ -11,15 +11,16 @@ end
 
 function NormalGameScene:update()
     self.context.resetCursorIfNeeded()
-    if self.context.getGameState() == self.context.states.PLAYING then
+    local phase = self.context.getPhase()
+    if phase == self.context.phases.INPUT then
         self.context.updatePlayingInput()
-    elseif self.context.getGameState() == self.context.states.PAUSED then
+    elseif phase == self.context.phases.PAUSED then
         self.context.updatePausedInput()
     end
-    if self.context.isAnimating(self.context.getGameState()) then
+    if self.context.isAnimating(self.context.getPhase()) then
         self.context.advanceAnimation()
     end
-    if self.context.getGameState() == self.context.states.GAME_OVER then
+    if self.context.getResult() ~= nil then
         self.manager:change("GAME_OVER")
     end
 end

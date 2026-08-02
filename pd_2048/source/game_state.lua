@@ -22,7 +22,8 @@ function GameState.new()
         comboBonusScore = 0,
         comboDisplayFrame = 0,
         comboSoundPlayed = false,
-        gameState = Config.GAME_STATE.TITLE,
+        phase = Config.GAME_PHASE.INPUT,
+        result = nil,
         message = "",
         messageUntil = 0,
         animationProgress = 0,
@@ -50,8 +51,8 @@ function GameState.new()
 end
 
 function GameState:isAnimating()
-    local s = self.gameState
-    local states = Config.GAME_STATE
+    local s = self.phase
+    local states = Config.GAME_PHASE
     return s == states.DROPPING or s == states.MERGING or s == states.ROTATING
         or s == states.UNDO_ROTATING or s == states.NEXT_ANIM or s == states.HOLD_ANIM
 end

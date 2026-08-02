@@ -13,7 +13,7 @@ function TitleScene:update()
     if playdate.buttonJustPressed(playdate.kButtonA) then
         self.context.sound:play_se("decide")
         self.context.startGame()
-        self.manager:change("GAME_NORMAL")
+        self.manager:change("GAME")
     end
 end
 

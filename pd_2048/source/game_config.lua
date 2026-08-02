@@ -19,10 +19,22 @@ local Config = {
     PREVIEW_IMPULSE_ROTATION_DEGREES = 5,
     PREVIEW_IMPULSE_DECAY = 0.7,
     DIRECTION = { DOWN = 1, LEFT = 2, RIGHT = 3, UP = 4 },
-    GAME_STATE = {
-        TITLE = "TITLE", PLAYING = "PLAYING", DROPPING = "DROPPING",
-        MERGING = "MERGING", ROTATING = "ROTATING", UNDO_ROTATING = "UNDO_ROTATING",
-        NEXT_ANIM = "NEXT_ANIM", HOLD_ANIM = "HOLD_ANIM", PAUSED = "PAUSED",
+    SCENE = {
+        TITLE = "TITLE",
+        GAME = "GAME",
+        GAME_OVER = "GAME_OVER",
+    },
+    GAME_PHASE = {
+        INPUT = "INPUT",
+        DROPPING = "DROPPING",
+        MERGING = "MERGING",
+        ROTATING = "ROTATING",
+        UNDO_ROTATING = "UNDO_ROTATING",
+        NEXT_ANIM = "NEXT_ANIM",
+        HOLD_ANIM = "HOLD_ANIM",
+        PAUSED = "PAUSED",
+    },
+    GAME_RESULT = {
         GAME_OVER = "GAME_OVER",
     },
 }

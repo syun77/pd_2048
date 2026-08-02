@@ -40,7 +40,7 @@ local function drawPreviewBox(value, x, y, width, height)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
-function HudRenderer.next(values, gameState)
+function HudRenderer.next(values, phase)
     gfx.drawText("NEXT", Config.NEXT_LABEL_X, 20)
     for i = 1, Config.NEXT_PREVIEW_COUNT do
         if i == 1 and (pd.getCurrentTimeMilliseconds() % 400) < 200 then
@@ -49,19 +49,19 @@ function HudRenderer.next(values, gameState)
                 Config.NEXT_BOX_WIDTH, Config.NEXT_BOX_HEIGHT)
             gfx.setLineWidth(1)
         end
-        local index = gameState == Config.GAME_STATE.NEXT_ANIM and i or i + 1
+        local index = phase == Config.GAME_PHASE.NEXT_ANIM and i or i + 1
         local y = Config.NEXT_BOX_Y + (i - 1) * (Config.NEXT_BOX_HEIGHT + Config.NEXT_BOX_GAP)
         drawPreviewBox(values[index], Config.NEXT_BOX_X, y,
             Config.NEXT_BOX_WIDTH, Config.NEXT_BOX_HEIGHT)
     end
 end
 
-function HudRenderer.hold(value, gameState)
+function HudRenderer.hold(value, phase)
     gfx.drawText("A: HOLD", Config.HOLD_LABEL_X, 20)
     gfx.setLineWidth(1)
     gfx.drawRect(Config.HOLD_BOX_X, Config.HOLD_BOX_Y,
         Config.NEXT_BOX_WIDTH, Config.NEXT_BOX_HEIGHT)
-    if gameState == Config.GAME_STATE.HOLD_ANIM or value == 0 then return end
+    if phase == Config.GAME_PHASE.HOLD_ANIM or value == 0 then return end
     drawPreviewBox(value, Config.HOLD_BOX_X, Config.HOLD_BOX_Y,
         Config.NEXT_BOX_WIDTH, Config.NEXT_BOX_HEIGHT)
 end
@@ -70,8 +70,8 @@ function HudRenderer.header(ctx)
     HudRenderer.score(ctx.score)
     ctx.comboDisplayFrame += 1
     HudRenderer.combo(ctx.combo, ctx.comboDisplayFrame, ctx.comboBonusScore)
-    HudRenderer.hold(ctx.holdValue, ctx.gameState)
-    HudRenderer.next(ctx.nextValues, ctx.gameState)
+    HudRenderer.hold(ctx.holdValue, ctx.phase)
+    HudRenderer.next(ctx.nextValues, ctx.phase)
 end
 
 _G.HudRenderer = HudRenderer

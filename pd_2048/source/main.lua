@@ -79,17 +79,9 @@ local DIRECTION_DOWN <const> = 1
 local DIRECTION_LEFT <const> = 2
 local DIRECTION_RIGHT <const> = 3
 local DIRECTION_UP <const> = 4
--- 状態定数.
-local GAME_STATE_TITLE <const> = "TITLE"
-local GAME_STATE_PLAYING <const> = "PLAYING"
-local GAME_STATE_DROPPING <const> = "DROPPING"
-local GAME_STATE_MERGING <const> = "MERGING"
-local GAME_STATE_ROTATING <const> = "ROTATING"
-local GAME_STATE_UNDO_ROTATING <const> = "UNDO_ROTATING"
-local GAME_STATE_NEXT_ANIM <const> = "NEXT_ANIM"
-local GAME_STATE_HOLD_ANIM <const> = "HOLD_ANIM"
-local GAME_STATE_PAUSED <const> = "PAUSED"
-local GAME_STATE_GAME_OVER <const> = "GAME_OVER"
+local Scene <const> = Config.SCENE
+local GamePhase <const> = Config.GAME_PHASE
+local GameResult <const> = Config.GAME_RESULT
 -- 傾きをわかりやすく見せるための回転角度の最大値と、1ポイントあたりの回転角度.
 local PREVIEW_ROTATION_MAX_DEGREES <const> = 200
 local PREVIEW_ROTATION_EVALUATION_MULTIPLIER <const> = 0.1 -- 評価値に対する倍率.
@@ -295,15 +287,15 @@ local function undoLastTurn()
         state.animationProgress = 0
         state.animationDuration = 0.38
         sound:play_se("rotate")
-        state.gameState = GAME_STATE_UNDO_ROTATING
+        state.phase = GamePhase.UNDO_ROTATING
     elseif rewindHoldAnimation then
         state.animationProgress = 0
         state.animationDuration = 0.30
-        state.gameState = GAME_STATE_HOLD_ANIM
+        state.phase = GamePhase.HOLD_ANIM
     else
         state.holdAnimationSourceValue = 0
         state.holdAnimationReturnValue = 0
-        state.gameState = GAME_STATE_PLAYING
+        state.phase = GamePhase.INPUT
     end
     return true
 end
@@ -545,13 +537,14 @@ local function finishTurn()
     state.nextAnimationGameOver = not canDropInAnyColumn()
     state.animationProgress = 0
     state.animationDuration = 0.30
-    state.gameState = GAME_STATE_NEXT_ANIM
+    state.phase = GamePhase.NEXT_ANIM
 end
 
 -- ゲームオーバー開始.
 local function beginGameOver()
 	saveHighScore()
-	state.gameState = GAME_STATE_GAME_OVER
+	state.result = GameResult.GAME_OVER
+	state.phase = GamePhase.INPUT
 	sound:play_se("gameover")
 	sound:stop_bgm(1.0)
 end
@@ -561,7 +554,7 @@ local function finishNextAnimation()
 		-- ゲームオーバー開始.
 		beginGameOver()
     else
-        state.gameState = GAME_STATE_PLAYING
+        state.phase = GamePhase.INPUT
     end
 end
 
@@ -594,7 +587,7 @@ local function startRotation()
     state.animationProgress = 0
     state.animationDuration = 0.38
     sound:play_se("rotate")
-    state.gameState = GAME_STATE_ROTATING
+    state.phase = GamePhase.ROTATING
 end
 
 -- 連鎖が確定した時点でコンボSEを再生する.
@@ -641,7 +634,7 @@ local function startResolve(nextAction)
     state.animationProgress = 0
     state.animationDuration = 0.22
 	sound:play_se("merge")
-    state.gameState = GAME_STATE_MERGING
+    state.phase = GamePhase.MERGING
 end
 
 local function finishMerge()
@@ -683,7 +676,7 @@ local function finishDrop()
     )
     addPreviewImpulse(getPositionEvaluation(state.pendingDropX))
     startResolve("ROTATE")
-	if state.gameState ~= GAME_STATE_MERGING then
+	if state.phase ~= GamePhase.MERGING then
 		sound:play_se("fixed")
 	end
 end
@@ -694,7 +687,7 @@ local function advanceAnimation()
         animationProgress = state.animationProgress,
         animationDuration = state.animationDuration,
         refreshRate = DEFAULT_REFRESH_RATE,
-        gameState = state.gameState,
+        phase = state.phase,
         board = state.board,
         rotationEndBoard = state.rotationEndBoard,
         finishDrop = finishDrop,
@@ -702,7 +695,7 @@ local function advanceAnimation()
         startResolve = startResolve,
         finishNextAnimation = finishNextAnimation,
         finishHoldAnimation = finishHoldAnimation,
-        setGameState = function(value) state.gameState = value end,
+        setPhase = function(value) state.phase = value end,
         setBoard = function(value) state.board = value end,
     }
     TurnResolver.advance(context)
@@ -711,37 +704,10 @@ local function advanceAnimation()
         state.animationProgress = context.animationProgress
         state.board = context.board
         state.rotationEndBoard = context.rotationEndBoard
-    elseif context.gameState == GAME_STATE_ROTATING
-        or context.gameState == GAME_STATE_UNDO_ROTATING then
+    elseif context.phase == GamePhase.ROTATING
+        or context.phase == GamePhase.UNDO_ROTATING then
         state.board = context.board
         state.rotationEndBoard = context.rotationEndBoard
-    end
-end
-
-local function advanceAnimationLegacy()
-    state.previewImpulseRotationDegrees *= PREVIEW_IMPULSE_DECAY
-    state.animationProgress += 1 / (state.animationDuration * 30)
-    if state.animationProgress < 1 then
-        return
-    end
-
-    state.animationProgress = 1
-    if state.gameState == GAME_STATE_DROPPING then
-        finishDrop()
-    elseif state.gameState == GAME_STATE_MERGING then
-        finishMerge()
-    elseif state.gameState == GAME_STATE_ROTATING then
-        state.board = state.rotationEndBoard
-        startResolve("FINISH")
-    elseif state.gameState == GAME_STATE_UNDO_ROTATING then
-        state.board = state.rotationEndBoard
-        state.rotationStartBoard = nil
-        state.rotationEndBoard = nil
-        state.gameState = GAME_STATE_PLAYING
-    elseif state.gameState == GAME_STATE_NEXT_ANIM then
-        finishNextAnimation()
-    elseif state.gameState == GAME_STATE_HOLD_ANIM then
-        finishHoldAnimation()
     end
 end
 
@@ -755,6 +721,7 @@ end
 
 local function startGame()
     clearBoard()
+    state.result = nil
     state.score = 0
     state.holdValue = 0
     state.holdAvailable = true
@@ -796,7 +763,7 @@ local function startGame()
     end
     state.previewImpulseRotationDegrees = 0
     spawnInitialBlocks()
-    state.gameState = GAME_STATE_PLAYING
+    state.phase = GamePhase.INPUT
     state.message = ""
     state.crisisBgmActive = false
     playGameBgm()
@@ -830,7 +797,7 @@ local function holdCurrentBlock()
 
     state.animationProgress = 0
     state.animationDuration = 0.30
-    state.gameState = GAME_STATE_HOLD_ANIM
+    state.phase = GamePhase.HOLD_ANIM
 end
 
 -- HOLDアニメーションを終了し、HOLDで出現したブロックの配置可能性を確認する.
@@ -841,7 +808,7 @@ finishHoldAnimation = function()
     if not canDropInAnyColumn() then
         beginGameOver()
     else
-        state.gameState = GAME_STATE_PLAYING
+        state.phase = GamePhase.INPUT
     end
 end
 
@@ -868,7 +835,7 @@ local function beginDrop()
     state.animationProgress = 0
     state.animationDuration = math.max(0.18, (y + 1) * 0.07)
 	sound:play_se("fall")
-    state.gameState = GAME_STATE_DROPPING
+    state.phase = GamePhase.DROPPING
 end
 
 -- カーソルを移動.
@@ -1057,7 +1024,7 @@ end
 
 local function getPreviewRotationEvaluation()
     local evaluation = state.rotationEvaluation
-    if state.gameState == GAME_STATE_MERGING then
+    if state.phase == GamePhase.MERGING then
         local mergeEvaluation = getMergeEvaluation(state.mergeSourceX, state.mergeTargetX)
         evaluation += mergeEvaluation * easeInOut(state.animationProgress)
     end
@@ -1067,7 +1034,7 @@ local function getPreviewRotationEvaluation()
 end
 
 local function getPreviewRotationDegrees()
-    if state.gameState ~= GAME_STATE_DROPPING and state.gameState ~= GAME_STATE_MERGING then
+    if state.phase ~= GamePhase.DROPPING and state.phase ~= GamePhase.MERGING then
         return 0
     end
 
@@ -1107,7 +1074,7 @@ end
 
 -- 回転アニメーション中の回転方向を、中央の回転軸に表示する.
 local function drawRotationDirectionArrow()
-    if state.gameState ~= GAME_STATE_MERGING and state.gameState ~= GAME_STATE_ROTATING then
+    if state.phase ~= GamePhase.MERGING and state.phase ~= GamePhase.ROTATING then
 		-- マージ中と回転中のみ描画する.
         return
     end
@@ -1210,34 +1177,34 @@ local function drawBoard()
     drawBoardGrid()
     local previewRotationAngle = getPreviewRotationAngle()
 
-    if state.gameState == GAME_STATE_ROTATING or state.gameState == GAME_STATE_UNDO_ROTATING then
+    if state.phase == GamePhase.ROTATING or state.phase == GamePhase.UNDO_ROTATING then
         drawRotatingBoard()
-    elseif state.gameState == GAME_STATE_MERGING then
+    elseif state.phase == GamePhase.MERGING then
         drawMergeAnimation(previewRotationAngle)
     else
         drawBoardCells(nil, nil, previewRotationAngle)
     end
 
-    if state.gameState == GAME_STATE_MERGING or state.gameState == GAME_STATE_ROTATING then
+    if state.phase == GamePhase.MERGING or state.phase == GamePhase.ROTATING then
         drawRotationDirectionArrow()
     end
 
-    if state.gameState == GAME_STATE_PLAYING then
+    if state.phase == GamePhase.INPUT then
         drawLandingPreview()
     end
 
-    if state.gameState == GAME_STATE_DROPPING then
+    if state.phase == GamePhase.DROPPING then
 		-- 落下ブロックの描画.
         drawFallingBlock(previewRotationAngle)
     end
 
-    if state.gameState == GAME_STATE_PLAYING then
+    if state.phase == GamePhase.INPUT then
         drawDropPreview()
-    elseif state.gameState == GAME_STATE_NEXT_ANIM then
+    elseif state.phase == GamePhase.NEXT_ANIM then
         drawNextAnimation()
     end
 
-    if state.gameState == GAME_STATE_HOLD_ANIM then
+    if state.phase == GamePhase.HOLD_ANIM then
         drawHoldAnimation()
     end
 end
@@ -1255,19 +1222,19 @@ end
 
 -- NEXTブロックの描画.
 local function drawNextBlocks()
-    HudRenderer.next(state.nextValues, state.gameState)
+    HudRenderer.next(state.nextValues, state.phase)
 end
 
 -- HOLDブロックの描画。右上の専用領域を使用する.
 local function drawHoldBlock()
-    HudRenderer.hold(state.holdValue, state.gameState)
+    HudRenderer.hold(state.holdValue, state.phase)
 end
 
 local function drawHeader()
     HudRenderer.header({
         score = state.score, combo = state.combo, comboDisplayFrame = state.comboDisplayFrame,
         comboBonusScore = state.comboBonusScore, holdValue = state.holdValue,
-        nextValues = state.nextValues, gameState = state.gameState,
+        nextValues = state.nextValues, phase = state.phase,
     })
     state.comboDisplayFrame = state.comboDisplayFrame + 1
     drawDangerIcons()
@@ -1282,7 +1249,7 @@ end
 
 -- 巻き戻し可能であることを表示する.
 local function drawRewindHint()
-    if state.gameState == GAME_STATE_PLAYING and isRewindAvailable() then
+    if state.phase == GamePhase.INPUT and isRewindAvailable() then
 		-- 長押し中は表示とゲージをXORで描画する。
         local isHolding = state.rewindHoldStartedAt ~= nil
         local rewindText = "B: REWIND [" .. tostring(state.rewindUsesRemaining) .. "]"
@@ -1313,88 +1280,6 @@ local function drawGameOver()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
-local function legacyUpdate()
-    gfx.clear(gfx.kColorWhite)
-
-    if state.gameState ~= GAME_STATE_PLAYING then
-        resetCursorKeyRepeat()
-    end
-
-    if state.gameState == GAME_STATE_TITLE then
-        drawTitle()
-        if pd.buttonJustPressed(pd.kButtonA) then
-			sound:play_se("decide")
-            startGame()
-        end
-        return
-    end
-
-    if state.gameState == GAME_STATE_PLAYING then
-        updateRewindHold()
-        if pd.buttonJustPressed(pd.kButtonA) then
-            holdCurrentBlock()
-        elseif pd.buttonJustPressed(pd.kButtonLeft)
-            or pd.buttonJustPressed(pd.kButtonRight) then
-            updateCursorKeyRepeat()
-        elseif pd.buttonJustPressed(pd.kButtonDown) then
-			-- 落下開始.
-            beginDrop()
-        elseif pd.buttonJustPressed(pd.kButtonB) then
-			-- 巻き戻し判定開始.
-            beginRewindHold()
-        elseif state.cursorRepeatDirection ~= 0 then
-            updateCursorKeyRepeat()
-        end
-    elseif state.gameState == GAME_STATE_PAUSED then
-        if pd.buttonJustPressed(pd.kButtonB) then
-            state.gameState = GAME_STATE_PLAYING
-        end
-    elseif state.gameState == GAME_STATE_GAME_OVER then
-        if pd.buttonJustPressed(pd.kButtonA) then
-			sound:play_se("decide")
-            startGame()
-        end
-    end
-
-    if TurnResolver.isAnimating(state.gameState) then
-        advanceAnimation()
-    end
-
-	-- 各種情報の描画.
-    drawHeader()
-
-	-- 盤面の描画.
-    drawBoard()
-
-	-- 巻き戻し可能であることを表示.
-    drawRewindHint()
-
-    if state.gameState == GAME_STATE_PAUSED then
-        gfx.fillRect(145, 93, 110, 44)
-        gfx.setImageDrawMode(gfx.kDrawModeInverted)
-        drawCenteredText("PAUSED", 102)
-        drawCenteredText("B: RESUME", 120)
-        gfx.setImageDrawMode(gfx.kDrawModeCopy)
-    elseif state.gameState == GAME_STATE_GAME_OVER then
-        drawGameOver()
-    elseif state.message ~= "" and pd.getCurrentTimeMilliseconds() < state.messageUntil then
-        drawCenteredText(state.message, 216)
-    end
-
-	-- FPSを描画.
-	pd.drawFPS(4, 4)
-
-    if state.gameState == GAME_STATE_UNDO_ROTATING or state.rewindHoldAnimationActive then
-        -- 巻き戻し中であることを示すため、画面全体をXOR反転する。
-        -- kDrawModeXORは画像・フォント用で、fillRectには適用されないため、
-        -- プリミティブ用のkColorXORを使う。
-        local previousColor = gfx.getColor()
-        gfx.setColor(gfx.kColorXOR)
-        gfx.fillRect(0, 0, 400, 240)
-        gfx.setColor(previousColor)
-    end
-end
-
 loadHighScore()
 playMenuBgm()
 pd.display.setRefreshRate(DEFAULT_REFRESH_RATE)
@@ -1405,25 +1290,25 @@ local sceneManager
 pd.getSystemMenu():addMenuItem("Retry", function()
     startGame()
     if sceneManager ~= nil then
-        sceneManager:change("GAME_NORMAL")
+        sceneManager:change(Scene.GAME)
     end
 end)
 
 local sceneContext = SceneContext.new({
     sound = sound,
-    states = {
-        PLAYING = GAME_STATE_PLAYING,
-        PAUSED = GAME_STATE_PAUSED,
-        GAME_OVER = GAME_STATE_GAME_OVER,
+    phases = {
+        INPUT = GamePhase.INPUT,
+        PAUSED = GamePhase.PAUSED,
     },
-    getGameState = function() return state.gameState end,
+    getPhase = function() return state.phase end,
+    getResult = function() return state.result end,
     playMenuBgm = playMenuBgm,
     playGameBgm = playGameBgm,
     startGame = startGame,
-    isAnimating = function(state) return TurnResolver.isAnimating(state) end,
+    isAnimating = function(phase) return TurnResolver.isAnimating(phase) end,
     advanceAnimation = advanceAnimation,
     resetCursorIfNeeded = function()
-        if state.gameState ~= GAME_STATE_PLAYING then resetCursorKeyRepeat() end
+        if state.phase ~= GamePhase.INPUT then resetCursorKeyRepeat() end
     end,
     updatePlayingInput = function()
         updateRewindHold()
@@ -1442,7 +1327,7 @@ local sceneContext = SceneContext.new({
     end,
     updatePausedInput = function()
         if pd.buttonJustPressed(pd.kButtonB) then
-            state.gameState = GAME_STATE_PLAYING
+            state.phase = GamePhase.INPUT
         end
     end,
     drawTitle = drawTitle,
@@ -1450,7 +1335,7 @@ local sceneContext = SceneContext.new({
         drawHeader()
         drawBoard()
         drawRewindHint()
-        if state.gameState == GAME_STATE_PAUSED then
+        if state.phase == GamePhase.PAUSED then
             gfx.fillRect(145, 93, 110, 44)
             gfx.setImageDrawMode(gfx.kDrawModeInverted)
             drawCenteredText("PAUSED", 102)
@@ -1468,10 +1353,10 @@ local sceneContext = SceneContext.new({
 })
 
 sceneManager = SceneManager.new(sceneContext)
-sceneManager:register("TITLE", TitleScene.new(sceneContext))
-sceneManager:register("GAME_NORMAL", NormalGameScene.new(sceneContext))
-sceneManager:register("GAME_OVER", GameOverScene.new(sceneContext))
-sceneManager:change("TITLE")
+sceneManager:register(Scene.TITLE, TitleScene.new(sceneContext))
+sceneManager:register(Scene.GAME, NormalGameScene.new(sceneContext))
+sceneManager:register(Scene.GAME_OVER, GameOverScene.new(sceneContext))
+sceneManager:change(Scene.TITLE)
 
 function pd.update()
     gfx.clear(gfx.kColorWhite)
@@ -1479,7 +1364,7 @@ function pd.update()
     sceneManager:draw()
     pd.drawFPS(4, 4)
 
-    if state.gameState == GAME_STATE_UNDO_ROTATING or state.rewindHoldAnimationActive then
+    if state.phase == GamePhase.UNDO_ROTATING or state.rewindHoldAnimationActive then
         local previousColor = gfx.getColor()
         gfx.setColor(gfx.kColorXOR)
         gfx.fillRect(0, 0, 400, 240)
