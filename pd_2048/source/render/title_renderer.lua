@@ -17,18 +17,14 @@ function TitleRenderer:drawCenteredText(text, y)
 end
 
 function TitleRenderer:drawTitle(selectedIndex, menuItems)
-    self:drawCenteredText("ROTATE 2048", 32)
-    self:drawCenteredText("5 x 5 MERGE PUZZLE", 56)
     local labels = {}
     for _, item in ipairs(menuItems) do
         table.insert(labels, item.label)
     end
     self.menuRenderer:drawMenu(200, 132, labels, selectedIndex, gfx.kColorWhite)
-    self:drawCenteredText("UP / DOWN: SELECT    A: ENTER", 218)
 end
 
 function TitleRenderer:drawMenuPage(title)
-    self:drawCenteredText("ROTATE 2048", 42)
     self:drawCenteredText(title, 78)
     gfx.drawLine(100, 94, 300, 94)
     self:drawCenteredText("B: BACK", 202)

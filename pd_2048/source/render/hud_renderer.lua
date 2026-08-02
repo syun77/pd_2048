@@ -13,12 +13,28 @@ function HudRenderer.score(score)
         24 + Config.PANEL_OFFSET_Y, kTextAlignment.right)
 end
 
-function HudRenderer.timeAttack(remainingTimeMs)
-    local totalTenths = math.max(0, math.floor(remainingTimeMs / 100))
+function HudRenderer.timeAttack(remainingTimeMs, totalTimeMs)
+    totalTimeMs = totalTimeMs or Config.TIME_ATTACK_LIMIT_MS
+    remainingTimeMs = math.max(0, math.min(totalTimeMs, remainingTimeMs))
+    local totalTenths = math.floor(remainingTimeMs / 100)
     local seconds = math.floor(totalTenths / 10)
     local tenths = totalTenths % 10
-    local text = string.format("TIME %02d.%d", seconds, tenths)
-    gfx.drawTextAligned(text, 200, 4, kTextAlignment.center)
+	gfx.drawText("TIME: ", 152, 4)
+    local text = string.format("%02d.%d", seconds, tenths)
+    gfx.drawTextAligned(text, 248, 4, kTextAlignment.right)
+
+	-- XORで反転描画.
+	gfx.setLineWidth(1)
+	gfx.setColor(gfx.kColorXOR)
+	local barWidth = 160
+	local barWidthProgress = barWidth * (remainingTimeMs / totalTimeMs)
+	local barHeight = 18
+	local barX = 132
+	local barY = 2
+	gfx.fillRoundRect(barX, barY, barWidthProgress, barHeight, 4)
+	-- 外枠を描画.
+	gfx.setColor(gfx.kColorBlack)
+	gfx.drawRoundRect(barX, barY, barWidth, barHeight, 4)
 end
 
 function HudRenderer.combo(combo, comboDisplayFrame, comboBonusScore)
@@ -78,7 +94,7 @@ end
 
 function HudRenderer.header(ctx)
     if ctx.mode == Config.GAME_MODE.TIME_ATTACK then
-        HudRenderer.timeAttack(ctx.remainingTimeMs)
+        HudRenderer.timeAttack(ctx.remainingTimeMs, Config.TIME_ATTACK_LIMIT_MS)
     end
     HudRenderer.score(ctx.score)
     ctx.comboDisplayFrame += 1

@@ -219,23 +219,51 @@ function GameController:beginTimeUp()
     self.sound:stop_bgm(1.0)
 end
 
+-- タイムアタックモードでの制限時間の更新.
 function GameController:updateTimeAttackTimer()
     local state = self.state
     if not self:isTimeAttack() or state.result ~= nil
         or state.timerStartedAt == nil then
+		-- タイムアタックモードでなければ何もしない.
         return
     end
 
+	-- 現在時間.
     local now = pd.getCurrentTimeMilliseconds()
     if state.timerLastUpdateAt == nil then state.timerLastUpdateAt = now end
     if state.phase == GamePhase.PAUSED then
+		-- ポーズ中は更新しない.
         state.timerLastUpdateAt = now
         return
     end
+
+	-- 経過時間を加算.
     state.elapsedTimeMs += math.max(0, now - state.timerLastUpdateAt)
     state.timerLastUpdateAt = now
+	local prevRemainingTimeMs = state.remainingTimeMs
     state.remainingTimeMs = math.max(0, Config.TIME_ATTACK_LIMIT_MS - state.elapsedTimeMs)
+	-- 秒の区切りをチェックする.
+	local prevSec = math.floor(prevRemainingTimeMs / 1000)
+	local currentSec = math.floor(state.remainingTimeMs / 1000)
+	local prevMs = prevRemainingTimeMs % 1000
+	local currentMs = state.remainingTimeMs % 1000
+	if prevSec ~= currentSec then
+		-- 秒が変わったタイミングでの処理をここに書く.
+		if currentSec <= 9 then
+			-- 残り9秒以下の間は警告SEを再生.
+			self.sound:play_se("countdown")
+		end
+	else
+		if currentSec < 5 then
+			if currentMs < 500 and prevMs >= 500 then
+				-- 1〜4秒は0.5秒ごとに警告SEを再生.
+				self.sound:play_se("countdown")
+			end
+		end
+	end
+
     if state.remainingTimeMs <= 0 then
+		-- 時間切れ.
         state.timeoutPending = true
     end
 end

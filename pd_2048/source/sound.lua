@@ -94,6 +94,7 @@ local seTable = {
 	"combo1",
 	"combo2",
 	"combo3",
+	"countdown",
 }
 
 class('Sound').extends()
