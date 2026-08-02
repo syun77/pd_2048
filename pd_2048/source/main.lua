@@ -116,55 +116,8 @@ local ROTATION_DIRECTION_ARROW_HEAD_WIDTH <const> = 4
 local ROTATION_DIRECTION_ARROW_MAX_EVALUATION <const> =
     PREVIEW_ROTATION_MAX_DEGREES * PREVIEW_ROTATION_DEGREES_PER_POINT
 
-local board = Array2D(BOARD_SIZE, BOARD_SIZE, 0) -- 盤面.
-local cursorX = 3 -- カーソル位置.
-local nextValues = {} -- 落下対象を先頭にした先読みキュー.
-for i = 1, NEXT_QUEUE_COUNT do
-    nextValues[i] = 2
-end
-local score = 0
-local holdValue = 0 -- HOLD中のブロック。0は空.
-local holdAvailable = true -- 現在の手でHOLDできるか.
-local lastRandomBlockValue = 0
-local consecutiveRandomBlockCount = 0
-local undoStates = {}
-local rewindUsesRemaining = 0
-local rewindHoldStartedAt = nil
-local rewindHoldTriggered = false
-local combo = 0
-local comboBonusScore = 0
-local comboDisplayFrame = 0
-local comboSoundPlayed = false
-local highScore = 0
-local gameState = GAME_STATE_TITLE
-local message = ""
-local messageUntil = 0
-local animationProgress = 0
-local animationDuration = 0
-local pendingDropX = 0
-local pendingDropY = 0
-local pendingDropValue = 0
-local rotationStartBoard = nil
-local rotationEndBoard = nil
-local rotationClockwise = false
-local mergeSourceX = 0
-local mergeSourceY = 0
-local mergeTargetX = 0
-local mergeTargetY = 0
-local mergeValue = 0
-local mergeNextAction = "FINISH"
-local activeMergeX = 0
-local activeMergeY = 0
-local nextAnimationGameOver = false
-local holdAnimationSourceValue = 0 -- HOLD操作前の現在ブロック.
-local holdAnimationReturnValue = 0 -- 交換時にHOLDから現在位置へ移動するブロック.
-local rewindHoldAnimationActive = false -- HOLDを巻き戻している間のXOR演出.
+local state = GameState.new()
 local finishHoldAnimation
-local rotationEvaluation = 0 -- 傾きプレビューの評価値.
-local previewImpulseRotationDegrees = 0 -- プレビュー反動の角度.
-local crisisBgmActive = false
-local cursorRepeatDirection = 0
-local cursorRepeatNextAt = nil
 
 -- メニューBGMの再生.
 local function playMenuBgm()
@@ -216,20 +169,20 @@ local function addPreviewImpulse(direction)
         return
     end
     if direction > 0 then
-        previewImpulseRotationDegrees += PREVIEW_IMPULSE_ROTATION_DEGREES
+        state.previewImpulseRotationDegrees += PREVIEW_IMPULSE_ROTATION_DEGREES
     else
-        previewImpulseRotationDegrees -= PREVIEW_IMPULSE_ROTATION_DEGREES
+        state.previewImpulseRotationDegrees -= PREVIEW_IMPULSE_ROTATION_DEGREES
     end
 end
 
 local function addRotationEvaluation(value)
 	-- 加算倍率を適用.
 	value *= PREVIEW_ROTATION_EVALUATION_MULTIPLIER
-    rotationEvaluation += value
-	--print("rotationEvaluation"	 .. rotationEvaluation)
+    state.rotationEvaluation += value
+	--print("state.rotationEvaluation"	 .. state.rotationEvaluation)
 	-- 傾き制限を適用.
-	rotationEvaluation = math.max(-PREVIEW_ROTATION_MAX_DEGREES,
-		math.min(PREVIEW_ROTATION_MAX_DEGREES, rotationEvaluation))
+	state.rotationEvaluation = math.max(-PREVIEW_ROTATION_MAX_DEGREES,
+		math.min(PREVIEW_ROTATION_MAX_DEGREES, state.rotationEvaluation))
 end
 
 local function isPlayable(x, y)
@@ -237,34 +190,34 @@ local function isPlayable(x, y)
 end
 
 local function isOccupied(x, y)
-    return BoardRules.isOccupied(board, x, y)
+    return BoardRules.isOccupied(state.board, x, y)
 end
 
 local function setMessage(text, duration)
-    message = text
-    messageUntil = pd.getCurrentTimeMilliseconds() + duration
+    state.message = text
+    state.messageUntil = pd.getCurrentTimeMilliseconds() + duration
 end
 
 -- ハイスコアのロード.
 local function loadHighScore()
     local ok, value = pcall(pd.datastore.read, "highScore")
     if ok and type(value) == "number" then
-        highScore = value
+        state.highScore = value
     end
 end
 
 -- ハイスコアの保存.
 local function saveHighScore()
-    if score > highScore then
-        highScore = score
-        pd.datastore.write(highScore, "highScore")
+    if state.score > state.highScore then
+        state.highScore = state.score
+        pd.datastore.write(state.highScore, "highScore")
     end
 end
 
 -- 盤面を初期化する.
 local function clearBoard()
-    board = Array2D(BOARD_SIZE, BOARD_SIZE, 0)
-    board:set(CENTER, CENTER, 0)
+    state.board = Array2D(BOARD_SIZE, BOARD_SIZE, 0)
+    state.board:set(CENTER, CENTER, 0)
 end
 
 -- 盤面を値ごと複製する。Array2Dは参照型なので、取り消し用に別の盤面を作る。
@@ -274,24 +227,24 @@ end
 
 -- 1手前の状態を履歴に保存する。
 local function saveUndoState(action)
-    UndoHistory.push(undoStates, {
-        board = board, score = score, cursorX = cursorX,
-        holdValue = holdValue, holdAvailable = holdAvailable,
-        lastRandomBlockValue = lastRandomBlockValue,
-        consecutiveRandomBlockCount = consecutiveRandomBlockCount,
-        nextValues = nextValues,
+    UndoHistory.push(state.undoStates, {
+        board = state.board, score = state.score, cursorX = state.cursorX,
+        holdValue = state.holdValue, holdAvailable = state.holdAvailable,
+        lastRandomBlockValue = state.lastRandomBlockValue,
+        consecutiveRandomBlockCount = state.consecutiveRandomBlockCount,
+        nextValues = state.nextValues,
     }, action)
 end
 
 -- 直前の手を取り消す。取り消しは最大MAX_UNDO_COUNT手分可能。
 local function isRewindAvailable()
-    return UndoHistory.canRestore(undoStates, rewindUsesRemaining)
+    return UndoHistory.canRestore(state.undoStates, state.rewindUsesRemaining)
 end
 
 -- 巻き戻しを実行.
 local function undoLastTurn()
     if not isRewindAvailable() then
-        if rewindUsesRemaining <= 0 then
+        if state.rewindUsesRemaining <= 0 then
             setMessage("NO REWINDS", 700)
         else
             setMessage("NO UNDO", 700)
@@ -299,58 +252,58 @@ local function undoLastTurn()
         return false
     end
 
-    local state = UndoHistory.pop(undoStates)
-    local rewindHoldAnimation = state.action == "HOLD"
-    rewindHoldAnimationActive = rewindHoldAnimation
+    local restored = UndoHistory.pop(state.undoStates)
+    local rewindHoldAnimation = restored.action == "HOLD"
+    state.rewindHoldAnimationActive = rewindHoldAnimation
     if rewindHoldAnimation then
         -- HOLD操作後に表示されていたブロックを、復元前のHOLDへ戻す。
         -- 復元前のHOLDブロックは、復元後の現在ブロックへ向かわせる。
-        holdAnimationSourceValue = nextValues[1]
-        holdAnimationReturnValue = holdValue
+        state.holdAnimationSourceValue = state.nextValues[1]
+        state.holdAnimationReturnValue = state.holdValue
     end
-    rewindUsesRemaining -= 1
-    local currentBoard = board
-    board = state.board
-    score = state.score
-    cursorX = state.cursorX
-    holdValue = state.holdValue
-    holdAvailable = state.holdAvailable
-    lastRandomBlockValue = state.lastRandomBlockValue or 0
-    consecutiveRandomBlockCount = state.consecutiveRandomBlockCount or 0
-    nextValues = state.nextValues
+    state.rewindUsesRemaining -= 1
+    local currentBoard = state.board
+    state.board = restored.board
+    state.score = restored.score
+    state.cursorX = restored.cursorX
+    state.holdValue = restored.holdValue
+    state.holdAvailable = restored.holdAvailable
+    state.lastRandomBlockValue = restored.lastRandomBlockValue or 0
+    state.consecutiveRandomBlockCount = restored.consecutiveRandomBlockCount or 0
+    state.nextValues = restored.nextValues
 
-    combo = 0
-    comboBonusScore = 0
-    comboDisplayFrame = 0
-    comboSoundPlayed = false
-    rotationEvaluation = 0
-    previewImpulseRotationDegrees = 0
-    pendingDropValue = 0
-    rotationStartBoard = nil
-    rotationEndBoard = nil
-    nextAnimationGameOver = false
-    message = ""
-    crisisBgmActive = false
+    state.combo = 0
+    state.comboBonusScore = 0
+    state.comboDisplayFrame = 0
+    state.comboSoundPlayed = false
+    state.rotationEvaluation = 0
+    state.previewImpulseRotationDegrees = 0
+    state.pendingDropValue = 0
+    state.rotationStartBoard = nil
+    state.rotationEndBoard = nil
+    state.nextAnimationGameOver = false
+    state.message = ""
+    state.crisisBgmActive = false
 
 	sound:play_se("rewind")
-    if state.hasRotation then
+    if restored.hasRotation then
         -- 現在の盤面を逆回転させながら、取り消し前の盤面へ戻す。
-        board = currentBoard
-        rotationStartBoard = currentBoard
-        rotationEndBoard = state.board
-        rotationClockwise = not state.rotationClockwise
-        animationProgress = 0
-        animationDuration = 0.38
+        state.board = currentBoard
+        state.rotationStartBoard = currentBoard
+        state.rotationEndBoard = restored.board
+        state.rotationClockwise = not restored.rotationClockwise
+        state.animationProgress = 0
+        state.animationDuration = 0.38
         sound:play_se("rotate")
-        gameState = GAME_STATE_UNDO_ROTATING
+        state.gameState = GAME_STATE_UNDO_ROTATING
     elseif rewindHoldAnimation then
-        animationProgress = 0
-        animationDuration = 0.30
-        gameState = GAME_STATE_HOLD_ANIM
+        state.animationProgress = 0
+        state.animationDuration = 0.30
+        state.gameState = GAME_STATE_HOLD_ANIM
     else
-        holdAnimationSourceValue = 0
-        holdAnimationReturnValue = 0
-        gameState = GAME_STATE_PLAYING
+        state.holdAnimationSourceValue = 0
+        state.holdAnimationReturnValue = 0
+        state.gameState = GAME_STATE_PLAYING
     end
     return true
 end
@@ -359,7 +312,7 @@ end
 local function beginRewindHold()
     if not isRewindAvailable() then
 		-- 巻き戻しはできない.
-		if rewindUsesRemaining <= 0 then
+		if state.rewindUsesRemaining <= 0 then
             setMessage("NO REWINDS", 700)
         else
             setMessage("NO UNDO", 700)
@@ -367,15 +320,15 @@ local function beginRewindHold()
 		sound:play_se("error")
         return
     end
-    rewindHoldStartedAt = pd.getCurrentTimeMilliseconds()
-    rewindHoldTriggered = false
+    state.rewindHoldStartedAt = pd.getCurrentTimeMilliseconds()
+    state.rewindHoldTriggered = false
 	sound:play_se("rewind_button")
 end
 
 -- Bボタン長押しによる巻き戻し入力を終了する。
 local function endRewindHold()
-    rewindHoldStartedAt = nil
-    rewindHoldTriggered = false
+    state.rewindHoldStartedAt = nil
+    state.rewindHoldTriggered = false
 end
 
 -- Bボタンの長押し時間を更新し、
@@ -386,24 +339,24 @@ local function updateRewindHold()
         return
     end
 
-    if rewindHoldStartedAt == nil or not pd.buttonIsPressed(pd.kButtonB) then
-        if rewindHoldStartedAt ~= nil then
+    if state.rewindHoldStartedAt == nil or not pd.buttonIsPressed(pd.kButtonB) then
+        if state.rewindHoldStartedAt ~= nil then
 			-- 長押し完了.
             endRewindHold()
         end
         return
     end
 
-    if not rewindHoldTriggered
-        and pd.getCurrentTimeMilliseconds() - rewindHoldStartedAt >= REWIND_HOLD_DURATION_MS then
-        rewindHoldTriggered = true
+    if not state.rewindHoldTriggered
+        and pd.getCurrentTimeMilliseconds() - state.rewindHoldStartedAt >= REWIND_HOLD_DURATION_MS then
+        state.rewindHoldTriggered = true
         undoLastTurn()
     end
 end
 
 local function getMaxTileValue()
     local maxValue = 0
-    board:foreach(function(x, y, value)
+    state.board:foreach(function(x, y, value)
         if value > maxValue then
             maxValue = value
         end
@@ -414,18 +367,18 @@ end
 -- ランダムでブロックを抽選する.
 local function randomBlockValue()
     local randomState = {
-        lastValue = lastRandomBlockValue,
-        consecutiveCount = consecutiveRandomBlockCount,
+        lastValue = state.lastRandomBlockValue,
+        consecutiveCount = state.consecutiveRandomBlockCount,
     }
-    local value = TileGenerator.next(board, randomState, getMaxTileValue)
-    lastRandomBlockValue = randomState.lastValue
-    consecutiveRandomBlockCount = randomState.consecutiveCount
+    local value = TileGenerator.next(state.board, randomState, getMaxTileValue)
+    state.lastRandomBlockValue = randomState.lastValue
+    state.consecutiveRandomBlockCount = randomState.consecutiveCount
     return value
 end
 
 -- 落下可能かどうかを判定する.
 local function isSupported(x, y)
-    if not isPlayable(x, y) or board:get(x, y) ~= 0 then
+    if not isPlayable(x, y) or state.board:get(x, y) ~= 0 then
         return false
     end
     -- 底面だけでは接続とはみなさない。必ず他のブロックに接している必要がある。
@@ -447,26 +400,26 @@ end
 
 -- 落下可能なセルを見つける.
 local function findDropCell(x)
-    return BoardRules.findDropCell(board, x)
+    return BoardRules.findDropCell(state.board, x)
 end
 
 -- 現在のカーソル位置からブロックを落とせるかどうかを判定する.
 local function isDropAvailable()
-    return findDropCell(cursorX) ~= nil
+    return findDropCell(state.cursorX) ~= nil
 end
 
 -- スコアを加算.
 local function addScore(value)
-    score += value * SCORE_MULTIPLIER
-    if score > highScore then
-        highScore = score -- ハイスコア更新.
+    state.score += value * SCORE_MULTIPLIER
+    if state.score > state.highScore then
+        state.highScore = state.score -- ハイスコア更新.
     end
 end
 
 -- 重力を適用する.
 local function applyGravity()
     -- 中心軸は見えない固定ブロックとして常に空けておく。
-    board:set(CENTER, CENTER, 0)
+    state.board:set(CENTER, CENTER, 0)
 end
 
 -- マージ後もブロックが接続されたままかどうかを判定する.
@@ -515,7 +468,7 @@ local function findMergeForBlock(sourceX, sourceY, activeValue)
         local neighborX = sourceX + dx
         local neighborY = sourceY + dy
         if activeValue ~= 0 and isPlayable(neighborX, neighborY)
-            and board:get(neighborX, neighborY) == activeValue then
+            and state.board:get(neighborX, neighborY) == activeValue then
             if mergeKeepsBlockConnected(sourceX, sourceY, neighborX, neighborY) then
                 return sourceX, sourceY, neighborX, neighborY
             end
@@ -537,8 +490,8 @@ end
 -- アクティブなブロックのマージ先を見つける.
 local function findMergeForActiveBlock()
 	-- Activeブロックは新たに追加されたブロックまたは前回のマージで残ったブロック.
-    return findMergeForBlock(activeMergeX, activeMergeY,
-        board:get(activeMergeX, activeMergeY))
+    return findMergeForBlock(state.activeMergeX, state.activeMergeY,
+        state.board:get(state.activeMergeX, state.activeMergeY))
 end
 
 local function makeRotatedBoard(source, clockwise)
@@ -546,7 +499,7 @@ local function makeRotatedBoard(source, clockwise)
 end
 
 local function canDropInAnyColumn()
-    return BoardRules.canDropInAnyColumn(board)
+    return BoardRules.canDropInAnyColumn(state.board)
 end
 
 -- 外周の各辺について、準危険状態と危険状態を判定する.
@@ -578,83 +531,83 @@ end
 -- 落下開始時ではなく、マージ・回転まで完了した手番の切り替え時に行う.
 local function advanceNextQueue()
     for i = 1, NEXT_QUEUE_COUNT - 1 do
-        nextValues[i] = nextValues[i + 1]
+        state.nextValues[i] = state.nextValues[i + 1]
     end
-    nextValues[NEXT_QUEUE_COUNT] = randomBlockValue()
+    state.nextValues[NEXT_QUEUE_COUNT] = randomBlockValue()
 end
 
 local function finishTurn()
-    rotationStartBoard = nil
-    rotationEndBoard = nil
+    state.rotationStartBoard = nil
+    state.rotationEndBoard = nil
     -- ブロックを落として手が完了したので、次の手でHOLD可能にする.
-    holdAvailable = true
+    state.holdAvailable = true
     advanceNextQueue()
-    nextAnimationGameOver = not canDropInAnyColumn()
-    animationProgress = 0
-    animationDuration = 0.30
-    gameState = GAME_STATE_NEXT_ANIM
+    state.nextAnimationGameOver = not canDropInAnyColumn()
+    state.animationProgress = 0
+    state.animationDuration = 0.30
+    state.gameState = GAME_STATE_NEXT_ANIM
 end
 
 -- ゲームオーバー開始.
 local function beginGameOver()
 	saveHighScore()
-	gameState = GAME_STATE_GAME_OVER
+	state.gameState = GAME_STATE_GAME_OVER
 	sound:play_se("gameover")
 	sound:stop_bgm(1.0)
 end
 
 local function finishNextAnimation()
-    if nextAnimationGameOver then
+    if state.nextAnimationGameOver then
 		-- ゲームオーバー開始.
 		beginGameOver()
     else
-        gameState = GAME_STATE_PLAYING
+        state.gameState = GAME_STATE_PLAYING
     end
 end
 
 -- 回転開始.
 local function startRotation()
-    if rotationEvaluation == 0 then
+    if state.rotationEvaluation == 0 then
         finishTurn()
         return
     end
 
-    rotationClockwise = rotationEvaluation > 0
-    local latestUndoState = undoStates[#undoStates]
+    state.rotationClockwise = state.rotationEvaluation > 0
+    local latestUndoState = state.undoStates[#state.undoStates]
     if latestUndoState ~= nil then
         latestUndoState.hasRotation = true
-        latestUndoState.rotationClockwise = rotationClockwise
+        latestUndoState.rotationClockwise = state.rotationClockwise
     end
-    rotationStartBoard = board
-    rotationEndBoard = makeRotatedBoard(rotationStartBoard, rotationClockwise)
+    state.rotationStartBoard = state.board
+    state.rotationEndBoard = makeRotatedBoard(state.rotationStartBoard, state.rotationClockwise)
 
-    local oldActiveX = activeMergeX
-    local oldActiveY = activeMergeY
-    if rotationClockwise then
-        activeMergeX = BOARD_SIZE + 1 - oldActiveY
-        activeMergeY = oldActiveX
+    local oldActiveX = state.activeMergeX
+    local oldActiveY = state.activeMergeY
+    if state.rotationClockwise then
+        state.activeMergeX = BOARD_SIZE + 1 - oldActiveY
+        state.activeMergeY = oldActiveX
     else
-        activeMergeX = oldActiveY
-        activeMergeY = BOARD_SIZE + 1 - oldActiveX
+        state.activeMergeX = oldActiveY
+        state.activeMergeY = BOARD_SIZE + 1 - oldActiveX
     end
 
-    animationProgress = 0
-    animationDuration = 0.38
+    state.animationProgress = 0
+    state.animationDuration = 0.38
     sound:play_se("rotate")
-    gameState = GAME_STATE_ROTATING
+    state.gameState = GAME_STATE_ROTATING
 end
 
 -- 連鎖が確定した時点でコンボSEを再生する.
 local function playComboSoundIfNeeded()
-    if combo < 2 or comboSoundPlayed then
+    if state.combo < 2 or state.comboSoundPlayed then
         return
     end
 
-    comboSoundPlayed = true
-    comboDisplayFrame = 0
-    if combo < 3 then
+    state.comboSoundPlayed = true
+    state.comboDisplayFrame = 0
+    if state.combo < 3 then
         sound:play_se("combo1")
-    elseif combo < 5 then
+    elseif state.combo < 5 then
         sound:play_se("combo2")
     else
         sound:play_se("combo3")
@@ -679,115 +632,115 @@ local function startResolve(nextAction)
     end
 
 	-- マージ開始.
-    mergeSourceX = x1
-    mergeSourceY = y1
-    mergeTargetX = x2
-    mergeTargetY = y2
-    mergeValue = board:get(x1, y1) * 2
-    mergeNextAction = nextAction
-    animationProgress = 0
-    animationDuration = 0.22
+    state.mergeSourceX = x1
+    state.mergeSourceY = y1
+    state.mergeTargetX = x2
+    state.mergeTargetY = y2
+    state.mergeValue = state.board:get(x1, y1) * 2
+    state.mergeNextAction = nextAction
+    state.animationProgress = 0
+    state.animationDuration = 0.22
 	sound:play_se("merge")
-    gameState = GAME_STATE_MERGING
+    state.gameState = GAME_STATE_MERGING
 end
 
 local function finishMerge()
-    combo += 1
-    local v = getMergeEvaluation(mergeSourceX, mergeTargetX)
+    state.combo += 1
+    local v = getMergeEvaluation(state.mergeSourceX, state.mergeTargetX)
     addRotationEvaluation(v)
-    if mergeTargetX < mergeSourceX then
+    if state.mergeTargetX < state.mergeSourceX then
         addPreviewImpulse(ROTATION_EVALUATION_MERGE_DIRECTION_LEFT)
-    elseif mergeTargetX > mergeSourceX then
+    elseif state.mergeTargetX > state.mergeSourceX then
         addPreviewImpulse(ROTATION_EVALUATION_MERGE_DIRECTION_RIGHT)
     end
-    board:set(mergeSourceX, mergeSourceY, 0)
-    board:set(mergeTargetX, mergeTargetY, mergeValue)
-    addScore(mergeValue)
+    state.board:set(state.mergeSourceX, state.mergeSourceY, 0)
+    state.board:set(state.mergeTargetX, state.mergeTargetY, state.mergeValue)
+    addScore(state.mergeValue)
 
     -- 1コンボ目は通常のマージ得点のみとし、2コンボ目以降に差分ボーナスを加算する.
     -- 累積値は係数 * (コンボ回数 ^ 指数 - 1)になる.
-    comboBonusScore = 0
-    if combo >= 2 then
-        local currentComboScore = COMBO_SCORE_COEFFICIENT * (combo ^ COMBO_SCORE_EXPONENT)
-        local previousComboScore = COMBO_SCORE_COEFFICIENT * ((combo - 1) ^ COMBO_SCORE_EXPONENT)
-        comboBonusScore = math.floor(currentComboScore - previousComboScore)
-        addScore(comboBonusScore)
+    state.comboBonusScore = 0
+    if state.combo >= 2 then
+        local currentComboScore = COMBO_SCORE_COEFFICIENT * (state.combo ^ COMBO_SCORE_EXPONENT)
+        local previousComboScore = COMBO_SCORE_COEFFICIENT * ((state.combo - 1) ^ COMBO_SCORE_EXPONENT)
+        state.comboBonusScore = math.floor(currentComboScore - previousComboScore)
+        addScore(state.comboBonusScore)
     end
 
-    activeMergeX = mergeTargetX
-    activeMergeY = mergeTargetY
-    startResolve(mergeNextAction)
+    state.activeMergeX = state.mergeTargetX
+    state.activeMergeY = state.mergeTargetY
+    startResolve(state.mergeNextAction)
 end
 
 -- 落下完了.
 local function finishDrop()
-    board:set(pendingDropX, pendingDropY, pendingDropValue)
-    pendingDropValue = 0
-    activeMergeX = pendingDropX
-    activeMergeY = pendingDropY
+    state.board:set(state.pendingDropX, state.pendingDropY, state.pendingDropValue)
+    state.pendingDropValue = 0
+    state.activeMergeX = state.pendingDropX
+    state.activeMergeY = state.pendingDropY
     addRotationEvaluation(ROTATION_EVALUATION_DROP_POSITION_WEIGHT
-        * getPositionEvaluation(pendingDropX)
+        * getPositionEvaluation(state.pendingDropX)
     )
-    addPreviewImpulse(getPositionEvaluation(pendingDropX))
+    addPreviewImpulse(getPositionEvaluation(state.pendingDropX))
     startResolve("ROTATE")
-	if gameState ~= GAME_STATE_MERGING then
+	if state.gameState ~= GAME_STATE_MERGING then
 		sound:play_se("fixed")
 	end
 end
 
 local function advanceAnimation()
     local context = {
-        previewImpulseRotationDegrees = previewImpulseRotationDegrees,
-        animationProgress = animationProgress,
-        animationDuration = animationDuration,
+        previewImpulseRotationDegrees = state.previewImpulseRotationDegrees,
+        animationProgress = state.animationProgress,
+        animationDuration = state.animationDuration,
         refreshRate = DEFAULT_REFRESH_RATE,
-        gameState = gameState,
-        board = board,
-        rotationEndBoard = rotationEndBoard,
+        gameState = state.gameState,
+        board = state.board,
+        rotationEndBoard = state.rotationEndBoard,
         finishDrop = finishDrop,
         finishMerge = finishMerge,
         startResolve = startResolve,
         finishNextAnimation = finishNextAnimation,
         finishHoldAnimation = finishHoldAnimation,
-        setGameState = function(value) gameState = value end,
-        setBoard = function(value) board = value end,
+        setGameState = function(value) state.gameState = value end,
+        setBoard = function(value) state.board = value end,
     }
     TurnResolver.advance(context)
     if not context.completed then
-        previewImpulseRotationDegrees = context.previewImpulseRotationDegrees
-        animationProgress = context.animationProgress
-        board = context.board
-        rotationEndBoard = context.rotationEndBoard
+        state.previewImpulseRotationDegrees = context.previewImpulseRotationDegrees
+        state.animationProgress = context.animationProgress
+        state.board = context.board
+        state.rotationEndBoard = context.rotationEndBoard
     elseif context.gameState == GAME_STATE_ROTATING
         or context.gameState == GAME_STATE_UNDO_ROTATING then
-        board = context.board
-        rotationEndBoard = context.rotationEndBoard
+        state.board = context.board
+        state.rotationEndBoard = context.rotationEndBoard
     end
 end
 
 local function advanceAnimationLegacy()
-    previewImpulseRotationDegrees *= PREVIEW_IMPULSE_DECAY
-    animationProgress += 1 / (animationDuration * 30)
-    if animationProgress < 1 then
+    state.previewImpulseRotationDegrees *= PREVIEW_IMPULSE_DECAY
+    state.animationProgress += 1 / (state.animationDuration * 30)
+    if state.animationProgress < 1 then
         return
     end
 
-    animationProgress = 1
-    if gameState == GAME_STATE_DROPPING then
+    state.animationProgress = 1
+    if state.gameState == GAME_STATE_DROPPING then
         finishDrop()
-    elseif gameState == GAME_STATE_MERGING then
+    elseif state.gameState == GAME_STATE_MERGING then
         finishMerge()
-    elseif gameState == GAME_STATE_ROTATING then
-        board = rotationEndBoard
+    elseif state.gameState == GAME_STATE_ROTATING then
+        state.board = state.rotationEndBoard
         startResolve("FINISH")
-    elseif gameState == GAME_STATE_UNDO_ROTATING then
-        board = rotationEndBoard
-        rotationStartBoard = nil
-        rotationEndBoard = nil
-        gameState = GAME_STATE_PLAYING
-    elseif gameState == GAME_STATE_NEXT_ANIM then
+    elseif state.gameState == GAME_STATE_UNDO_ROTATING then
+        state.board = state.rotationEndBoard
+        state.rotationStartBoard = nil
+        state.rotationEndBoard = nil
+        state.gameState = GAME_STATE_PLAYING
+    elseif state.gameState == GAME_STATE_NEXT_ANIM then
         finishNextAnimation()
-    elseif gameState == GAME_STATE_HOLD_ANIM then
+    elseif state.gameState == GAME_STATE_HOLD_ANIM then
         finishHoldAnimation()
     end
 end
@@ -796,62 +749,62 @@ local function spawnInitialBlocks()
     -- Start with one value-8 block immediately to each side of the rotation axis.
     -- Coordinates are 1-based: the axis is (3, 3), so the two cells are
     -- (2, 3) and (4, 3).
-    board:set(CENTER - 1, CENTER, 8)
-    board:set(CENTER + 1, CENTER, 8)
+    state.board:set(CENTER - 1, CENTER, 8)
+    state.board:set(CENTER + 1, CENTER, 8)
 end
 
 local function startGame()
     clearBoard()
-    score = 0
-    holdValue = 0
-    holdAvailable = true
-    lastRandomBlockValue = 0
-    consecutiveRandomBlockCount = 0
-    undoStates = {}
-    rewindUsesRemaining = MAX_REWIND_USES
-    combo = 0
-    comboBonusScore = 0
-    comboDisplayFrame = 0
-    comboSoundPlayed = false
-    cursorX = CENTER
-    rewindHoldStartedAt = nil
-    rewindHoldTriggered = false
-    rewindHoldAnimationActive = false
-    animationProgress = 0
-    animationDuration = 0
-    pendingDropX = 0
-    pendingDropY = 0
-    pendingDropValue = 0
-    rotationStartBoard = nil
-    rotationEndBoard = nil
-    rotationClockwise = false
-    mergeSourceX = 0
-    mergeSourceY = 0
-    mergeTargetX = 0
-    mergeTargetY = 0
-    mergeValue = 0
-    mergeNextAction = "FINISH"
-    activeMergeX = 0
-    activeMergeY = 0
-    nextAnimationGameOver = false
-    holdAnimationSourceValue = 0
-    holdAnimationReturnValue = 0
-    rotationEvaluation = 0
-    nextValues = {}
+    state.score = 0
+    state.holdValue = 0
+    state.holdAvailable = true
+    state.lastRandomBlockValue = 0
+    state.consecutiveRandomBlockCount = 0
+    state.undoStates = {}
+    state.rewindUsesRemaining = MAX_REWIND_USES
+    state.combo = 0
+    state.comboBonusScore = 0
+    state.comboDisplayFrame = 0
+    state.comboSoundPlayed = false
+    state.cursorX = CENTER
+    state.rewindHoldStartedAt = nil
+    state.rewindHoldTriggered = false
+    state.rewindHoldAnimationActive = false
+    state.animationProgress = 0
+    state.animationDuration = 0
+    state.pendingDropX = 0
+    state.pendingDropY = 0
+    state.pendingDropValue = 0
+    state.rotationStartBoard = nil
+    state.rotationEndBoard = nil
+    state.rotationClockwise = false
+    state.mergeSourceX = 0
+    state.mergeSourceY = 0
+    state.mergeTargetX = 0
+    state.mergeTargetY = 0
+    state.mergeValue = 0
+    state.mergeNextAction = "FINISH"
+    state.activeMergeX = 0
+    state.activeMergeY = 0
+    state.nextAnimationGameOver = false
+    state.holdAnimationSourceValue = 0
+    state.holdAnimationReturnValue = 0
+    state.rotationEvaluation = 0
+    state.nextValues = {}
     for i = 1, NEXT_QUEUE_COUNT do
-        nextValues[i] = randomBlockValue()
+        state.nextValues[i] = randomBlockValue()
     end
-    previewImpulseRotationDegrees = 0
+    state.previewImpulseRotationDegrees = 0
     spawnInitialBlocks()
-    gameState = GAME_STATE_PLAYING
-    message = ""
-    crisisBgmActive = false
+    state.gameState = GAME_STATE_PLAYING
+    state.message = ""
+    state.crisisBgmActive = false
     playGameBgm()
 end
 
 -- 現在のブロックをHOLDする。HOLD自体を1手として履歴に保存する.
 local function holdCurrentBlock()
-    if not holdAvailable then
+    if not state.holdAvailable then
         sound:play_se("error")
         setMessage("HOLD USED", 700)
         return
@@ -859,36 +812,36 @@ local function holdCurrentBlock()
 
     saveUndoState("HOLD")
 
-    local currentValue = nextValues[1]
-    holdAnimationSourceValue = currentValue
-    holdAnimationReturnValue = holdValue
-    if holdValue == 0 then
+    local currentValue = state.nextValues[1]
+    state.holdAnimationSourceValue = currentValue
+    state.holdAnimationReturnValue = state.holdValue
+    if state.holdValue == 0 then
         -- 初回は現在ブロックをHOLDし、NEXTの先頭を現在ブロックにする.
-        holdValue = currentValue
+        state.holdValue = currentValue
         advanceNextQueue()
     else
         -- HOLD済みの場合は現在ブロックと交換する.
-        holdValue, nextValues[1] = currentValue, holdValue
+        state.holdValue, state.nextValues[1] = currentValue, state.holdValue
     end
 
-    holdAvailable = false
-    rewindHoldAnimationActive = false
+    state.holdAvailable = false
+    state.rewindHoldAnimationActive = false
     sound:play_se("hold")
 
-    animationProgress = 0
-    animationDuration = 0.30
-    gameState = GAME_STATE_HOLD_ANIM
+    state.animationProgress = 0
+    state.animationDuration = 0.30
+    state.gameState = GAME_STATE_HOLD_ANIM
 end
 
 -- HOLDアニメーションを終了し、HOLDで出現したブロックの配置可能性を確認する.
 finishHoldAnimation = function()
-    holdAnimationSourceValue = 0
-    holdAnimationReturnValue = 0
-    rewindHoldAnimationActive = false
+    state.holdAnimationSourceValue = 0
+    state.holdAnimationReturnValue = 0
+    state.rewindHoldAnimationActive = false
     if not canDropInAnyColumn() then
         beginGameOver()
     else
-        gameState = GAME_STATE_PLAYING
+        state.gameState = GAME_STATE_PLAYING
     end
 end
 
@@ -900,35 +853,35 @@ local function beginDrop()
         return
     end
 
-    local x, y = findDropCell(cursorX)
+    local x, y = findDropCell(state.cursorX)
 
     -- 落下開始.
     saveUndoState("DROP")
-    combo = 0
-    comboBonusScore = 0
-    comboDisplayFrame = 0
-    comboSoundPlayed = false
-    pendingDropX = x
-    pendingDropY = y
-    pendingDropValue = nextValues[1]
-    rotationEvaluation = 0
-    animationProgress = 0
-    animationDuration = math.max(0.18, (y + 1) * 0.07)
+    state.combo = 0
+    state.comboBonusScore = 0
+    state.comboDisplayFrame = 0
+    state.comboSoundPlayed = false
+    state.pendingDropX = x
+    state.pendingDropY = y
+    state.pendingDropValue = state.nextValues[1]
+    state.rotationEvaluation = 0
+    state.animationProgress = 0
+    state.animationDuration = math.max(0.18, (y + 1) * 0.07)
 	sound:play_se("fall")
-    gameState = GAME_STATE_DROPPING
+    state.gameState = GAME_STATE_DROPPING
 end
 
 -- カーソルを移動.
 local function moveCursor(delta)
-	local prev = cursorX
-    cursorX += delta
-    if cursorX < 1 then
-        cursorX = 1
-    elseif cursorX > BOARD_SIZE then
-        cursorX = BOARD_SIZE
+	local prev = state.cursorX
+    state.cursorX += delta
+    if state.cursorX < 1 then
+        state.cursorX = 1
+    elseif state.cursorX > BOARD_SIZE then
+        state.cursorX = BOARD_SIZE
     end
 
-	if prev ~= cursorX then
+	if prev ~= state.cursorX then
 		-- 移動した.
 		sound:play_se("pi")
 	end
@@ -937,15 +890,15 @@ end
 -- 左右キーのリピート状態を解除する.
 local function resetCursorKeyRepeat()
     CursorController.reset(cursorController)
-    cursorRepeatDirection = 0
-    cursorRepeatNextAt = nil
+    state.cursorRepeatDirection = 0
+    state.cursorRepeatNextAt = nil
 end
 
 -- 左右キーの押しっぱなしによるカーソル移動を処理する.
 local function updateCursorKeyRepeat()
     CursorController.update(cursorController, pd, pd.getCurrentTimeMilliseconds(), moveCursor)
-    cursorRepeatDirection = cursorController.direction
-    cursorRepeatNextAt = cursorController.nextAt
+    state.cursorRepeatDirection = cursorController.direction
+    state.cursorRepeatNextAt = cursorController.nextAt
 end
 
 local function drawCenteredText(text, y)
@@ -984,11 +937,11 @@ local function drawDangerIcons()
         leftDanger, leftCritical,
         rightDanger, rightCritical = getDangerEdges()
     local dangerActive = bottomDanger or leftDanger or rightDanger
-    if dangerActive and not crisisBgmActive then
+    if dangerActive and not state.crisisBgmActive then
         sound:setBgmRandomMode(BGMRandomMode.CRISIS)
-        crisisBgmActive = true
-    elseif not dangerActive and crisisBgmActive then
-		crisisBgmActive = false
+        state.crisisBgmActive = true
+    elseif not dangerActive and state.crisisBgmActive then
+		state.crisisBgmActive = false
     end
 
     if bottomDanger then
@@ -1021,17 +974,17 @@ local function drawBoardGrid()
 end
 
 local function drawBoardCells(skipX, skipY, rotationAngle)
-    BoardRenderer.cells(board, skipX, skipY, rotationAngle)
+    BoardRenderer.cells(state.board, skipX, skipY, rotationAngle)
 end
 
 -- 落下するブロックの描画.
 local function drawFallingBlock(rotationAngle)
     local startY = BOARD_Y - CELL_SIZE
-    local targetY = BOARD_Y + (pendingDropY - 1) * CELL_SIZE
-    local y = startY + (targetY - startY) * animationProgress
+    local targetY = BOARD_Y + (state.pendingDropY - 1) * CELL_SIZE
+    local y = startY + (targetY - startY) * state.animationProgress
     local px, py = getRotatedTilePosition(
-        BOARD_X + (pendingDropX - 1) * CELL_SIZE, y, rotationAngle)
-    drawTileAt(pendingDropValue, px, py)
+        BOARD_X + (state.pendingDropX - 1) * CELL_SIZE, y, rotationAngle)
+    drawTileAt(state.pendingDropValue, px, py)
 end
 
 -- 落下させたときの着地点を薄いゴースト表示する.
@@ -1040,7 +993,7 @@ local function drawLandingPreview()
         return
     end
 
-    local landingX, landingY = findDropCell(cursorX)
+    local landingX, landingY = findDropCell(state.cursorX)
 
     local px = BOARD_X + (landingX - 1) * CELL_SIZE
     local py = BOARD_Y + (landingY - 1) * CELL_SIZE
@@ -1051,12 +1004,12 @@ local function drawLandingPreview()
 	-- 外枠は表示しない.
     --gfx.drawRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4)
 	-- 数字の描画.
-    gfx.drawTextAligned(tostring(nextValues[1]),
+    gfx.drawTextAligned(tostring(state.nextValues[1]),
         px + CELL_SIZE / 2, py + 8, kTextAlignment.center)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 
 	-- マージ予測方向の描画.
-    local _, _, targetX, targetY = findMergeForBlock(landingX, landingY, nextValues[1])
+    local _, _, targetX, targetY = findMergeForBlock(landingX, landingY, state.nextValues[1])
     if targetX ~= nil then
 		-- 方向ベクトルを計算.
         local sourceCenterX = BOARD_X + (landingX - 0.5) * CELL_SIZE
@@ -1085,10 +1038,10 @@ local function drawLandingPreview()
 end
 
 local function drawDropPreview()
-    local px = BOARD_X + (cursorX - 1) * CELL_SIZE
+    local px = BOARD_X + (state.cursorX - 1) * CELL_SIZE
     local py = BOARD_Y - CELL_SIZE
 
-    drawTileAt(nextValues[1], px, py)
+    drawTileAt(state.nextValues[1], px, py)
 
     -- Blink the outline around the tile to make the active column obvious.
     if (pd.getCurrentTimeMilliseconds() % 600) < 300 then
@@ -1103,10 +1056,10 @@ local function easeInOut(value)
 end
 
 local function getPreviewRotationEvaluation()
-    local evaluation = rotationEvaluation
-    if gameState == GAME_STATE_MERGING then
-        local mergeEvaluation = getMergeEvaluation(mergeSourceX, mergeTargetX)
-        evaluation += mergeEvaluation * easeInOut(animationProgress)
+    local evaluation = state.rotationEvaluation
+    if state.gameState == GAME_STATE_MERGING then
+        local mergeEvaluation = getMergeEvaluation(state.mergeSourceX, state.mergeTargetX)
+        evaluation += mergeEvaluation * easeInOut(state.animationProgress)
     end
 
 	-- 最終的な倍率を加算した値を返す.
@@ -1114,13 +1067,13 @@ local function getPreviewRotationEvaluation()
 end
 
 local function getPreviewRotationDegrees()
-    if gameState ~= GAME_STATE_DROPPING and gameState ~= GAME_STATE_MERGING then
+    if state.gameState ~= GAME_STATE_DROPPING and state.gameState ~= GAME_STATE_MERGING then
         return 0
     end
 
     local previewEvaluation = getPreviewRotationEvaluation()
 	-- 反動値を加算.
-	previewEvaluation += previewImpulseRotationDegrees
+	previewEvaluation += state.previewImpulseRotationDegrees
 	return previewEvaluation
 end
 
@@ -1130,18 +1083,18 @@ local function getPreviewRotationAngle()
     degrees = math.max(-PREVIEW_ROTATION_MAX_DEGREES,
         math.min(PREVIEW_ROTATION_MAX_DEGREES, degrees))
 	-- 反動値は傾き制限を考慮しない.
-	degrees += previewImpulseRotationDegrees
+	degrees += state.previewImpulseRotationDegrees
     return math.rad(degrees)
 end
 
 local function drawRotatingBoard()
-    local progress = Easing.back_out(animationProgress)
+    local progress = Easing.back_out(state.animationProgress)
     local angle = math.pi * 0.5 * progress
-    if not rotationClockwise then
+    if not state.rotationClockwise then
         angle = -angle
     end
 
-    rotationStartBoard:foreach(function(x, y, value)
+    state.rotationStartBoard:foreach(function(x, y, value)
         if value ~= 0 then
             local px, py = getRotatedTilePosition(
                 BOARD_X + (x - 1) * CELL_SIZE,
@@ -1154,7 +1107,7 @@ end
 
 -- 回転アニメーション中の回転方向を、中央の回転軸に表示する.
 local function drawRotationDirectionArrow()
-    if gameState ~= GAME_STATE_MERGING and gameState ~= GAME_STATE_ROTATING then
+    if state.gameState ~= GAME_STATE_MERGING and state.gameState ~= GAME_STATE_ROTATING then
 		-- マージ中と回転中のみ描画する.
         return
     end
@@ -1188,16 +1141,16 @@ local function drawRotationDirectionArrow()
 end
 
 local function drawMergeAnimation(rotationAngle)
-    drawBoardCells(mergeSourceX, mergeSourceY, rotationAngle)
+    drawBoardCells(state.mergeSourceX, state.mergeSourceY, rotationAngle)
 
-    local progress = easeInOut(animationProgress)
-    local sourcePx = BOARD_X + (mergeSourceX - 1) * CELL_SIZE
-    local sourcePy = BOARD_Y + (mergeSourceY - 1) * CELL_SIZE
-    local targetPx = BOARD_X + (mergeTargetX - 1) * CELL_SIZE
-    local targetPy = BOARD_Y + (mergeTargetY - 1) * CELL_SIZE
+    local progress = easeInOut(state.animationProgress)
+    local sourcePx = BOARD_X + (state.mergeSourceX - 1) * CELL_SIZE
+    local sourcePy = BOARD_Y + (state.mergeSourceY - 1) * CELL_SIZE
+    local targetPx = BOARD_X + (state.mergeTargetX - 1) * CELL_SIZE
+    local targetPy = BOARD_Y + (state.mergeTargetY - 1) * CELL_SIZE
     local rotatedTargetPx, rotatedTargetPy = getRotatedTilePosition(
         targetPx, targetPy, rotationAngle)
-    drawTileAt(board:get(mergeTargetX, mergeTargetY), rotatedTargetPx, rotatedTargetPy)
+    drawTileAt(state.board:get(state.mergeTargetX, state.mergeTargetY), rotatedTargetPx, rotatedTargetPy)
 
     local sourceCenterX = sourcePx + CELL_SIZE * 0.5
     local sourceCenterY = sourcePy + CELL_SIZE * 0.5
@@ -1209,19 +1162,19 @@ local function drawMergeAnimation(rotationAngle)
         currentCenterX - CELL_SIZE * 0.5,
         currentCenterY - CELL_SIZE * 0.5,
         rotationAngle)
-    drawTileAt(math.floor(mergeValue / 2),
+    drawTileAt(math.floor(state.mergeValue / 2),
         rotatedSourcePx, rotatedSourcePy)
 end
 
 local function drawNextAnimation()
-    local progress = easeInOut(animationProgress)
+    local progress = easeInOut(state.animationProgress)
     local sourceCenterX = NEXT_BOX_X + NEXT_BOX_WIDTH * 0.5
     local sourceCenterY = NEXT_BOX_Y + NEXT_BOX_HEIGHT * 0.5
     local sourceX = sourceCenterX - CELL_SIZE * 0.5
     local sourceY = sourceCenterY - CELL_SIZE * 0.5
-    local targetX = BOARD_X + (cursorX - 1) * CELL_SIZE
+    local targetX = BOARD_X + (state.cursorX - 1) * CELL_SIZE
     local targetY = BOARD_Y - CELL_SIZE
-    drawTileAt(nextValues[1],
+    drawTileAt(state.nextValues[1],
         sourceX + (targetX - sourceX) * progress,
         sourceY + (targetY - sourceY) * progress)
 end
@@ -1234,19 +1187,19 @@ end
 
 -- 現在ブロックとHOLDブロックを移動させるアニメーションを描画する.
 local function drawHoldAnimation()
-    local progress = easeInOut(animationProgress)
-    local currentX = BOARD_X + (cursorX - 1) * CELL_SIZE
+    local progress = easeInOut(state.animationProgress)
+    local currentX = BOARD_X + (state.cursorX - 1) * CELL_SIZE
     local currentY = BOARD_Y - CELL_SIZE
     local holdX, holdY = getHoldTilePosition()
 
-    if holdAnimationSourceValue ~= 0 then
-        drawTileAt(holdAnimationSourceValue,
+    if state.holdAnimationSourceValue ~= 0 then
+        drawTileAt(state.holdAnimationSourceValue,
             currentX + (holdX - currentX) * progress,
             currentY + (holdY - currentY) * progress)
     end
 
-    if holdAnimationReturnValue ~= 0 then
-        drawTileAt(holdAnimationReturnValue,
+    if state.holdAnimationReturnValue ~= 0 then
+        drawTileAt(state.holdAnimationReturnValue,
             holdX + (currentX - holdX) * progress,
             holdY + (currentY - holdY) * progress)
     end
@@ -1257,66 +1210,66 @@ local function drawBoard()
     drawBoardGrid()
     local previewRotationAngle = getPreviewRotationAngle()
 
-    if gameState == GAME_STATE_ROTATING or gameState == GAME_STATE_UNDO_ROTATING then
+    if state.gameState == GAME_STATE_ROTATING or state.gameState == GAME_STATE_UNDO_ROTATING then
         drawRotatingBoard()
-    elseif gameState == GAME_STATE_MERGING then
+    elseif state.gameState == GAME_STATE_MERGING then
         drawMergeAnimation(previewRotationAngle)
     else
         drawBoardCells(nil, nil, previewRotationAngle)
     end
 
-    if gameState == GAME_STATE_MERGING or gameState == GAME_STATE_ROTATING then
+    if state.gameState == GAME_STATE_MERGING or state.gameState == GAME_STATE_ROTATING then
         drawRotationDirectionArrow()
     end
 
-    if gameState == GAME_STATE_PLAYING then
+    if state.gameState == GAME_STATE_PLAYING then
         drawLandingPreview()
     end
 
-    if gameState == GAME_STATE_DROPPING then
+    if state.gameState == GAME_STATE_DROPPING then
 		-- 落下ブロックの描画.
         drawFallingBlock(previewRotationAngle)
     end
 
-    if gameState == GAME_STATE_PLAYING then
+    if state.gameState == GAME_STATE_PLAYING then
         drawDropPreview()
-    elseif gameState == GAME_STATE_NEXT_ANIM then
+    elseif state.gameState == GAME_STATE_NEXT_ANIM then
         drawNextAnimation()
     end
 
-    if gameState == GAME_STATE_HOLD_ANIM then
+    if state.gameState == GAME_STATE_HOLD_ANIM then
         drawHoldAnimation()
     end
 end
 
 -- スコアの描画.
 local function drawScore()
-    HudRenderer.score(score)
+    HudRenderer.score(state.score)
 end
 
 -- コンボの描画.
 local function drawCombo()
-    comboDisplayFrame += 1
-    HudRenderer.combo(combo, comboDisplayFrame, comboBonusScore)
+    state.comboDisplayFrame += 1
+    HudRenderer.combo(state.combo, state.comboDisplayFrame, state.comboBonusScore)
 end
 
 -- NEXTブロックの描画.
 local function drawNextBlocks()
-    HudRenderer.next(nextValues, gameState)
+    HudRenderer.next(state.nextValues, state.gameState)
 end
 
 -- HOLDブロックの描画。右上の専用領域を使用する.
 local function drawHoldBlock()
-    HudRenderer.hold(holdValue, gameState)
+    HudRenderer.hold(state.holdValue, state.gameState)
 end
 
 local function drawHeader()
     HudRenderer.header({
-        score = score, combo = combo, comboDisplayFrame = comboDisplayFrame,
-        comboBonusScore = comboBonusScore, holdValue = holdValue,
-        nextValues = nextValues, gameState = gameState,
+        score = state.score, combo = state.combo, comboDisplayFrame = state.comboDisplayFrame,
+        comboBonusScore = state.comboBonusScore, holdValue = state.holdValue,
+        nextValues = state.nextValues, gameState = state.gameState,
     })
-    comboDisplayFrame = comboDisplayFrame + 1
+    state.comboDisplayFrame = state.comboDisplayFrame + 1
     drawDangerIcons()
 end
 
@@ -1329,16 +1282,16 @@ end
 
 -- 巻き戻し可能であることを表示する.
 local function drawRewindHint()
-    if gameState == GAME_STATE_PLAYING and isRewindAvailable() then
+    if state.gameState == GAME_STATE_PLAYING and isRewindAvailable() then
 		-- 長押し中は表示とゲージをXORで描画する。
-        local isHolding = rewindHoldStartedAt ~= nil
-        local rewindText = "B: REWIND [" .. tostring(rewindUsesRemaining) .. "]"
+        local isHolding = state.rewindHoldStartedAt ~= nil
+        local rewindText = "B: REWIND [" .. tostring(state.rewindUsesRemaining) .. "]"
 		-- 巻き戻し可能であることを表示.
 		gfx.drawText(rewindText, 280, 218)
 		-- 枠の描画.
         gfx.drawRoundRect(270, 216, REWIND_GAUGE_WIDTH, 20, 4)
         if isHolding then
-            local elapsed = pd.getCurrentTimeMilliseconds() - rewindHoldStartedAt
+            local elapsed = pd.getCurrentTimeMilliseconds() - state.rewindHoldStartedAt
             local progress = math.min(1, Easing.cube_out(elapsed / REWIND_HOLD_DURATION_MS))
             local previousColor = gfx.getColor()
 			-- XORで反転描画.
@@ -1355,7 +1308,7 @@ local function drawGameOver()
     gfx.fillRect(122, 86, 156, 68)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
     drawCenteredText("GAME OVER", 96)
-    drawCenteredText("SCORE " .. tostring(score), 116)
+    drawCenteredText("SCORE " .. tostring(state.score), 116)
     drawCenteredText("A: RETRY", 136)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
@@ -1363,11 +1316,11 @@ end
 local function legacyUpdate()
     gfx.clear(gfx.kColorWhite)
 
-    if gameState ~= GAME_STATE_PLAYING then
+    if state.gameState ~= GAME_STATE_PLAYING then
         resetCursorKeyRepeat()
     end
 
-    if gameState == GAME_STATE_TITLE then
+    if state.gameState == GAME_STATE_TITLE then
         drawTitle()
         if pd.buttonJustPressed(pd.kButtonA) then
 			sound:play_se("decide")
@@ -1376,7 +1329,7 @@ local function legacyUpdate()
         return
     end
 
-    if gameState == GAME_STATE_PLAYING then
+    if state.gameState == GAME_STATE_PLAYING then
         updateRewindHold()
         if pd.buttonJustPressed(pd.kButtonA) then
             holdCurrentBlock()
@@ -1389,21 +1342,21 @@ local function legacyUpdate()
         elseif pd.buttonJustPressed(pd.kButtonB) then
 			-- 巻き戻し判定開始.
             beginRewindHold()
-        elseif cursorRepeatDirection ~= 0 then
+        elseif state.cursorRepeatDirection ~= 0 then
             updateCursorKeyRepeat()
         end
-    elseif gameState == GAME_STATE_PAUSED then
+    elseif state.gameState == GAME_STATE_PAUSED then
         if pd.buttonJustPressed(pd.kButtonB) then
-            gameState = GAME_STATE_PLAYING
+            state.gameState = GAME_STATE_PLAYING
         end
-    elseif gameState == GAME_STATE_GAME_OVER then
+    elseif state.gameState == GAME_STATE_GAME_OVER then
         if pd.buttonJustPressed(pd.kButtonA) then
 			sound:play_se("decide")
             startGame()
         end
     end
 
-    if TurnResolver.isAnimating(gameState) then
+    if TurnResolver.isAnimating(state.gameState) then
         advanceAnimation()
     end
 
@@ -1416,22 +1369,22 @@ local function legacyUpdate()
 	-- 巻き戻し可能であることを表示.
     drawRewindHint()
 
-    if gameState == GAME_STATE_PAUSED then
+    if state.gameState == GAME_STATE_PAUSED then
         gfx.fillRect(145, 93, 110, 44)
         gfx.setImageDrawMode(gfx.kDrawModeInverted)
         drawCenteredText("PAUSED", 102)
         drawCenteredText("B: RESUME", 120)
         gfx.setImageDrawMode(gfx.kDrawModeCopy)
-    elseif gameState == GAME_STATE_GAME_OVER then
+    elseif state.gameState == GAME_STATE_GAME_OVER then
         drawGameOver()
-    elseif message ~= "" and pd.getCurrentTimeMilliseconds() < messageUntil then
-        drawCenteredText(message, 216)
+    elseif state.message ~= "" and pd.getCurrentTimeMilliseconds() < state.messageUntil then
+        drawCenteredText(state.message, 216)
     end
 
 	-- FPSを描画.
 	pd.drawFPS(4, 4)
 
-    if gameState == GAME_STATE_UNDO_ROTATING or rewindHoldAnimationActive then
+    if state.gameState == GAME_STATE_UNDO_ROTATING or state.rewindHoldAnimationActive then
         -- 巻き戻し中であることを示すため、画面全体をXOR反転する。
         -- kDrawModeXORは画像・フォント用で、fillRectには適用されないため、
         -- プリミティブ用のkColorXORを使う。
@@ -1463,14 +1416,14 @@ local sceneContext = SceneContext.new({
         PAUSED = GAME_STATE_PAUSED,
         GAME_OVER = GAME_STATE_GAME_OVER,
     },
-    getGameState = function() return gameState end,
+    getGameState = function() return state.gameState end,
     playMenuBgm = playMenuBgm,
     playGameBgm = playGameBgm,
     startGame = startGame,
     isAnimating = function(state) return TurnResolver.isAnimating(state) end,
     advanceAnimation = advanceAnimation,
     resetCursorIfNeeded = function()
-        if gameState ~= GAME_STATE_PLAYING then resetCursorKeyRepeat() end
+        if state.gameState ~= GAME_STATE_PLAYING then resetCursorKeyRepeat() end
     end,
     updatePlayingInput = function()
         updateRewindHold()
@@ -1483,13 +1436,13 @@ local sceneContext = SceneContext.new({
             beginDrop()
         elseif pd.buttonJustPressed(pd.kButtonB) then
             beginRewindHold()
-        elseif cursorRepeatDirection ~= 0 then
+        elseif state.cursorRepeatDirection ~= 0 then
             updateCursorKeyRepeat()
         end
     end,
     updatePausedInput = function()
         if pd.buttonJustPressed(pd.kButtonB) then
-            gameState = GAME_STATE_PLAYING
+            state.gameState = GAME_STATE_PLAYING
         end
     end,
     drawTitle = drawTitle,
@@ -1497,14 +1450,14 @@ local sceneContext = SceneContext.new({
         drawHeader()
         drawBoard()
         drawRewindHint()
-        if gameState == GAME_STATE_PAUSED then
+        if state.gameState == GAME_STATE_PAUSED then
             gfx.fillRect(145, 93, 110, 44)
             gfx.setImageDrawMode(gfx.kDrawModeInverted)
             drawCenteredText("PAUSED", 102)
             drawCenteredText("B: RESUME", 120)
             gfx.setImageDrawMode(gfx.kDrawModeCopy)
-        elseif message ~= "" and pd.getCurrentTimeMilliseconds() < messageUntil then
-            drawCenteredText(message, 216)
+        elseif state.message ~= "" and pd.getCurrentTimeMilliseconds() < state.messageUntil then
+            drawCenteredText(state.message, 216)
         end
     end,
     drawGameOverFrame = function()
@@ -1526,7 +1479,7 @@ function pd.update()
     sceneManager:draw()
     pd.drawFPS(4, 4)
 
-    if gameState == GAME_STATE_UNDO_ROTATING or rewindHoldAnimationActive then
+    if state.gameState == GAME_STATE_UNDO_ROTATING or state.rewindHoldAnimationActive then
         local previousColor = gfx.getColor()
         gfx.setColor(gfx.kColorXOR)
         gfx.fillRect(0, 0, 400, 240)

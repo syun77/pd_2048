@@ -38,6 +38,10 @@ function GameState.new()
         rotationEvaluation = 0,
         previewImpulseRotationDegrees = 0,
         crisisBgmActive = false,
+        rewindHoldStartedAt = nil,
+        rewindHoldTriggered = false,
+        cursorRepeatDirection = 0,
+        cursorRepeatNextAt = nil,
     }
     for i = 1, Config.NEXT_QUEUE_COUNT do
         self.nextValues[i] = 2
