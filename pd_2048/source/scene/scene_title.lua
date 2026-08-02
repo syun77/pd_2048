@@ -20,7 +20,7 @@ function TitleScene:update()
 end
 
 function TitleScene:draw()
-    self.context.drawTitle()
+    self.context.renderer:drawTitle()
 end
 
 _G.TitleScene = TitleScene

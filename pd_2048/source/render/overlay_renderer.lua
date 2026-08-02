@@ -1,6 +1,7 @@
 import "CoreLibs/graphics"
 import "easing"
 import "game_config"
+import "board/board_rules"
 
 local pd <const> = playdate
 local gfx <const> = pd.graphics
@@ -14,7 +15,6 @@ function OverlayRenderer.new(dependencies)
     return setmetatable({
         state = dependencies.state,
         sound = dependencies.sound,
-        getDangerEdges = dependencies.getDangerEdges,
         isRewindAvailable = dependencies.isRewindAvailable,
     }, OverlayRenderer)
 end
@@ -49,7 +49,7 @@ end
 function OverlayRenderer:drawDangerIcons()
     local bottomDanger, bottomCritical,
         leftDanger, leftCritical,
-        rightDanger, rightCritical = self.getDangerEdges()
+        rightDanger, rightCritical = self:getDangerEdges()
     local dangerActive = bottomDanger or leftDanger or rightDanger
     if dangerActive and not self.state.crisisBgmActive then
         self.sound:setBgmRandomMode(BGMRandomMode.CRISIS)
@@ -70,6 +70,27 @@ function OverlayRenderer:drawDangerIcons()
     if bottomDanger then self:drawDangerIcon(bottomX, bottomY, size, bottomCritical) end
     if leftDanger then self:drawDangerIcon(leftX, leftY, size, leftCritical) end
     if rightDanger then self:drawDangerIcon(rightX, leftY, size, rightCritical) end
+end
+
+function OverlayRenderer:getDangerEdges()
+    local board = self.state.board
+    local bottomCount = 0
+    for x = 1, Config.BOARD_SIZE do
+        if BoardRules.isOccupied(board, x, Config.BOARD_SIZE) then
+            bottomCount += 1
+        end
+    end
+
+    local leftCount = 0
+    local rightCount = 0
+    for y = 1, Config.BOARD_SIZE do
+        if BoardRules.isOccupied(board, 1, y) then leftCount += 1 end
+        if BoardRules.isOccupied(board, Config.BOARD_SIZE, y) then rightCount += 1 end
+    end
+
+    return bottomCount >= 4, bottomCount == Config.BOARD_SIZE,
+        leftCount >= 4, leftCount == Config.BOARD_SIZE,
+        rightCount >= 4, rightCount == Config.BOARD_SIZE
 end
 
 function OverlayRenderer:drawRewindHint()

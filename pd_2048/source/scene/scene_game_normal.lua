@@ -17,7 +17,7 @@ function NormalGameScene:update()
 end
 
 function NormalGameScene:draw()
-    self.context.drawNormalFrame()
+    self.context.renderer:drawNormalFrame()
 end
 
 _G.NormalGameScene = NormalGameScene

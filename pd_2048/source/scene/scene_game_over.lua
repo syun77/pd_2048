@@ -16,7 +16,7 @@ function GameOverScene:update()
 end
 
 function GameOverScene:draw()
-    self.context.drawGameOverFrame()
+    self.context.renderer:drawGameOverFrame()
 end
 
 _G.GameOverScene = GameOverScene

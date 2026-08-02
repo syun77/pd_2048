@@ -17,6 +17,7 @@ function GameRenderer.new(dependencies)
         state = dependencies.state,
         findDropCell = dependencies.findDropCell,
         findMergeForBlock = dependencies.findMergeForBlock,
+        overlay = dependencies.overlay,
     }, GameRenderer)
 end
 
@@ -285,6 +286,30 @@ function GameRenderer:drawHeader()
         nextValues = state.nextValues, phase = state.phase,
     })
     state.comboDisplayFrame += 1
+end
+
+function GameRenderer:drawTitle()
+    self.overlay:drawTitle()
+end
+
+function GameRenderer:drawNormalFrame()
+    local state = self.state
+    self:drawHeader()
+    self.overlay:drawDangerIcons()
+    self:drawBoard()
+    self.overlay:drawRewindHint()
+    if state.phase == GamePhase.PAUSED then
+        self.overlay:drawPause()
+    else
+        self.overlay:drawMessage()
+    end
+end
+
+function GameRenderer:drawGameOverFrame()
+    self:drawHeader()
+    self.overlay:drawDangerIcons()
+    self:drawBoard()
+    self.overlay:drawGameOver()
 end
 
 _G.GameRenderer = GameRenderer
