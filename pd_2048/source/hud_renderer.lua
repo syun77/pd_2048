@@ -15,9 +15,11 @@ end
 
 function HudRenderer.combo(combo, comboDisplayFrame, comboBonusScore)
     if combo <= 1 then return end
-    if comboDisplayFrame >= 20 + 30 then return end
-    local blinking = comboDisplayFrame < 20
-    if blinking and (comboDisplayFrame % 3) < 1 then
+    if comboDisplayFrame >= Config.COMBO_BLINK_DURATION_FRAMES
+        + Config.COMBO_STEADY_DURATION_FRAMES then return end
+    local blinking = comboDisplayFrame < Config.COMBO_BLINK_DURATION_FRAMES
+    if blinking and (comboDisplayFrame % Config.COMBO_BLINK_PERIOD_FRAMES)
+        < Config.COMBO_BLINK_ON_FRAMES then
         gfx.drawRoundRect(4 + Config.PANEL_OFFSET_X, 50 + Config.PANEL_OFFSET_Y, 88, 24, 4)
     end
     gfx.drawText("COMBO: " .. tostring(combo), 12 + Config.PANEL_OFFSET_X,

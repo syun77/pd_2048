@@ -1,5 +1,4 @@
 import "CoreLibs/graphics"
-import "CoreLibs/ui"
 import "array2d"
 import "game_context"
 import "easing"
@@ -30,87 +29,73 @@ local cursorController <const> = CursorController.new()
 local autoPlayer <const> = AutoPlayer.new()
 local autoPlayEnabled = false
 
-local DEFAULT_REFRESH_RATE <const> = 30 -- ディスプレイの更新レート (FPS。フレーム毎秒).
-local CURSOR_KEY_REPEAT_INITIAL_DELAY_MS <const> = 300 -- 左右キーを押し続けたとき、最初にリピートするまでの待ち時間.
-local CURSOR_KEY_REPEAT_INTERVAL_MS <const> = 80 -- 左右キーを押し続けたときのリピート間隔.
-local BOARD_SIZE <const> = 5
-local CENTER <const> = 3
-local CELL_SIZE <const> = 32
-local LAYOUT_BOARD_OFFSET_X <const> = 32 -- 盤面の横方向の調整値.
-local LAYOUT_NEXT_OFFSET_X <const> = -24 -- NEXTブロックの横方向の調整値.
-local BOARD_X <const> = 100 + LAYOUT_BOARD_OFFSET_X
-local BOARD_Y <const> = 48
+local DEFAULT_REFRESH_RATE <const> = Config.DEFAULT_REFRESH_RATE -- ディスプレイの更新レート (FPS。フレーム毎秒).
+local CURSOR_KEY_REPEAT_INITIAL_DELAY_MS <const> = Config.CURSOR_KEY_REPEAT_INITIAL_DELAY_MS -- 左右キーを押し続けたとき、最初にリピートするまでの待ち時間.
+local CURSOR_KEY_REPEAT_INTERVAL_MS <const> = Config.CURSOR_KEY_REPEAT_INTERVAL_MS -- 左右キーを押し続けたときのリピート間隔.
+local BOARD_SIZE <const> = Config.BOARD_SIZE
+local CENTER <const> = Config.CENTER
+local CELL_SIZE <const> = Config.CELL_SIZE
+local BOARD_X <const> = Config.BOARD_X
+local BOARD_Y <const> = Config.BOARD_Y
 -- 盤面とNEXTの間にある右上の空き領域をHOLD表示に使用する.
-local HOLD_BOX_X <const> = 80
-local HOLD_LABEL_X <const> = 64
-local HOLD_BOX_Y <const> = 48
-local NEXT_BOX_X <const> = 343 + LAYOUT_NEXT_OFFSET_X
-local NEXT_LABEL_X <const> = 343 + LAYOUT_NEXT_OFFSET_X
-local PANEL_OFFSET_X <const> = 0 -- 左側の情報表示の横方向の調整値.
-local PANEL_OFFSET_Y <const> = 128 -- 左側の情報表示の縦方向の調整値.
-local NEXT_BOX_Y <const> = 48
-local NEXT_BOX_WIDTH <const> = 25
-local NEXT_BOX_HEIGHT <const> = 20
-local NEXT_PREVIEW_COUNT <const> = 3
+local HOLD_BOX_X <const> = Config.HOLD_BOX_X
+local HOLD_BOX_Y <const> = Config.HOLD_BOX_Y
+local NEXT_BOX_X <const> = Config.NEXT_BOX_X
+local NEXT_BOX_Y <const> = Config.NEXT_BOX_Y
+local NEXT_BOX_WIDTH <const> = Config.NEXT_BOX_WIDTH
+local NEXT_BOX_HEIGHT <const> = Config.NEXT_BOX_HEIGHT
 -- 落下対象を除いたブロックを表示するため、表示数より1つ多く保持する.
-local NEXT_QUEUE_COUNT <const> = NEXT_PREVIEW_COUNT + 1
-local NEXT_BOX_GAP <const> = 4
-local MAX_UNDO_COUNT <const> = 1
-local MAX_REWIND_USES <const> = 3
-local REWIND_HOLD_DURATION_MS <const> = 800
-local REWIND_GAUGE_WIDTH <const> = 116
+local NEXT_QUEUE_COUNT <const> = Config.NEXT_QUEUE_COUNT
+local MAX_REWIND_USES <const> = Config.MAX_REWIND_USES
+local REWIND_HOLD_DURATION_MS <const> = Config.REWIND_HOLD_DURATION_MS
+local REWIND_GAUGE_WIDTH <const> = Config.REWIND_GAUGE_WIDTH
 -- 危険アイコン関連.
-local DANGER_ICON_SIZE <const> = 20
-local DANGER_ICON_OFFSET <const> = 4 -- 盤面の外周からアイコンまでの距離.
+local DANGER_ICON_SIZE <const> = Config.DANGER_ICON_SIZE
+local DANGER_ICON_OFFSET <const> = Config.DANGER_ICON_OFFSET -- 盤面の外周からアイコンまでの距離.
 local DANGER_ICON_BOTTOM_X <const> = BOARD_X + (BOARD_SIZE * CELL_SIZE - DANGER_ICON_SIZE) * 0.5
 local DANGER_ICON_BOTTOM_Y <const> = BOARD_Y + BOARD_SIZE * CELL_SIZE + DANGER_ICON_OFFSET
 local DANGER_ICON_LEFT_X <const> = BOARD_X - DANGER_ICON_SIZE - DANGER_ICON_OFFSET
 local DANGER_ICON_LEFT_Y <const> = BOARD_Y + (BOARD_SIZE * CELL_SIZE - DANGER_ICON_SIZE) * 0.5
 local DANGER_ICON_RIGHT_X <const> = BOARD_X + BOARD_SIZE * CELL_SIZE + DANGER_ICON_OFFSET
 local DANGER_ICON_RIGHT_Y <const> = DANGER_ICON_LEFT_Y
-local DANGER_ICON_BLINK_PERIOD <const> = 600
-local DANGER_ICON_BLINK_ON_DURATION <const> = 300
+local DANGER_ICON_BLINK_PERIOD <const> = Config.DANGER_ICON_BLINK_PERIOD
+local DANGER_ICON_BLINK_ON_DURATION <const> = Config.DANGER_ICON_BLINK_ON_DURATION
 -- コンボ表示時間.
-local COMBO_BLINK_PERIOD_FRAMES <const> = 3
-local COMBO_BLINK_ON_FRAMES <const> = 1
-local COMBO_BLINK_DURATION_FRAMES <const> = 20
-local COMBO_STEADY_DURATION_FRAMES <const> = 30
-local COMBO_SCORE_COEFFICIENT <const> = 2
-local COMBO_SCORE_EXPONENT <const> = 1.5
-local SCORE_MULTIPLIER <const> = 100
+local COMBO_SCORE_COEFFICIENT <const> = Config.COMBO_SCORE_COEFFICIENT
+local COMBO_SCORE_EXPONENT <const> = Config.COMBO_SCORE_EXPONENT
+local SCORE_MULTIPLIER <const> = Config.SCORE_MULTIPLIER
 -- 方向定数.
-local DIRECTION_DOWN <const> = 1
-local DIRECTION_LEFT <const> = 2
-local DIRECTION_RIGHT <const> = 3
-local DIRECTION_UP <const> = 4
+local DIRECTION_DOWN <const> = Config.DIRECTION.DOWN
+local DIRECTION_LEFT <const> = Config.DIRECTION.LEFT
+local DIRECTION_RIGHT <const> = Config.DIRECTION.RIGHT
+local DIRECTION_UP <const> = Config.DIRECTION.UP
 local Scene <const> = Config.SCENE
 local GamePhase <const> = Config.GAME_PHASE
 local GameResult <const> = Config.GAME_RESULT
 -- 傾きをわかりやすく見せるための回転角度の最大値と、1ポイントあたりの回転角度.
-local PREVIEW_ROTATION_MAX_DEGREES <const> = 200
-local PREVIEW_ROTATION_EVALUATION_MULTIPLIER <const> = 0.1 -- 評価値に対する倍率.
-local PREVIEW_ROTATION_DEGREES_PER_POINT <const> = 0.1 -- 最終的な角度に対する倍率.
+local PREVIEW_ROTATION_MAX_DEGREES <const> = Config.PREVIEW_ROTATION_MAX_DEGREES
+local PREVIEW_ROTATION_EVALUATION_MULTIPLIER <const> = Config.PREVIEW_ROTATION_EVALUATION_MULTIPLIER -- 評価値に対する倍率.
+local PREVIEW_ROTATION_DEGREES_PER_POINT <const> = Config.PREVIEW_ROTATION_DEGREES_PER_POINT -- 最終的な角度に対する倍率.
 -- 回転方向の評価値.
-local ROTATION_EVALUATION_POSITION_RIGHT <const> = 10 -- 右側の位置を評価する値.
-local ROTATION_EVALUATION_POSITION_LEFT <const> = -10 -- 左側の位置を評価する値.
-local ROTATION_EVALUATION_POSITION_CENTER <const> = 0 -- 中央の位置を評価する値.
-local ROTATION_EVALUATION_DROP_POSITION_WEIGHT <const> = 20 -- 落下位置の評価値の重み.
-local ROTATION_EVALUATION_DISAPPEARED_BLOCK_WEIGHT <const> = -10 -- 消えたブロックの評価値の重み.
-local ROTATION_EVALUATION_MERGED_BLOCK_WEIGHT <const> = 10 -- マージされたブロックの評価値の重み.
-local ROTATION_EVALUATION_MERGE_DIRECTION_LEFT <const> = -5 -- マージ方向の評価値 (左方向).
-local ROTATION_EVALUATION_MERGE_DIRECTION_RIGHT <const> = 5 -- マージ方向の評価値 (右方向).
-local ROTATION_EVALUATION_VERTICAL_DIRECTION_WEIGHT <const> = 10 -- マージ方向が上下の場合の評価値の重み.
+local ROTATION_EVALUATION_POSITION_RIGHT <const> = Config.ROTATION_EVALUATION_POSITION_RIGHT -- 右側の位置を評価する値.
+local ROTATION_EVALUATION_POSITION_LEFT <const> = Config.ROTATION_EVALUATION_POSITION_LEFT -- 左側の位置を評価する値.
+local ROTATION_EVALUATION_POSITION_CENTER <const> = Config.ROTATION_EVALUATION_POSITION_CENTER -- 中央の位置を評価する値.
+local ROTATION_EVALUATION_DROP_POSITION_WEIGHT <const> = Config.ROTATION_EVALUATION_DROP_POSITION_WEIGHT -- 落下位置の評価値の重み.
+local ROTATION_EVALUATION_DISAPPEARED_BLOCK_WEIGHT <const> = Config.ROTATION_EVALUATION_DISAPPEARED_BLOCK_WEIGHT -- 消えたブロックの評価値の重み.
+local ROTATION_EVALUATION_MERGED_BLOCK_WEIGHT <const> = Config.ROTATION_EVALUATION_MERGED_BLOCK_WEIGHT -- マージされたブロックの評価値の重み.
+local ROTATION_EVALUATION_MERGE_DIRECTION_LEFT <const> = Config.ROTATION_EVALUATION_MERGE_DIRECTION_LEFT -- マージ方向の評価値 (左方向).
+local ROTATION_EVALUATION_MERGE_DIRECTION_RIGHT <const> = Config.ROTATION_EVALUATION_MERGE_DIRECTION_RIGHT -- マージ方向の評価値 (右方向).
+local ROTATION_EVALUATION_VERTICAL_DIRECTION_WEIGHT <const> = Config.ROTATION_EVALUATION_VERTICAL_DIRECTION_WEIGHT -- マージ方向が上下の場合の評価値の重み.
 -- プレビュー反動の設定.
-local PREVIEW_IMPULSE_ROTATION_DEGREES <const> = 5
-local PREVIEW_IMPULSE_DECAY <const> = 0.7
+local PREVIEW_IMPULSE_ROTATION_DEGREES <const> = Config.PREVIEW_IMPULSE_ROTATION_DEGREES
+local PREVIEW_IMPULSE_DECAY <const> = Config.PREVIEW_IMPULSE_DECAY
 -- 回転予測の矢印.
-local ROTATION_DIRECTION_ARROW_OFFSET_Y <const> = -CELL_SIZE * 0.4 -- 矢印の中心位置のY座標をずらす値.
-local ROTATION_DIRECTION_ARROW_MIN_LENGTH <const> = 12
-local ROTATION_DIRECTION_ARROW_MAX_LENGTH <const> = 24
-local ROTATION_DIRECTION_ARROW_HEAD_LENGTH <const> = 6
-local ROTATION_DIRECTION_ARROW_HEAD_WIDTH <const> = 4
-local ROTATION_DIRECTION_ARROW_MAX_EVALUATION <const> =
-    PREVIEW_ROTATION_MAX_DEGREES * PREVIEW_ROTATION_DEGREES_PER_POINT
+local ROTATION_DIRECTION_ARROW_OFFSET_Y <const> = Config.ROTATION_DIRECTION_ARROW_OFFSET_Y -- 矢印の中心位置のY座標をずらす値.
+local ROTATION_DIRECTION_ARROW_MIN_LENGTH <const> = Config.ROTATION_DIRECTION_ARROW_MIN_LENGTH
+local ROTATION_DIRECTION_ARROW_MAX_LENGTH <const> = Config.ROTATION_DIRECTION_ARROW_MAX_LENGTH
+local ROTATION_DIRECTION_ARROW_HEAD_LENGTH <const> = Config.ROTATION_DIRECTION_ARROW_HEAD_LENGTH
+local ROTATION_DIRECTION_ARROW_HEAD_WIDTH <const> = Config.ROTATION_DIRECTION_ARROW_HEAD_WIDTH
+local ROTATION_DIRECTION_ARROW_MAX_EVALUATION <const> = Config.ROTATION_DIRECTION_ARROW_MAX_EVALUATION
 
 local state = GameState.new()
 local finishHoldAnimation
@@ -125,10 +110,6 @@ end
 local function playGameBgm()
     sound:setBgmRandomMode(BGMRandomMode.NOMAL)
     sound:play_bgm(-1, false)
-end
-
-local function isCenter(x, y)
-    return BoardRules.isCenter(x, y)
 end
 
 -- 中央から見たブロックの左右位置を評価する.
@@ -181,14 +162,6 @@ local function addRotationEvaluation(value)
 		math.min(PREVIEW_ROTATION_MAX_DEGREES, state.rotationEvaluation))
 end
 
-local function isPlayable(x, y)
-    return BoardRules.isPlayable(x, y)
-end
-
-local function isOccupied(x, y)
-    return BoardRules.isOccupied(state.board, x, y)
-end
-
 local function setMessage(text, duration)
     state.message = text
     state.messageUntil = pd.getCurrentTimeMilliseconds() + duration
@@ -214,11 +187,6 @@ end
 local function clearBoard()
     state.board = Array2D(BOARD_SIZE, BOARD_SIZE, 0)
     state.board:set(CENTER, CENTER, 0)
-end
-
--- 盤面を値ごと複製する。Array2Dは参照型なので、取り消し用に別の盤面を作る。
-local function copyBoard(source)
-    return BoardTransform.copy(source)
 end
 
 -- 1手前の状態を履歴に保存する。
@@ -372,28 +340,6 @@ local function randomBlockValue()
     return value
 end
 
--- 落下可能かどうかを判定する.
-local function isSupported(x, y)
-    if not isPlayable(x, y) or state.board:get(x, y) ~= 0 then
-        return false
-    end
-    -- 底面だけでは接続とはみなさない。必ず他のブロックに接している必要がある。
-    if isOccupied(x, y + 1) then
-        return true
-    end
-    -- 中心軸は見えない固定ブロックとして、その直上を支える。
-    if x == CENTER and y == CENTER - 1 then
-        return true
-    end
-    if x > 1 and isOccupied(x - 1, y) then
-        return true
-    end
-    if x < BOARD_SIZE and isOccupied(x + 1, y) then
-        return true
-    end
-    return false
-end
-
 -- 落下可能なセルを見つける.
 local function findDropCell(x)
     return BoardRules.findDropCell(state.board, x)
@@ -412,7 +358,7 @@ local function addScore(value)
     end
 end
 
--- 重力を適用する.
+-- 中心軸を空けておく.
 local function applyGravity()
     -- 中心軸は見えない固定ブロックとして常に空けておく。
     state.board:set(CENTER, CENTER, 0)
@@ -423,19 +369,23 @@ local function mergeKeepsBlockConnected(sourceX, sourceY, targetX, targetY)
 	-- soruceは targetにマージする.
 	-- 合成したブロック上下左右に隣接するブロックがあれば接続されたとみなす.
     local neighborX = targetX - 1
-    if isPlayable(neighborX, targetY) and neighborX ~= sourceX and isOccupied(neighborX, targetY) then
+    if BoardRules.isPlayable(neighborX, targetY) and neighborX ~= sourceX
+        and BoardRules.isOccupied(state.board, neighborX, targetY) then
         return true
     end
     neighborX = targetX + 1
-    if isPlayable(neighborX, targetY) and neighborX ~= sourceX and isOccupied(neighborX, targetY) then
+    if BoardRules.isPlayable(neighborX, targetY) and neighborX ~= sourceX
+        and BoardRules.isOccupied(state.board, neighborX, targetY) then
         return true
     end
     local neighborY = targetY - 1
-    if isPlayable(targetX, neighborY) and neighborY ~= sourceY and isOccupied(targetX, neighborY) then
+    if BoardRules.isPlayable(targetX, neighborY) and neighborY ~= sourceY
+        and BoardRules.isOccupied(state.board, targetX, neighborY) then
         return true
     end
     neighborY = targetY + 1
-    if isPlayable(targetX, neighborY) and neighborY ~= sourceY and isOccupied(targetX, neighborY) then
+    if BoardRules.isPlayable(targetX, neighborY) and neighborY ~= sourceY
+        and BoardRules.isOccupied(state.board, targetX, neighborY) then
         return true
     end
     return false
@@ -463,7 +413,7 @@ local function findMergeForBlock(sourceX, sourceY, activeValue)
         end
         local neighborX = sourceX + dx
         local neighborY = sourceY + dy
-        if activeValue ~= 0 and isPlayable(neighborX, neighborY)
+        if activeValue ~= 0 and BoardRules.isPlayable(neighborX, neighborY)
             and state.board:get(neighborX, neighborY) == activeValue then
             if mergeKeepsBlockConnected(sourceX, sourceY, neighborX, neighborY) then
                 return sourceX, sourceY, neighborX, neighborY
@@ -512,10 +462,6 @@ local function getAutoPlayCandidates(activeValue)
     return candidates
 end
 
-local function makeRotatedBoard(source, clockwise)
-    return BoardTransform.rotate(source, clockwise, isPlayable)
-end
-
 local function canDropInAnyColumn()
     return BoardRules.canDropInAnyColumn(state.board)
 end
@@ -524,7 +470,7 @@ end
 local function getDangerEdges()
     local bottomCount = 0
     for x = 1, BOARD_SIZE do
-        if isOccupied(x, BOARD_SIZE) then
+        if BoardRules.isOccupied(state.board, x, BOARD_SIZE) then
             bottomCount += 1
         end
     end
@@ -532,10 +478,10 @@ local function getDangerEdges()
     local leftCount = 0
     local rightCount = 0
     for y = 1, BOARD_SIZE do
-        if isOccupied(1, y) then
+        if BoardRules.isOccupied(state.board, 1, y) then
             leftCount += 1
         end
-        if isOccupied(BOARD_SIZE, y) then
+        if BoardRules.isOccupied(state.board, BOARD_SIZE, y) then
             rightCount += 1
         end
     end
@@ -598,7 +544,8 @@ local function startRotation()
         latestUndoState.rotationClockwise = state.rotationClockwise
     end
     state.rotationStartBoard = state.board
-    state.rotationEndBoard = makeRotatedBoard(state.rotationStartBoard, state.rotationClockwise)
+    state.rotationEndBoard = BoardTransform.rotate(
+        state.rotationStartBoard, state.rotationClockwise, BoardRules.isPlayable)
 
     local oldActiveX = state.activeMergeX
     local oldActiveY = state.activeMergeY
@@ -949,26 +896,8 @@ local function drawDangerIcons()
     end
 end
 
--- タイルの描画.
-local function drawTileAt(value, px, py)
-    BoardRenderer.tile(value, px, py)
-end
-
-local function rotatePointAroundBoardCenter(px, py, angle)
-    return BoardRenderer.tilePosition(px - CELL_SIZE * 0.5,
-        py - CELL_SIZE * 0.5, angle)
-end
-
 local function getRotatedTilePosition(px, py, angle)
     return BoardRenderer.tilePosition(px, py, angle)
-end
-
-local function drawBoardGrid()
-    BoardRenderer.grid()
-end
-
-local function drawBoardCells(skipX, skipY, rotationAngle)
-    BoardRenderer.cells(state.board, skipX, skipY, rotationAngle)
 end
 
 -- 落下するブロックの描画.
@@ -978,7 +907,7 @@ local function drawFallingBlock(rotationAngle)
     local y = startY + (targetY - startY) * state.animationProgress
     local px, py = getRotatedTilePosition(
         BOARD_X + (state.pendingDropX - 1) * CELL_SIZE, y, rotationAngle)
-    drawTileAt(state.pendingDropValue, px, py)
+    BoardRenderer.tile(state.pendingDropValue, px, py)
 end
 
 -- 落下させたときの着地点を薄いゴースト表示する.
@@ -1035,7 +964,7 @@ local function drawDropPreview()
     local px = BOARD_X + (state.cursorX - 1) * CELL_SIZE
     local py = BOARD_Y - CELL_SIZE
 
-    drawTileAt(state.nextValues[1], px, py)
+    BoardRenderer.tile(state.nextValues[1], px, py)
 
     -- Blink the outline around the tile to make the active column obvious.
     if (pd.getCurrentTimeMilliseconds() % 600) < 300 then
@@ -1094,7 +1023,7 @@ local function drawRotatingBoard()
                 BOARD_X + (x - 1) * CELL_SIZE,
                 BOARD_Y + (y - 1) * CELL_SIZE,
                 angle)
-            drawTileAt(value, px, py)
+        BoardRenderer.tile(value, px, py)
         end
     end)
 end
@@ -1135,7 +1064,7 @@ local function drawRotationDirectionArrow()
 end
 
 local function drawMergeAnimation(rotationAngle)
-    drawBoardCells(state.mergeSourceX, state.mergeSourceY, rotationAngle)
+    BoardRenderer.cells(state.board, state.mergeSourceX, state.mergeSourceY, rotationAngle)
 
     local progress = easeInOut(state.animationProgress)
     local sourcePx = BOARD_X + (state.mergeSourceX - 1) * CELL_SIZE
@@ -1144,7 +1073,8 @@ local function drawMergeAnimation(rotationAngle)
     local targetPy = BOARD_Y + (state.mergeTargetY - 1) * CELL_SIZE
     local rotatedTargetPx, rotatedTargetPy = getRotatedTilePosition(
         targetPx, targetPy, rotationAngle)
-    drawTileAt(state.board:get(state.mergeTargetX, state.mergeTargetY), rotatedTargetPx, rotatedTargetPy)
+    BoardRenderer.tile(state.board:get(state.mergeTargetX, state.mergeTargetY),
+        rotatedTargetPx, rotatedTargetPy)
 
     local sourceCenterX = sourcePx + CELL_SIZE * 0.5
     local sourceCenterY = sourcePy + CELL_SIZE * 0.5
@@ -1156,7 +1086,7 @@ local function drawMergeAnimation(rotationAngle)
         currentCenterX - CELL_SIZE * 0.5,
         currentCenterY - CELL_SIZE * 0.5,
         rotationAngle)
-    drawTileAt(math.floor(state.mergeValue / 2),
+    BoardRenderer.tile(math.floor(state.mergeValue / 2),
         rotatedSourcePx, rotatedSourcePy)
 end
 
@@ -1168,7 +1098,7 @@ local function drawNextAnimation()
     local sourceY = sourceCenterY - CELL_SIZE * 0.5
     local targetX = BOARD_X + (state.cursorX - 1) * CELL_SIZE
     local targetY = BOARD_Y - CELL_SIZE
-    drawTileAt(state.nextValues[1],
+    BoardRenderer.tile(state.nextValues[1],
         sourceX + (targetX - sourceX) * progress,
         sourceY + (targetY - sourceY) * progress)
 end
@@ -1187,13 +1117,13 @@ local function drawHoldAnimation()
     local holdX, holdY = getHoldTilePosition()
 
     if state.holdAnimationSourceValue ~= 0 then
-        drawTileAt(state.holdAnimationSourceValue,
+        BoardRenderer.tile(state.holdAnimationSourceValue,
             currentX + (holdX - currentX) * progress,
             currentY + (holdY - currentY) * progress)
     end
 
     if state.holdAnimationReturnValue ~= 0 then
-        drawTileAt(state.holdAnimationReturnValue,
+        BoardRenderer.tile(state.holdAnimationReturnValue,
             holdX + (currentX - holdX) * progress,
             holdY + (currentY - holdY) * progress)
     end
@@ -1201,7 +1131,7 @@ end
 
 -- 盤面の描画.
 local function drawBoard()
-    drawBoardGrid()
+    BoardRenderer.grid()
     local previewRotationAngle = getPreviewRotationAngle()
 
     if state.phase == GamePhase.ROTATING or state.phase == GamePhase.UNDO_ROTATING then
@@ -1209,7 +1139,7 @@ local function drawBoard()
     elseif state.phase == GamePhase.MERGING then
         drawMergeAnimation(previewRotationAngle)
     else
-        drawBoardCells(nil, nil, previewRotationAngle)
+        BoardRenderer.cells(state.board, nil, nil, previewRotationAngle)
     end
 
     if state.phase == GamePhase.MERGING or state.phase == GamePhase.ROTATING then
@@ -1234,27 +1164,6 @@ local function drawBoard()
     if state.phase == GamePhase.HOLD_ANIM then
         drawHoldAnimation()
     end
-end
-
--- スコアの描画.
-local function drawScore()
-    HudRenderer.score(state.score)
-end
-
--- コンボの描画.
-local function drawCombo()
-    state.comboDisplayFrame += 1
-    HudRenderer.combo(state.combo, state.comboDisplayFrame, state.comboBonusScore)
-end
-
--- NEXTブロックの描画.
-local function drawNextBlocks()
-    HudRenderer.next(state.nextValues, state.phase)
-end
-
--- HOLDブロックの描画。右上の専用領域を使用する.
-local function drawHoldBlock()
-    HudRenderer.hold(state.holdValue, state.phase)
 end
 
 local function drawHeader()

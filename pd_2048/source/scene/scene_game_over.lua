@@ -1,3 +1,5 @@
+import "game_config"
+
 local GameOverScene = {}
 GameOverScene.__index = GameOverScene
 
@@ -9,7 +11,7 @@ function GameOverScene:update()
     if playdate.buttonJustPressed(playdate.kButtonA) then
         self.context.playDecideSound()
         self.context.startGame()
-        self.manager:change("GAME")
+        self.manager:change(GameConfig.SCENE.GAME)
     end
 end
 

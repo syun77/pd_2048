@@ -1,3 +1,5 @@
+import "game_config"
+
 local TitleScene = {}
 TitleScene.__index = TitleScene
 
@@ -13,7 +15,7 @@ function TitleScene:update()
     if playdate.buttonJustPressed(playdate.kButtonA) then
         self.context.playDecideSound()
         self.context.startGame()
-        self.manager:change("GAME")
+        self.manager:change(GameConfig.SCENE.GAME)
     end
 end
 
