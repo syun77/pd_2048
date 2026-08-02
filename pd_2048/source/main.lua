@@ -10,6 +10,9 @@ import "tile_generator"
 import "undo_history"
 import "board_rules"
 import "cursor_controller"
+import "board_renderer"
+import "hud_renderer"
+import "turn_resolver"
 
 local pd <const> = playdate
 local gfx <const> = pd.graphics
@@ -728,6 +731,35 @@ local function finishDrop()
 end
 
 local function advanceAnimation()
+    local context = {
+        previewImpulseRotationDegrees = previewImpulseRotationDegrees,
+        animationProgress = animationProgress,
+        animationDuration = animationDuration,
+        refreshRate = DEFAULT_REFRESH_RATE,
+        gameState = gameState,
+        board = board,
+        rotationEndBoard = rotationEndBoard,
+        finishDrop = finishDrop,
+        finishMerge = finishMerge,
+        startResolve = startResolve,
+        finishNextAnimation = finishNextAnimation,
+        finishHoldAnimation = finishHoldAnimation,
+        setGameState = function(value) gameState = value end,
+    }
+    TurnResolver.advance(context)
+    if not context.completed then
+        previewImpulseRotationDegrees = context.previewImpulseRotationDegrees
+        animationProgress = context.animationProgress
+        board = context.board
+        rotationEndBoard = context.rotationEndBoard
+    elseif context.gameState == GAME_STATE_ROTATING
+        or context.gameState == GAME_STATE_UNDO_ROTATING then
+        board = context.board
+        rotationEndBoard = context.rotationEndBoard
+    end
+end
+
+local function advanceAnimationLegacy()
     previewImpulseRotationDegrees *= PREVIEW_IMPULSE_DECAY
     animationProgress += 1 / (animationDuration * 30)
     if animationProgress < 1 then
@@ -966,64 +998,24 @@ end
 
 -- タイルの描画.
 local function drawTileAt(value, px, py)
-    local shade = math.min(10, math.floor(math.log(value, 2)))
-
-    if shade % 2 == 0 then
-        gfx.fillRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4)
-        gfx.setImageDrawMode(gfx.kDrawModeInverted)
-    else
-        gfx.drawRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4)
-    end
-	-- 数字の描画.
-    gfx.drawTextAligned(tostring(value), px + CELL_SIZE / 2, py + 8, kTextAlignment.center)
-    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    BoardRenderer.tile(value, px, py)
 end
 
 local function rotatePointAroundBoardCenter(px, py, angle)
-    local rotationCenterX = BOARD_X + BOARD_SIZE * CELL_SIZE * 0.5
-    local rotationCenterY = BOARD_Y + BOARD_SIZE * CELL_SIZE * 0.5
-    local relativeX = px - rotationCenterX
-    local relativeY = py - rotationCenterY
-    local cosAngle = math.cos(angle)
-    local sinAngle = math.sin(angle)
-
-    return rotationCenterX + relativeX * cosAngle - relativeY * sinAngle,
-        rotationCenterY + relativeX * sinAngle + relativeY * cosAngle
+    return BoardRenderer.tilePosition(px - CELL_SIZE * 0.5,
+        py - CELL_SIZE * 0.5, angle)
 end
 
 local function getRotatedTilePosition(px, py, angle)
-    if angle == 0 then
-        return px, py
-    end
-
-    local centerX, centerY = rotatePointAroundBoardCenter(
-        px + CELL_SIZE * 0.5, py + CELL_SIZE * 0.5, angle)
-    return centerX - CELL_SIZE * 0.5, centerY - CELL_SIZE * 0.5
+    return BoardRenderer.tilePosition(px, py, angle)
 end
 
 local function drawBoardGrid()
-    gfx.setLineWidth(1)
-    gfx.drawRect(BOARD_X, BOARD_Y, BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE)
-
-    for i = 1, BOARD_SIZE - 1 do
-        gfx.drawLine(BOARD_X + i * CELL_SIZE, BOARD_Y, BOARD_X + i * CELL_SIZE, BOARD_Y + BOARD_SIZE * CELL_SIZE)
-        gfx.drawLine(BOARD_X, BOARD_Y + i * CELL_SIZE, BOARD_X + BOARD_SIZE * CELL_SIZE, BOARD_Y + i * CELL_SIZE)
-    end
-
-    gfx.setLineWidth(2)
-    gfx.drawCircleAtPoint(BOARD_X + (CENTER - 0.5) * CELL_SIZE, BOARD_Y + (CENTER - 0.5) * CELL_SIZE, 7)
+    BoardRenderer.grid()
 end
 
 local function drawBoardCells(skipX, skipY, rotationAngle)
-    board:foreach(function(x, y, value)
-        if value ~= 0 and (x ~= skipX or y ~= skipY) then
-            local px, py = getRotatedTilePosition(
-                BOARD_X + (x - 1) * CELL_SIZE,
-                BOARD_Y + (y - 1) * CELL_SIZE,
-                rotationAngle)
-            drawTileAt(value, px, py)
-        end
-    end)
+    BoardRenderer.cells(board, skipX, skipY, rotationAngle)
 end
 
 -- 落下するブロックの描画.
@@ -1293,114 +1285,32 @@ end
 
 -- スコアの描画.
 local function drawScore()
-    gfx.drawTextAligned("SCORE: ", 12 + PANEL_OFFSET_X, PANEL_OFFSET_Y, kTextAlignment.left)
-    gfx.drawTextAligned(tostring(score), 80 + PANEL_OFFSET_X, 24 + PANEL_OFFSET_Y, kTextAlignment.right)
+    HudRenderer.score(score)
 end
 
 -- コンボの描画.
 local function drawCombo()
-	if combo <= 1 then
-		return -- 描画不要.
-	end
-
     comboDisplayFrame += 1
-	if comboDisplayFrame >= COMBO_BLINK_DURATION_FRAMES + COMBO_STEADY_DURATION_FRAMES then
-		return -- 描画不要.
-	end
-
-	local isBlinking = comboDisplayFrame < COMBO_BLINK_DURATION_FRAMES
-	if isBlinking then
-		local isBlinkOn = (comboDisplayFrame % COMBO_BLINK_PERIOD_FRAMES)
-			< COMBO_BLINK_ON_FRAMES
-		-- 点滅中は枠を描画.
-		if isBlinkOn then
-			gfx.drawRoundRect(4 + PANEL_OFFSET_X, 50 + PANEL_OFFSET_Y, 88, 24, 4)
-		end
-	end
-	gfx.drawText("COMBO: " .. tostring(combo), 12 + PANEL_OFFSET_X, 54 + PANEL_OFFSET_Y)
-	if comboBonusScore > 0 then
-		gfx.drawTextAligned("+" .. tostring(comboBonusScore * SCORE_MULTIPLIER),
-			80 + PANEL_OFFSET_X, 72 + PANEL_OFFSET_Y, kTextAlignment.right)
-	end
+    HudRenderer.combo(combo, comboDisplayFrame, comboBonusScore)
 end
 
 -- NEXTブロックの描画.
 local function drawNextBlocks()
-    gfx.drawText("NEXT", NEXT_LABEL_X, 20)
-    for i = 1, NEXT_PREVIEW_COUNT do
-		if i == 1 then
-			-- 1番目は点滅する.
-			local isBlink = (pd.getCurrentTimeMilliseconds() % 400) < 200
-			if isBlink then
-				gfx.setLineWidth(2)
-				gfx.drawRect(NEXT_BOX_X, NEXT_BOX_Y, NEXT_BOX_WIDTH, NEXT_BOX_HEIGHT)
-				gfx.setLineWidth(1)
-			end
-		else
-			-- 2番目以降は点滅しない.
-			gfx.setLineWidth(1)
-		end
-
-        -- 通常時は落下対象(nextValues[1])を除き、次の次から表示する.
-        -- NEXT_ANIM中だけは、アニメーション元のブロックを1番目に表示する.
-        local valueIndex = i + 1
-        if gameState == GAME_STATE_NEXT_ANIM then
-            valueIndex = i
-        end
-        local value = nextValues[valueIndex]
-        local boxY = NEXT_BOX_Y + (i - 1) * (NEXT_BOX_HEIGHT + NEXT_BOX_GAP)
-        local shade = math.min(10, math.floor(math.log(value, 2)))
-        if shade % 2 == 0 then
-            gfx.fillRect(NEXT_BOX_X, boxY, NEXT_BOX_WIDTH, NEXT_BOX_HEIGHT)
-            gfx.setImageDrawMode(gfx.kDrawModeInverted)
-        else
-            gfx.drawRect(NEXT_BOX_X, boxY, NEXT_BOX_WIDTH, NEXT_BOX_HEIGHT)
-        end
-        gfx.drawTextAligned(tostring(value),
-            NEXT_BOX_X + NEXT_BOX_WIDTH * 0.5,
-            boxY + 3,
-            kTextAlignment.center)
-        gfx.setImageDrawMode(gfx.kDrawModeCopy)
-    end
+    HudRenderer.next(nextValues, gameState)
 end
 
 -- HOLDブロックの描画。右上の専用領域を使用する.
 local function drawHoldBlock()
-    gfx.drawText("A: HOLD", HOLD_LABEL_X, 20)
-    gfx.setLineWidth(1)
-    gfx.drawRect(HOLD_BOX_X, HOLD_BOX_Y, NEXT_BOX_WIDTH, NEXT_BOX_HEIGHT)
-
-    if gameState == GAME_STATE_HOLD_ANIM then
-        return
-    end
-
-    if holdValue == 0 then
-        return
-    end
-
-    local shade = math.min(10, math.floor(math.log(holdValue, 2)))
-    if shade % 2 == 0 then
-        gfx.fillRect(HOLD_BOX_X, HOLD_BOX_Y, NEXT_BOX_WIDTH, NEXT_BOX_HEIGHT)
-        gfx.setImageDrawMode(gfx.kDrawModeInverted)
-    end
-    gfx.drawTextAligned(tostring(holdValue),
-        HOLD_BOX_X + NEXT_BOX_WIDTH * 0.5,
-        HOLD_BOX_Y + 3,
-        kTextAlignment.center)
-    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    HudRenderer.hold(holdValue, gameState)
 end
 
 local function drawHeader()
-	-- スコアの描画.
-	drawScore()
-	-- コンボ数の描画.
-    drawCombo()
-
-	-- NEXtの描画.
-	drawHoldBlock()
-	drawNextBlocks()
-
-	-- 危険アイコンの描画.
+    HudRenderer.header({
+        score = score, combo = combo, comboDisplayFrame = comboDisplayFrame,
+        comboBonusScore = comboBonusScore, holdValue = holdValue,
+        nextValues = nextValues, gameState = gameState,
+    })
+    comboDisplayFrame = comboDisplayFrame + 1
     drawDangerIcons()
 end
 
@@ -1487,9 +1397,7 @@ function pd.update()
         end
     end
 
-    if gameState == GAME_STATE_DROPPING or gameState == GAME_STATE_MERGING
-        or gameState == GAME_STATE_ROTATING or gameState == GAME_STATE_UNDO_ROTATING
-        or gameState == GAME_STATE_NEXT_ANIM or gameState == GAME_STATE_HOLD_ANIM then
+    if TurnResolver.isAnimating(gameState) then
         advanceAnimation()
     end
 

@@ -13,10 +13,11 @@ function BoardRules.isPlayable(x, y)
 end
 
 function BoardRules.isOccupied(board, x, y)
-    return BoardRules.isPlayable(x, y) and board:get(x, y) ~= 0
+    return board ~= nil and BoardRules.isPlayable(x, y) and board:get(x, y) ~= 0
 end
 
 function BoardRules.findDropCell(board, column)
+    if board == nil then return nil end
     for y = 1, Config.BOARD_SIZE do
         if BoardRules.isCenter(column, y) or board:get(column, y) ~= 0 then return nil end
         local supported = BoardRules.isOccupied(board, column, y + 1)
