@@ -301,11 +301,11 @@ function GameRenderer:drawNormalFrame()
     end
 end
 
-function GameRenderer:drawGameOverFrame()
+function GameRenderer:drawGameOverFrame(selectedIndex)
     self:drawHeader()
     self.overlay:drawDangerIcons()
     self:drawBoard()
-    self.overlay:drawGameOver()
+    self.overlay:drawGameOver(selectedIndex)
 end
 
 _G.GameRenderer = GameRenderer

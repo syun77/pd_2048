@@ -113,6 +113,7 @@ function OverlayRenderer:drawRewindHint()
     gfx.setColor(previousColor)
 end
 
+-- ポーズメニューの描画.
 function OverlayRenderer:drawPause()
     gfx.fillRect(145, 93, 110, 44)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
@@ -121,6 +122,7 @@ function OverlayRenderer:drawPause()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
+-- 通知メッセージの描画.
 function OverlayRenderer:drawMessage()
     local state = self.state
     if state.message ~= ""
@@ -129,12 +131,14 @@ function OverlayRenderer:drawMessage()
     end
 end
 
-function OverlayRenderer:drawGameOver()
-    gfx.fillRect(122, 86, 156, 68)
+-- ゲームオーバーメニューの描画.
+function OverlayRenderer:drawGameOver(selectedIndex)
+    gfx.fillRect(105, 76, 190, 112)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
-    self:drawCenteredText("GAME OVER", 96)
-    self:drawCenteredText("SCORE " .. tostring(self.state.score), 116)
-    self:drawCenteredText("A: RETRY", 136)
+    self:drawCenteredText("GAME OVER", 88)
+    self:drawCenteredText("SCORE " .. tostring(self.state.score), 110)
+    self:drawCenteredText((selectedIndex == 1 and "> " or "  ") .. "RETRY", 136)
+    self:drawCenteredText((selectedIndex == 2 and "> " or "  ") .. "TITLE", 158)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
