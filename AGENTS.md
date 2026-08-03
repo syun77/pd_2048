@@ -6,6 +6,8 @@
 
 現行仕様の正本は `仕様書/playdate_2048_ゲーム仕様書.md` です。入力の抽象化・自動プレイ・将来のリプレイ設計については `仕様書/入力制御とリプレイ設計.md` を参照してください。
 
+Playdate SDK の一般仕様、Lua 実行モデル、`CoreLibs`、入力、描画、音声、保存、`pdc`、Simulator については `.agents/playdate_sdk.md` を参照してください。
+
 ## リポジトリ構成
 
 - `pd_2048/source/`: Playdate Lua ソース、画像以外のアセット、BGM/SE
