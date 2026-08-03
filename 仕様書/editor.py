@@ -10,6 +10,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+import random
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
@@ -422,31 +423,340 @@ class StageEditor(tk.Tk):
         if errors:
             messagebox.showerror("Preview unavailable", "\n".join(errors))
             return
-        max_tile = max([b["value"] for b in stage["initialBoard"]] + [0])
-        total = sum(b["value"] for b in stage["initialBoard"])
-        total += sum(stage["nextValues"])
-        objective = stage["objectives"][0]
-        if objective["type"] == "TILE_VALUE":
-            possible = max_tile >= objective["value"] or total >= objective["value"] * 2
-            reason = "resource bound check"
-        elif objective["type"] == "COMBO":
-            possible = len(stage["nextValues"]) >= objective["value"]
-            reason = "NEXT length check"
-        elif objective["type"] == "MERGE_COUNT":
-            possible = len(stage["nextValues"]) >= objective["value"] * 2
-            reason = "minimum tile count check"
-        else:
-            possible = total * 100 >= objective["value"]
-            reason = "score bound check"
-        result = "CLEARABLE (heuristic)" if possible else "NOT FOUND (heuristic)"
-        self.status_var.set(f"Preview: {result}")
-        messagebox.showinfo("Preview / Check", f"{result}\n\n{reason}\n"
-                            f"Objective: {objective['type']} {objective['value']}")
+        PreviewWindow(self, stage)
 
     def _close(self) -> None:
         if self._confirm_discard():
             self.destroy()
 
+
+class PreviewWindow(tk.Toplevel):
+    """A playable, non-animated approximation of the Playdate game loop."""
+
+    PREVIEW_CELL = 72
+    PREVIEW_TOP = 42
+
+    def __init__(self, parent: StageEditor, stage: dict) -> None:
+        super().__init__(parent)
+        self.parent_editor = parent
+        self.stage = copy.deepcopy(stage)
+        self.title(f"Preview - {stage['label']}")
+        self.resizable(False, False)
+        self.board = [[0 for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
+        for block in stage.get("initialBoard", []):
+            self.board[block["y"] - 1][block["x"] - 1] = block["value"]
+        self.cursor = 2
+        self.next_index = 0
+        self.current_value = 0
+        self.next_queue: list[int] = []
+        self.hold_value = 0
+        self.hold_available = True
+        self.score = 0
+        self.combo = 0
+        self.merge_count = 0
+        self.turn = 0
+        self.random = random.Random(stage.get("randomSeed", 1))
+        self.complete = False
+        self.game_over = False
+        self.cursor_var = tk.StringVar()
+        self.info_var = tk.StringVar()
+        self._build_ui()
+        self.reset()
+        self.focus_force()
+        self.bind("<Left>", lambda _: self.move_cursor(-1))
+        self.bind("<Right>", lambda _: self.move_cursor(1))
+        self.bind("<Down>", lambda _: self.drop())
+        self.bind("<space>", lambda _: self.drop())
+        self.bind("<KeyPress-h>", lambda _: self.hold())
+        self.bind("<KeyPress-H>", lambda _: self.hold())
+        self.bind("<KeyPress-r>", lambda _: self.reset())
+        self.bind("<KeyPress-R>", lambda _: self.reset())
+
+    def _build_ui(self) -> None:
+        root = ttk.Frame(self, padding=8)
+        root.grid()
+        self.canvas = tk.Canvas(root, width=self.PREVIEW_CELL * BOARD_SIZE,
+                                height=self.PREVIEW_TOP + self.PREVIEW_CELL * BOARD_SIZE + 12,
+                                bg="white", highlightthickness=0)
+        self.canvas.grid(row=0, column=0, rowspan=2, padx=(0, 8))
+        side = ttk.Frame(root)
+        side.grid(row=0, column=1, sticky="n")
+        ttk.Label(side, textvariable=self.info_var, justify="left").grid(sticky="w")
+        ttk.Label(side, text="Controls").grid(sticky="w", pady=(12, 0))
+        ttk.Label(side, text="←/→ Move   ↓/Space Drop\nH Hold   R Reset").grid(sticky="w")
+        ttk.Label(side, textvariable=self.cursor_var).grid(sticky="w", pady=(8, 0))
+        ttk.Label(root, text="Event log").grid(row=2, column=0, columnspan=2,
+                                               sticky="w", pady=(8, 0))
+        self.log = tk.Text(root, width=64, height=13, state="disabled",
+                           background="#f5f5f5")
+        self.log.grid(row=3, column=0, columnspan=2)
+        ttk.Button(root, text="Reset", command=self.reset).grid(row=4, column=0,
+                                                                  columnspan=2, pady=6)
+
+    def _log(self, message: str) -> None:
+        self.log.configure(state="normal")
+        self.log.insert("end", message + "\n")
+        self.log.see("end")
+        self.log.configure(state="disabled")
+
+    def reset(self) -> None:
+        self.board = [[0 for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
+        for block in self.stage.get("initialBoard", []):
+            self.board[block["y"] - 1][block["x"] - 1] = block["value"]
+        self.cursor = 2
+        self.next_index = 0
+        self.next_queue = []
+        self.hold_value = 0
+        self.hold_available = True
+        self.score = 0
+        self.combo = 0
+        self.merge_count = 0
+        self.turn = 0
+        self.complete = False
+        self.game_over = False
+        self.random = random.Random(self.stage.get("randomSeed", 1))
+        self.log.configure(state="normal")
+        self.log.delete("1.0", "end")
+        self.log.configure(state="disabled")
+        self._ensure_queue(4)
+        self.current_value = self.next_queue.pop(0)
+        self._ensure_queue(4)
+        self._log(f"RESET  board loaded, current={self.current_value}")
+        self._draw()
+
+    def _random_value(self) -> int:
+        data = self.stage.get("nextRandom", {})
+        values = data.get("values", [2, 4])
+        weights = data.get("weights", [90, 10])
+        if not values or len(values) != len(weights):
+            return 2
+        return self.random.choices(values, weights=weights, k=1)[0]
+
+    def _next_value(self) -> int:
+        if self.stage.get("nextPolicy", "LOOP") == "RANDOM":
+            return self._random_value()
+        values = self.stage.get("nextValues", [2]) or [2]
+        value = values[self.next_index % len(values)]
+        self.next_index += 1
+        return value
+
+    def _ensure_queue(self, count: int) -> None:
+        while len(self.next_queue) < count:
+            self.next_queue.append(self._next_value())
+
+    def _is_playable(self, x: int, y: int) -> bool:
+        return 0 <= x < BOARD_SIZE and 0 <= y < BOARD_SIZE and (x, y) != CENTER
+
+    def _occupied(self, x: int, y: int) -> bool:
+        return self._is_playable(x, y) and self.board[y][x] != 0
+
+    def _find_drop_cell(self, column: int) -> tuple[int, int] | None:
+        for y in range(BOARD_SIZE):
+            if (column, y) == CENTER or self.board[y][column] != 0:
+                return None
+            supported = (self._occupied(column, y + 1)
+                         or (column == 2 and y == 1)
+                         or self._occupied(column - 1, y)
+                         or self._occupied(column + 1, y))
+            if supported:
+                return column, y
+        return None
+
+    def _keeps_connected(self, source: tuple[int, int], target: tuple[int, int]) -> bool:
+        sx, sy = source
+        tx, ty = target
+        for x, y in ((tx - 1, ty), (tx + 1, ty), (tx, ty - 1), (tx, ty + 1)):
+            if (x, y) != source and self._occupied(x, y):
+                return True
+        return False
+
+    def _find_merge(self, x: int, y: int) -> tuple[tuple[int, int], tuple[int, int]] | None:
+        value = self.board[y][x]
+        fallback = None
+        for dx, dy in ((0, 1), (-1, 0), (1, 0), (0, -1)):
+            target = (x + dx, y + dy)
+            if self._is_playable(*target) and self.board[target[1]][target[0]] == value:
+                if self._keeps_connected((x, y), target):
+                    return (x, y), target
+                if fallback is None:
+                    fallback = ((x, y), target)
+        return fallback
+
+    @staticmethod
+    def _position_evaluation(x: int) -> int:
+        if x > 2:
+            return 10
+        if x < 2:
+            return -10
+        return 0
+
+    def _merge_evaluation(self, source: tuple[int, int], target: tuple[int, int]) -> int:
+        sx, _ = source
+        tx, _ = target
+        direction = -5 if tx < sx else 5 if tx > sx else 10 * self._position_evaluation(tx)
+        return (-10 * self._position_evaluation(sx)
+                + 10 * self._position_evaluation(tx) + direction)
+
+    def _rotate(self, clockwise: bool) -> None:
+        rotated = [[0 for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
+        for y in range(BOARD_SIZE):
+            for x in range(BOARD_SIZE):
+                if not self._is_playable(x, y) or not self.board[y][x]:
+                    continue
+                nx, ny = (4 - y, x) if clockwise else (y, 4 - x)
+                if self._is_playable(nx, ny):
+                    rotated[ny][nx] = self.board[y][x]
+        self.board = rotated
+
+    def _resolve(self, active: tuple[int, int], evaluation: int) -> None:
+        while True:
+            merge = self._find_merge(*active)
+            if merge is None:
+                break
+            source, target = merge
+            value = self.board[source[1]][source[0]] * 2
+            self.board[source[1]][source[0]] = 0
+            self.board[target[1]][target[0]] = value
+            self.combo += 1
+            self.merge_count += 1
+            bonus = int(2 * self.combo ** 1.5 - 2 * (self.combo - 1) ** 1.5)
+            self.score += value * 100 + bonus * 100
+            evaluation += self._merge_evaluation(source, target)
+            active = target
+            self._log(f"MERGE {value // 2}+{value // 2}={value} at ({target[0] + 1},{target[1] + 1})")
+        if evaluation:
+            clockwise = evaluation > 0
+            self._rotate(clockwise)
+            x, y = active
+            active = (4 - y, x) if clockwise else (y, 4 - x)
+            self._log("ROTATE " + ("CLOCKWISE" if clockwise else "COUNTER-CLOCKWISE"))
+            self._resolve_after_rotation(active)
+
+    def _resolve_after_rotation(self, active: tuple[int, int]) -> None:
+        while True:
+            merge = self._find_merge(*active)
+            if merge is None:
+                return
+            source, target = merge
+            value = self.board[source[1]][source[0]] * 2
+            self.board[source[1]][source[0]] = 0
+            self.board[target[1]][target[0]] = value
+            self.combo += 1
+            self.merge_count += 1
+            bonus = int(2 * self.combo ** 1.5 - 2 * (self.combo - 1) ** 1.5)
+            self.score += value * 100 + bonus * 100
+            active = target
+            self._log(f"MERGE AFTER ROTATION -> {value}")
+
+    def drop(self) -> None:
+        if self.complete or self.game_over:
+            return
+        cell = self._find_drop_cell(self.cursor)
+        if cell is None:
+            self._log(f"DROP column={self.cursor + 1} -> NO SPACE")
+            return
+        x, y = cell
+        self.combo = 0
+        self.board[y][x] = self.current_value
+        self.turn += 1
+        self._log(f"DROP column={x + 1} cell=({x + 1},{y + 1}) value={self.current_value}")
+        evaluation = self._position_evaluation(x) * 20
+        self._resolve((x, y), evaluation)
+        self.hold_available = True
+        self._ensure_queue(4)
+        self.current_value = self.next_queue.pop(0)
+        self._ensure_queue(4)
+        self._check_objective()
+        if not self.complete and not any(self._find_drop_cell(column)
+                                         for column in range(BOARD_SIZE)):
+            self.game_over = True
+            self._log("*** GAME OVER: NO DROP AVAILABLE ***")
+        self._draw()
+
+    def hold(self) -> None:
+        if self.complete or self.game_over:
+            return
+        if not self.hold_available:
+            self._log("HOLD -> UNAVAILABLE")
+            return
+        if self.hold_value == 0:
+            self.hold_value = self.current_value
+            self._ensure_queue(1)
+            self.current_value = self.next_queue.pop(0)
+            self._ensure_queue(4)
+            self._log(f"HOLD {self.hold_value}; next current={self.current_value}")
+        else:
+            self.current_value, self.hold_value = self.hold_value, self.current_value
+            self._log(f"HOLD SWAP current={self.current_value} hold={self.hold_value}")
+        self.hold_available = False
+        self._draw()
+
+    def move_cursor(self, delta: int) -> None:
+        self.cursor = max(0, min(BOARD_SIZE - 1, self.cursor + delta))
+        self._draw()
+
+    def _check_objective(self) -> None:
+        objectives = self.stage.get("objectives", [])
+        results = []
+        max_tile = max(max(row) for row in self.board)
+        for objective in objectives:
+            target = objective.get("value", 0)
+            kind = objective.get("type")
+            results.append({
+                "TILE_VALUE": max_tile >= target,
+                "COMBO": self.combo >= target,
+                "SCORE": self.score >= target,
+                "MERGE_COUNT": self.merge_count >= target,
+            }.get(kind, False))
+        if results and ((self.stage.get("objectiveMode") == "ALL" and all(results))
+                        or (self.stage.get("objectiveMode", "ANY") != "ALL" and any(results))):
+            if not self.complete:
+                self.complete = True
+                self._log("*** OBJECTIVE COMPLETE ***")
+
+    def _draw(self) -> None:
+        self.canvas.delete("all")
+        for y in range(BOARD_SIZE):
+            for x in range(BOARD_SIZE):
+                left = x * self.PREVIEW_CELL
+                top = self.PREVIEW_TOP + y * self.PREVIEW_CELL
+                self.canvas.create_rectangle(left, top, left + self.PREVIEW_CELL,
+                                             top + self.PREVIEW_CELL, outline="#777",
+                                             fill="#eee")
+                if (x, y) == CENTER:
+                    self.canvas.create_oval(left + 24, top + 24, left + 48, top + 48,
+                                            outline="#999")
+                value = self.board[y][x]
+                if value:
+                    self.canvas.create_rectangle(left + 3, top + 3,
+                                                 left + self.PREVIEW_CELL - 3,
+                                                 top + self.PREVIEW_CELL - 3,
+                                                 fill="#222", outline="#222")
+                    self.canvas.create_text(left + self.PREVIEW_CELL / 2,
+                                            top + self.PREVIEW_CELL / 2,
+                                            text=str(value), fill="white",
+                                            font=("Helvetica", 16, "bold"))
+        # 現在操作中のブロックを、選択列の盤面上部に表示する。
+        current_left = self.cursor * self.PREVIEW_CELL
+        self.canvas.create_rectangle(current_left + 3, 4,
+                                     current_left + self.PREVIEW_CELL - 3,
+                                     self.PREVIEW_TOP - 7,
+                                     fill="#222", outline="#222")
+        self.canvas.create_text(current_left + self.PREVIEW_CELL / 2,
+                                (4 + self.PREVIEW_TOP - 7) / 2,
+                                text=str(self.current_value), fill="white",
+                                font=("Helvetica", 16, "bold"))
+        cursor_y = self.PREVIEW_TOP + self.PREVIEW_CELL * BOARD_SIZE + 3
+        self.canvas.create_rectangle(self.cursor * self.PREVIEW_CELL + 4, cursor_y,
+                                     (self.cursor + 1) * self.PREVIEW_CELL - 4, cursor_y + 5,
+                                     fill="#333", outline="#333")
+        self._ensure_queue(3)
+        preview = ", ".join(map(str, self.next_queue[:3]))
+        state = "CLEAR" if self.complete else "GAME OVER" if self.game_over else "PLAYING"
+        self.info_var.set(f"State: {state}\nTurn: {self.turn}\nCurrent: {self.current_value}\n"
+                          f"NEXT: {preview}\nHOLD: {self.hold_value or '-'}\n"
+                          f"Score: {self.score}\nCombo: {self.combo}\nMerges: {self.merge_count}")
+        self.cursor_var.set(f"Column: {self.cursor + 1}")
 
 if __name__ == "__main__":
     StageEditor().mainloop()
