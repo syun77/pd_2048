@@ -8,6 +8,8 @@
 
 Playdate SDK の一般仕様、Lua 実行モデル、`CoreLibs`、入力、描画、音声、保存、`pdc`、Simulator については `.agents/playdate_sdk.md` を参照してください。
 
+AGENTS 関連の補助文書を作成・更新する際は `.agents/AGENTS作成ルール.md` に従い、内容を簡潔に保ってください。
+
 ## リポジトリ構成
 
 - `pd_2048/source/`: Playdate Lua ソース、画像以外のアセット、BGM/SE

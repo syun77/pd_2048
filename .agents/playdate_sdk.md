@@ -36,6 +36,7 @@ import "CoreLibs/timer"
 - buttonJustPressed は押下ごとに一度だけ反応する。長押し・リピートは状態を保持する共通処理で管理する。
 - 入力検出とゲーム操作を分離し、可能なら論理コマンドへ変換する。
 - 描画は playdate.graphics を使う。1-bit 表示、画面サイズ、display scale、Sprite の dirty 更新を考慮する。
+- fillRect などのプリミティブ描画を XOR で描く場合は、描画前に gfx.setColor(gfx.kColorXOR) を設定する。
 - 短い効果音には playdate.sound.sampleplayer、長い音声には playdate.sound.fileplayer など用途に合うプレイヤーを使う。
 - 画像・音声・フォントは処理中に繰り返し読み込まず、必要に応じて初期化時に保持する。
 
@@ -65,4 +66,3 @@ import "CoreLibs/timer"
 
 - [Inside Playdate — SDK 3.1.1](https://sdk.play.date/3.1.1/Inside%20Playdate.html)
 - [Playdate Developer](https://play.date/dev/)
-
