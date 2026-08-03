@@ -19,6 +19,8 @@ function TitleScene.new(context)
             { label = "NORMAL GAME", scene = GameConfig.SCENE.GAME,
               mode = GameConfig.GAME_MODE.NORMAL },
             { label = "TIME ATTACK", submenu = true },
+            { label = "PRACTICE", scene = GameConfig.SCENE.GAME,
+              mode = GameConfig.GAME_MODE.PRACTICE },
             { label = "ACHIEVEMENTS", scene = GameConfig.SCENE.ACHIEVEMENTS },
             { label = "STATISTICS", scene = GameConfig.SCENE.STATISTICS },
         },
@@ -80,7 +82,7 @@ end
 -- 描画.
 function TitleScene:draw()
     local items = self.page == "ROOT" and self.menuItems or self.timeAttackItems
-    local title = self.page == "ROOT" and nil or "TIME ATTACK"
+    local title = nil -- タイトル文字.
     self.context.titleRenderer:drawTitle(self.selectedIndex, items, title)
 end
 

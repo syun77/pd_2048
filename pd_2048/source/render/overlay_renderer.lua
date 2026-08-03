@@ -180,6 +180,27 @@ function OverlayRenderer:drawCoreRushComplete()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
+function OverlayRenderer:drawPracticeComplete()
+    local state = self.state
+    if state.mode ~= Config.GAME_MODE.PRACTICE
+        or state.practiceCompleteUntil == 0
+        or pd.getCurrentTimeMilliseconds() >= state.practiceCompleteUntil then
+        return
+    end
+
+    local text = "COMPLETE"
+    local textWidth, textHeight = gfx.getTextSize(text)
+    local boxWidth = textWidth + 32
+    local boxHeight = textHeight + 16
+    local boxX = math.floor(Config.CORE_RUSH_COMPLETE_CENTER_X - boxWidth * 0.5)
+    local boxY = math.floor(Config.CORE_RUSH_COMPLETE_CENTER_Y - boxHeight * 0.5)
+    gfx.fillRoundRect(boxX, boxY, boxWidth, boxHeight, 6)
+    gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    gfx.drawTextAligned(text, Config.CORE_RUSH_COMPLETE_CENTER_X,
+        boxY + (boxHeight - textHeight) * 0.5, kTextAlignment.center)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+end
+
 -- 中心座標を基準に、選択可能なメニューを描画する。
 function OverlayRenderer:drawMenu(centerX, centerY, items, selectedIndex, backgroundColor)
     if items == nil or #items == 0 then return end
@@ -249,9 +270,13 @@ function OverlayRenderer:drawGameOver(selectedIndex)
     end
     local resultDetail = "SCORE " .. tostring(self.state.score)
     if self.state.result == Config.GAME_RESULT.VICTORY then
-        local centiseconds = math.floor(self.state.elapsedTimeMs / 10)
-        resultDetail = string.format("TIME %02d.%02d",
-            math.floor(centiseconds / 100), centiseconds % 100)
+        if self.state.mode == Config.GAME_MODE.PRACTICE then
+            resultDetail = "CLEAR " .. (self.state.practiceObjectiveText or "PRACTICE")
+        else
+            local centiseconds = math.floor(self.state.elapsedTimeMs / 10)
+            resultDetail = string.format("TIME %02d.%02d",
+                math.floor(centiseconds / 100), centiseconds % 100)
+        end
     end
     self:drawMenu(200, 130, {
         resultTitle,

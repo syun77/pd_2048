@@ -290,6 +290,7 @@ function GameRenderer:drawHeader()
         mode = state.mode, remainingTimeMs = state.remainingTimeMs,
         elapsedTimeMs = state.elapsedTimeMs,
         coreRushValue = state.coreRushValue,
+        practiceObjectiveText = state.practiceObjectiveText,
     })
     state.comboDisplayFrame += 1
 end
@@ -301,6 +302,7 @@ function GameRenderer:drawNormalFrame()
     self:drawBoard()
     self.overlay:drawCoreRushGain()
     self.overlay:drawCoreRushComplete()
+    self.overlay:drawPracticeComplete()
     self.overlay:drawRewindHint()
     if state.phase == GamePhase.PAUSED then
         self.overlay:drawPause()

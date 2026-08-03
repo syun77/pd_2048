@@ -102,7 +102,15 @@ function HudRenderer.hold(value, phase)
 end
 
 function HudRenderer.header(ctx)
-    if ctx.mode == Config.GAME_MODE.TIME_ATTACK then
+    if ctx.mode == Config.GAME_MODE.PRACTICE then
+		-- PRACTICEモードでのクリア目標.
+        gfx.drawText(ctx.practiceObjectiveText ~= nil and "GOAL: " or "PRACTICE",
+            Config.PRACTICE_GOAL_X, Config.PRACTICE_GOAL_Y)
+        if ctx.practiceObjectiveText ~= nil then
+            gfx.drawText(ctx.practiceObjectiveText,
+                Config.PRACTICE_OBJECTIVE_X, Config.PRACTICE_OBJECTIVE_Y)
+        end
+    elseif ctx.mode == Config.GAME_MODE.TIME_ATTACK then
         HudRenderer.timeAttack(ctx.remainingTimeMs, Config.TIME_ATTACK_LIMIT_MS)
     elseif ctx.mode == Config.GAME_MODE.CORE_RUSH then
         HudRenderer.coreRush(ctx.elapsedTimeMs)

@@ -7,6 +7,7 @@ import "game/undo_controller"
 import "board/board_transform"
 import "board/board_rules"
 import "tile_generator"
+import "practice_scenarios"
 import "cursor_controller"
 import "input/input_command"
 import "input/auto_player"
@@ -200,8 +201,29 @@ function GameController:advanceNextQueue()
     for i = 1, Config.NEXT_QUEUE_COUNT - 1 do
         state.nextValues[i] = state.nextValues[i + 1]
     end
-    state.nextValues[Config.NEXT_QUEUE_COUNT] =
-        TileGenerator.nextForState(state.board, state)
+    if state.mode == Config.GAME_MODE.PRACTICE then
+        state.nextValues[Config.NEXT_QUEUE_COUNT] = self:getPracticeNextValue()
+    else
+        state.nextValues[Config.NEXT_QUEUE_COUNT] =
+            TileGenerator.nextForState(state.board, state)
+    end
+end
+
+function GameController:getPracticeNextValue()
+    local state = self.state
+    local values = state.practiceNextValues
+    if #values == 0 then return 2 end
+
+    if state.practiceNextPolicy == "STATIC" then
+        return values[1]
+    end
+
+    local value = values[state.practiceNextIndex]
+    state.practiceNextIndex += 1
+    if state.practiceNextIndex > #values then
+        state.practiceNextIndex = 1
+    end
+    return value
 end
 
 function GameController:finishTurn()
@@ -214,6 +236,73 @@ function GameController:finishTurn()
     state.animationProgress = 0
     state.animationDuration = 0.30
     state.phase = GamePhase.NEXT_ANIM
+end
+
+function GameController:getPracticeMaxTileValue()
+    local maxValue = 0
+    self.state.board:foreach(function(_, _, value)
+        if value > maxValue then maxValue = value end
+    end)
+    return maxValue
+end
+
+function GameController:isPracticeObjectiveMet(objective)
+    local state = self.state
+    local target = objective.value or 0
+    if objective.type == "TILE_VALUE" then
+        return self:getPracticeMaxTileValue() >= target
+    elseif objective.type == "COMBO" then
+        return state.combo >= target
+    elseif objective.type == "SCORE" then
+        return state.score >= target
+    elseif objective.type == "MERGE_COUNT" then
+        return state.practiceMergeCount >= target
+    end
+    return false
+end
+
+function GameController:updatePracticeObjective()
+    local state = self.state
+    if state.mode ~= Config.GAME_MODE.PRACTICE or state.practiceVictoryPending then
+        return
+    end
+
+    local objectives = state.practiceObjectives
+    if #objectives == 0 then return end
+
+    local achievedCount = 0
+    for _, objective in ipairs(objectives) do
+        if self:isPracticeObjectiveMet(objective) then achievedCount += 1 end
+    end
+
+    local achieved = state.practiceObjectiveMode == "ALL"
+        and achievedCount == #objectives
+        or state.practiceObjectiveMode ~= "ALL" and achievedCount > 0
+    if achieved then state.practiceVictoryPending = true end
+end
+
+function GameController:formatPracticeObjective(objective)
+    if objective.type == "TILE_VALUE" then
+        return "MAKE " .. tostring(objective.value)
+    elseif objective.type == "COMBO" then
+        return tostring(objective.value) .. " COMBO"
+    elseif objective.type == "SCORE" then
+        return "SCORE " .. tostring(objective.value)
+    elseif objective.type == "MERGE_COUNT" then
+        return "MERGE " .. tostring(objective.value)
+    end
+    return "PRACTICE"
+end
+
+function GameController:beginPracticeVictory()
+    local state = self.state
+    state.practiceCompleteUntil = pd.getCurrentTimeMilliseconds()
+        + Config.CORE_RUSH_COMPLETE_DISPLAY_MS
+    state.timerStartedAt = nil
+    state.timerLastUpdateAt = nil
+    state.phase = GamePhase.INPUT
+    self.sound:play_se("complete")
+    self.sound:stop_bgm(1.0)
 end
 
 function GameController:beginGameOver()
@@ -324,6 +413,8 @@ end
 function GameController:finishNextAnimation()
     if self.state.coreRushVictoryPending then
         self:beginVictory()
+    elseif self.state.practiceVictoryPending then
+        self:beginPracticeVictory()
     elseif self.state.nextAnimationGameOver then
         self:beginGameOver()
     else
@@ -413,8 +504,10 @@ function GameController:finishMerge()
     state.board:set(state.mergeSourceX, state.mergeSourceY, 0)
     state.board:set(state.mergeTargetX, state.mergeTargetY, state.mergeValue)
     self.session:recordMerge(state.mergeValue)
+    state.practiceMergeCount += 1
     state.activeMergeX, state.activeMergeY = state.mergeTargetX, state.mergeTargetY
     self:addCoreRushValue(state.mergeValue)
+    self:updatePracticeObjective()
     self:startResolve(state.mergeNextAction)
 end
 
@@ -466,6 +559,39 @@ function GameController:spawnInitialBlocks()
     end
 end
 
+function GameController:applyPracticeScenario(scenario)
+    local state = self.state
+    state.practiceScenarioId = scenario.id
+    state.practiceNextValues = {}
+    state.practiceNextIndex = 1
+    state.practiceNextPolicy = scenario.nextPolicy or "LOOP"
+    state.practiceObjectiveMode = scenario.objectiveMode or "ANY"
+    state.practiceObjectives = {}
+    for i, objective in ipairs(scenario.objectives or {}) do
+        state.practiceObjectives[i] = objective
+    end
+
+    for _, block in ipairs(scenario.initialBoard or {}) do
+        assert(block.x >= 1 and block.x <= Config.BOARD_SIZE,
+            "Practice block x is out of range")
+        assert(block.y >= 1 and block.y <= Config.BOARD_SIZE,
+            "Practice block y is out of range")
+        assert(not BoardRules.isCenter(block.x, block.y),
+            "Practice block cannot occupy the center cell")
+        assert(block.value > 0, "Practice block value must be positive")
+        assert(state.board:get(block.x, block.y) == 0,
+            "Practice scenario contains duplicate board coordinates")
+        state.board:set(block.x, block.y, block.value)
+    end
+
+    assert(scenario.nextValues ~= nil and #scenario.nextValues > 0,
+        "Practice scenario must define nextValues")
+    for i, value in ipairs(scenario.nextValues) do
+        assert(value > 0, "Practice next value must be positive")
+        state.practiceNextValues[i] = value
+    end
+end
+
 function GameController:start(mode)
     local state = self.state
     state.mode = mode or Config.GAME_MODE.NORMAL
@@ -512,11 +638,33 @@ function GameController:start(mode)
     state.holdAnimationSourceValue, state.holdAnimationReturnValue = 0, 0
     state.rotationEvaluation = 0
     state.nextValues = {}
+    state.practiceScenarioId = nil
+    state.practiceNextValues = {}
+    state.practiceNextIndex = 1
+    state.practiceNextPolicy = nil
+    state.practiceObjectives = {}
+    state.practiceObjectiveMode = "ANY"
+    state.practiceMergeCount = 0
+    state.practiceVictoryPending = false
+    state.practiceCompleteUntil = 0
+    state.practiceObjectiveText = ""
     self.autoPlayer:reset()
     state.previewImpulseRotationDegrees = 0
-    self:spawnInitialBlocks()
-    for i = 1, Config.NEXT_QUEUE_COUNT do
-        state.nextValues[i] = TileGenerator.nextForState(state.board, state)
+    if state.mode == Config.GAME_MODE.PRACTICE then
+        self:applyPracticeScenario(PracticeScenarios[1])
+        for i = 1, Config.NEXT_QUEUE_COUNT do
+            state.nextValues[i] = self:getPracticeNextValue()
+        end
+    else
+        self:spawnInitialBlocks()
+        for i = 1, Config.NEXT_QUEUE_COUNT do
+            state.nextValues[i] = TileGenerator.nextForState(state.board, state)
+        end
+    end
+    if state.mode == Config.GAME_MODE.PRACTICE
+        and #state.practiceObjectives > 0 then
+        state.practiceObjectiveText = self:formatPracticeObjective(
+            state.practiceObjectives[1])
     end
     state.phase = GamePhase.INPUT
     if state.mode == Config.GAME_MODE.TIME_ATTACK or self:isCoreRush() then
@@ -611,6 +759,15 @@ function GameController:update()
             state.coreRushCompleteUntil = 0
             state.result = GameResult.VICTORY
             self:saveCoreRushBestTime()
+            return { scene = Config.SCENE.GAME_OVER }
+        end
+        return nil
+    end
+
+    if state.practiceCompleteUntil ~= 0 then
+        if pd.getCurrentTimeMilliseconds() >= state.practiceCompleteUntil then
+            state.practiceCompleteUntil = 0
+            state.result = GameResult.VICTORY
             return { scene = Config.SCENE.GAME_OVER }
         end
         return nil

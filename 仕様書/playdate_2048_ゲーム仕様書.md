@@ -21,7 +21,7 @@
 | 回転軸 | 中央の`(3,3)`（1始まり） |
 | 使用可能マス | 24マス |
 | ブロック | 2の累乗の数値ブロック（2、4、8、…） |
-| ゲームモード | NORMAL、TIME ATTACK、CORE RUSH |
+| ゲームモード | NORMAL、TIME ATTACK、CORE RUSH、PRACTICE |
 | 入力 | 上下左右キー、A、B |
 | 通常終了条件 | 合法な落下先が全列でなくなる |
 | TIME ATTACK終了条件 | 開始から60秒経過、または通常のゲームオーバー |
@@ -256,6 +256,16 @@ NORMALとTIME ATTACKで別々のハイスコアを保存する。保存キーは
 2. `TIME ATTACK`
 3. `ACHIEVEMENTS`
 4. `STATISTICS`
+
+タイトル画面のROOTメニューから`PRACTICE`を選択できる。PRACTICEでは、固定シナリオ`BASIC_MERGE`を使用する。
+
+- 初期盤面は`(2,3)=8`、`(4,3)=8`。
+- NEXTの生成列は`2, 2, 4, 8`で、末尾まで進むと先頭へ戻る。
+- 盤面、マージ、回転、HOLD、UNDO、ゲームオーバー判定は通常ルールを使用する。
+- タイマー、ハイスコア保存、TIME UP、CORE RUSH勝利判定は使用しない。
+- シナリオの`objectives`でクリア目標を設定できる。
+- `TILE_VALUE`は指定値以上のブロック作成、`COMBO`は指定コンボ数、`SCORE`は指定スコア、`MERGE_COUNT`は指定マージ回数を目標とする。
+- 複数目標は`objectiveMode`が`ANY`ならいずれか、`ALL`ならすべて達成した時点でクリアする。
 
 ACHIEVEMENTS画面は現在`NO ACHIEVEMENTS YET`を表示するだけで、実績データは未実装である。STATISTICS画面はNORMALとTIME ATTACKのハイスコアを表示する。
 

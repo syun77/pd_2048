@@ -22,6 +22,8 @@ function UndoController:save(action)
         holdValue = state.holdValue, holdAvailable = state.holdAvailable,
         lastRandomBlockValue = state.lastRandomBlockValue,
         consecutiveRandomBlockCount = state.consecutiveRandomBlockCount,
+        practiceNextIndex = state.practiceNextIndex,
+        practiceMergeCount = state.practiceMergeCount,
         nextValues = state.nextValues,
     }, action)
 end
@@ -64,6 +66,9 @@ function UndoController:restore()
     state.holdAvailable = restored.holdAvailable
     state.lastRandomBlockValue = restored.lastRandomBlockValue or 0
     state.consecutiveRandomBlockCount = restored.consecutiveRandomBlockCount or 0
+    state.practiceNextIndex = restored.practiceNextIndex or 1
+    state.practiceMergeCount = restored.practiceMergeCount or 0
+    state.practiceVictoryPending = false
     state.nextValues = restored.nextValues
 
     self.session:resetCombo()

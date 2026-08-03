@@ -12,6 +12,8 @@ function UndoHistory.push(history, state, action)
         holdAvailable = state.holdAvailable,
         lastRandomBlockValue = state.lastRandomBlockValue,
         consecutiveRandomBlockCount = state.consecutiveRandomBlockCount,
+        practiceNextIndex = state.practiceNextIndex,
+        practiceMergeCount = state.practiceMergeCount,
         hasRotation = false, rotationClockwise = false, action = action, nextValues = {},
     }
     for i = 1, Config.NEXT_QUEUE_COUNT do snapshot.nextValues[i] = state.nextValues[i] end
