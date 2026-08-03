@@ -46,3 +46,4 @@ luac.out
 pd_2048/builds/*.*
 !pd_2048/builds/.gitkeep
 
+仕様書/.practice_editor_settings.json
