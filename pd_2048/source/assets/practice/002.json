@@ -1,0 +1,14 @@
+{
+  "id": "002",
+  "label": "4 COMBO",
+  "initialBoard": [
+    { "x": 2, "y": 3, "value": 8 },
+    { "x": 4, "y": 3, "value": 8 }
+  ],
+  "nextValues": [2, 2, 2, 2, 4, 4, 8, 8],
+  "nextPolicy": "LOOP",
+  "objectiveMode": "ANY",
+  "objectives": [
+    { "type": "COMBO", "value": 4 }
+  ]
+}

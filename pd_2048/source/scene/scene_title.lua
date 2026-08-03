@@ -2,6 +2,7 @@
 タイトル画面.
 ===============================================]]
 import "game_config"
+import "practice_stage_loader"
 
 local pd <const> = playdate
 
@@ -19,8 +20,7 @@ function TitleScene.new(context)
             { label = "NORMAL GAME", scene = GameConfig.SCENE.GAME,
               mode = GameConfig.GAME_MODE.NORMAL },
             { label = "TIME ATTACK", submenu = true },
-            { label = "PRACTICE", scene = GameConfig.SCENE.GAME,
-              mode = GameConfig.GAME_MODE.PRACTICE },
+            { label = "PRACTICE", submenu = true, submenuPage = "PRACTICE" },
             { label = "ACHIEVEMENTS", scene = GameConfig.SCENE.ACHIEVEMENTS },
             { label = "STATISTICS", scene = GameConfig.SCENE.STATISTICS },
         },
@@ -30,6 +30,7 @@ function TitleScene.new(context)
             { label = "2048 CORE RUSH", scene = GameConfig.SCENE.GAME,
               mode = GameConfig.GAME_MODE.CORE_RUSH },
         },
+        practiceItems = {},
     }, TitleScene)
 end
 
@@ -38,11 +39,21 @@ function TitleScene:enter()
 	-- メニュー用BGMを再生.
     self.context.sound:playMenuBgm()
     self.page = "ROOT"
+    self.selectedIndex = 1
+    self.practiceItems = {}
+    for _, stage in ipairs(PracticeStageLoader.loadAll()) do
+        table.insert(self.practiceItems, {
+            label = stage.label,
+            scene = GameConfig.SCENE.GAME,
+            mode = GameConfig.GAME_MODE.PRACTICE,
+            practiceStage = stage,
+        })
+    end
 end
 
 -- 更新.
 function TitleScene:update()
-	local items = self.page == "ROOT" and self.menuItems or self.timeAttackItems
+    local items = self:getCurrentItems()
     -- 選択項目.
     local previousIndex = self.selectedIndex
     if pd.buttonJustPressed(pd.kButtonB) and self.page ~= "ROOT" then
@@ -68,12 +79,12 @@ function TitleScene:update()
         self.context.sound:play_se("decide")
         local item = items[self.selectedIndex]
         if item.submenu then
-            self.page = "TIME_ATTACK"
+            self.page = item.submenuPage
             self.selectedIndex = 1
             return
         end
         if item.mode ~= nil then
-            self.context.game:start(item.mode)
+            self.context.game:start(item.mode, item.practiceStage)
         end
         self.manager:change(item.scene)
     end
@@ -81,9 +92,15 @@ end
 
 -- 描画.
 function TitleScene:draw()
-    local items = self.page == "ROOT" and self.menuItems or self.timeAttackItems
-    local title = nil -- タイトル文字.
+    local items = self:getCurrentItems()
+    local title = self.page == "ROOT" and nil or self.page
     self.context.titleRenderer:drawTitle(self.selectedIndex, items, title)
+end
+
+function TitleScene:getCurrentItems()
+    if self.page == "ROOT" then return self.menuItems end
+    if self.page == "TIME_ATTACK" then return self.timeAttackItems end
+    return self.practiceItems
 end
 
 _G.TitleScene = TitleScene

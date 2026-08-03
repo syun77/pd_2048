@@ -257,7 +257,7 @@ NORMALとTIME ATTACKで別々のハイスコアを保存する。保存キーは
 3. `ACHIEVEMENTS`
 4. `STATISTICS`
 
-タイトル画面のROOTメニューから`PRACTICE`を選択できる。PRACTICEでは、固定シナリオ`BASIC_MERGE`を使用する。
+タイトル画面のROOTメニューから`PRACTICE`を選択できる。PRACTICEを選択すると、`assets/practice`内の連番JSONステージ一覧を読み込む。各ステージの`label`をメニュー項目として表示し、選択したJSONの盤面・NEXT・クリア目標を使用する。
 
 - 初期盤面は`(2,3)=8`、`(4,3)=8`。
 - NEXTの生成列は`2, 2, 4, 8`で、末尾まで進むと先頭へ戻る。

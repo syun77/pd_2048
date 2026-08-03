@@ -7,7 +7,7 @@ import "game/undo_controller"
 import "board/board_transform"
 import "board/board_rules"
 import "tile_generator"
-import "practice_scenarios"
+import "practice_stage_loader"
 import "cursor_controller"
 import "input/input_command"
 import "input/auto_player"
@@ -27,6 +27,7 @@ function GameController.new(dependencies)
     self.cursorController = CursorController.new()
     self.autoPlayer = AutoPlayer.new()
     self.autoPlayEnabled = false
+    self.practiceStage = nil
     self.session = GameSession.new(self.state)
     self.undoController = UndoController.new({
         state = self.state,
@@ -592,9 +593,10 @@ function GameController:applyPracticeScenario(scenario)
     end
 end
 
-function GameController:start(mode)
+function GameController:start(mode, practiceStage)
     local state = self.state
     state.mode = mode or Config.GAME_MODE.NORMAL
+    if practiceStage ~= nil then self.practiceStage = practiceStage end
     self:clearBoard()
     state.result = nil
     state.score = 0
@@ -651,7 +653,12 @@ function GameController:start(mode)
     self.autoPlayer:reset()
     state.previewImpulseRotationDegrees = 0
     if state.mode == Config.GAME_MODE.PRACTICE then
-        self:applyPracticeScenario(PracticeScenarios[1])
+        if self.practiceStage == nil then
+            local stages = PracticeStageLoader.loadAll()
+            self.practiceStage = stages[1]
+        end
+        assert(self.practiceStage ~= nil, "No practice stages found")
+        self:applyPracticeScenario(self.practiceStage)
         for i = 1, Config.NEXT_QUEUE_COUNT do
             state.nextValues[i] = self:getPracticeNextValue()
         end
