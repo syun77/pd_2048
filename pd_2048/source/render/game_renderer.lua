@@ -234,6 +234,10 @@ function GameRenderer:drawHoldAnimation()
     local currentX = Config.BOARD_X + (state.cursorX - 1) * Config.CELL_SIZE
     local currentY = Config.BOARD_Y - Config.CELL_SIZE
     local holdX, holdY = self:getHoldTilePosition()
+    local nextCenterX = Config.NEXT_BOX_X + Config.NEXT_BOX_WIDTH * 0.5
+    local nextCenterY = Config.NEXT_BOX_Y + Config.NEXT_BOX_HEIGHT * 0.5
+    local nextX = nextCenterX - Config.CELL_SIZE * 0.5
+    local nextY = nextCenterY - Config.CELL_SIZE * 0.5
 
     if state.holdAnimationSourceValue ~= 0 then
         BoardRenderer.tile(state.holdAnimationSourceValue,
@@ -244,6 +248,11 @@ function GameRenderer:drawHoldAnimation()
         BoardRenderer.tile(state.holdAnimationReturnValue,
             holdX + (currentX - holdX) * progress,
             holdY + (currentY - holdY) * progress)
+    end
+    if state.holdAnimationNextValue ~= 0 then
+        BoardRenderer.tile(state.holdAnimationNextValue,
+            nextX + (currentX - nextX) * progress,
+            nextY + (currentY - nextY) * progress)
     end
 end
 

@@ -61,6 +61,7 @@ function GameState.new()
         activeMergeX = 0, activeMergeY = 0,
         nextAnimationGameOver = false,
         holdAnimationSourceValue = 0, holdAnimationReturnValue = 0,
+        holdAnimationNextValue = 0,
         rewindHoldAnimationActive = false,
         rotationEvaluation = 0,
         previewImpulseRotationDegrees = 0,

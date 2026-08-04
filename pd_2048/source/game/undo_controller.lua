@@ -70,6 +70,7 @@ function UndoController:restore()
     state.practiceMergeCount = restored.practiceMergeCount or 0
     state.practiceVictoryPending = false
     state.nextValues = restored.nextValues
+    state.holdAnimationNextValue = 0
 
     self.session:resetCombo()
     state.rotationEvaluation = 0

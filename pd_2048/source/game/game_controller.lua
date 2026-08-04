@@ -638,6 +638,7 @@ function GameController:start(mode, practiceStage)
     state.activeMergeX, state.activeMergeY = 0, 0
     state.nextAnimationGameOver = false
     state.holdAnimationSourceValue, state.holdAnimationReturnValue = 0, 0
+    state.holdAnimationNextValue = 0
     state.rotationEvaluation = 0
     state.nextValues = {}
     state.practiceScenarioId = nil
@@ -685,22 +686,21 @@ end
 
 function GameController:holdCurrentBlock()
     local state = self.state
-    if not state.holdAvailable then
-        self.sound:play_se("error")
-        self:setMessage("HOLD USED", 700)
-        return
-    end
-    self.undoController:save("HOLD")
     local currentValue = state.nextValues[1]
     state.holdAnimationSourceValue = currentValue
     state.holdAnimationReturnValue = state.holdValue
+    state.holdAnimationNextValue = 0
     if state.holdValue == 0 then
         state.holdValue = currentValue
         self:advanceNextQueue()
+        -- 空HOLDでは、繰り上がったNEXTを選択列の落下開始位置へ移動する。
+        state.holdAnimationNextValue = state.nextValues[1]
     else
         state.holdValue, state.nextValues[1] = currentValue, state.holdValue
     end
-    state.holdAvailable = false
+    -- HOLDはDROP前の待機中であれば何度でも使用できる。
+    -- UNDOはDROP開始時のスナップショットへ戻すため、HOLD単体は履歴に残さない。
+    state.holdAvailable = true
     state.rewindHoldAnimationActive = false
     self.sound:play_se("hold")
     state.animationProgress = 0
@@ -712,6 +712,7 @@ function GameController:finishHoldAnimation()
     local state = self.state
     state.holdAnimationSourceValue = 0
     state.holdAnimationReturnValue = 0
+    state.holdAnimationNextValue = 0
     state.rewindHoldAnimationActive = false
     if not self:canDropInAnyColumn() then self:beginGameOver()
     else state.phase = GamePhase.INPUT end

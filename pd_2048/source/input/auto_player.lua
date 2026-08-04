@@ -51,12 +51,8 @@ end
 function AutoPlayer:poll(_, context)
     -- 自動プレイ開始時は、まずHOLDを実行してHOLDを考慮した状態にする。
     if self.firstHoldPending then
-        if context.holdAvailable then
-            self.firstHoldPending = false
-            return InputCommand.HOLD
-        end
-        -- 自動プレイを途中で有効にした場合など、HOLD不可でも停止しない。
         self.firstHoldPending = false
+        return InputCommand.HOLD
     end
 
     if self.targetColumn == nil then
@@ -64,7 +60,7 @@ function AutoPlayer:poll(_, context)
         local candidate = chooseCandidate(currentCandidates, context.cursorX, true)
 
         -- 現在ブロックにマージ先がなければ、HOLD中のブロックを候補にする。
-        if candidate == nil and context.holdAvailable and context.holdValue ~= 0 then
+        if candidate == nil and context.holdValue ~= 0 then
             local holdCandidates = context.getCandidates(context.holdValue)
             if chooseCandidate(holdCandidates, context.cursorX, true) ~= nil then
                 return InputCommand.HOLD
@@ -77,7 +73,7 @@ function AutoPlayer:poll(_, context)
         end
 
         -- 現在ブロックに接続先もない場合は、HOLD中のブロックを検討する。
-        if candidate == nil and context.holdAvailable and context.holdValue ~= 0 then
+        if candidate == nil and context.holdValue ~= 0 then
             local holdCandidates = context.getCandidates(context.holdValue)
             if chooseConnectionCandidate(holdCandidates, context.cursorX) ~= nil then
                 return InputCommand.HOLD
