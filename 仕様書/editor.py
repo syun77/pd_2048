@@ -138,6 +138,7 @@ PREVIEW_CENTER_MARK_INSET = 24
 PREVIEW_CENTER_MARK_SIZE = 24
 PREVIEW_NEXT_QUEUE_SIZE = 4
 PREVIEW_NEXT_DISPLAY_COUNT = 3
+PREVIEW_ROTATION_DELAY_MS = 200
 
 # Preview game parameters
 INITIAL_CURSOR_COLUMN = BOARD_SIZE // 2
@@ -825,6 +826,8 @@ class PreviewWindow(tk.Toplevel):
         self.random = random.Random(stage.get("randomSeed", DEFAULT_RANDOM_SEED))
         self.complete = False
         self.game_over = False
+        self.drop_pending = False
+        self.drop_after_id = None
         self.cursor_var = tk.StringVar()
         self.info_var = tk.StringVar()
         self._build_ui()
@@ -871,6 +874,10 @@ class PreviewWindow(tk.Toplevel):
         self.log.configure(state="disabled")
 
     def reset(self) -> None:
+        if self.drop_after_id is not None:
+            self.after_cancel(self.drop_after_id)
+            self.drop_after_id = None
+        self.drop_pending = False
         self.board = [[EMPTY_CELL for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
         for block in self.stage.get("initialBoard", []):
             self.board[block["y"] - 1][block["x"] - 1] = block["value"]
@@ -1012,11 +1019,18 @@ class PreviewWindow(tk.Toplevel):
         if evaluation:
             clockwise = evaluation > 0
             self._rotate(clockwise)
+            self._draw_now()
             x, y = active
             active = (ROTATION_EDGE - y, x) if clockwise else (y, ROTATION_EDGE - x)
             self._log("ROTATE " + (ROTATION_CLOCKWISE if clockwise
                                      else ROTATION_COUNTER_CLOCKWISE))
             self._resolve_after_rotation(active)
+
+    def _draw_now(self) -> None:
+        """Redraw the preview immediately, including delayed rotation updates."""
+        self._draw()
+        self.update_idletasks()
+        self.update()
 
     def _resolve_after_rotation(self, active: tuple[int, int]) -> None:
         while True:
@@ -1036,19 +1050,33 @@ class PreviewWindow(tk.Toplevel):
             self._log(f"MERGE AFTER ROTATION -> {value}")
 
     def drop(self) -> None:
-        if self.complete or self.game_over:
+        if self.complete or self.game_over or self.drop_pending:
             return
         cell = self._find_drop_cell(self.cursor)
         if cell is None:
             self._log(f"DROP column={self.cursor + 1} -> NO SPACE")
+            self._draw()
             return
         x, y = cell
         self.combo = 0
         self.board[y][x] = self.current_value
+        self._draw_now()
         self.turn += 1
         self._log(f"DROP column={x + 1} cell=({x + 1},{y + 1}) value={self.current_value}")
         evaluation = self._position_evaluation(x) * DROP_EVALUATION_MULTIPLIER
-        self._resolve((x, y), evaluation)
+        self.drop_pending = True
+        self.drop_after_id = self.after(
+            PREVIEW_ROTATION_DELAY_MS,
+            lambda: self._finish_drop((x, y), evaluation),
+        )
+
+    def _finish_drop(self, active: tuple[int, int], evaluation: int) -> None:
+        self.drop_after_id = None
+        if self.complete or self.game_over:
+            self.drop_pending = False
+            return
+        self._resolve(active, evaluation)
+        self.drop_pending = False
         self.hold_available = True
         self._ensure_queue(PREVIEW_NEXT_QUEUE_SIZE)
         self.current_value = self.next_queue.pop(0) if self.next_queue else None
@@ -1065,10 +1093,10 @@ class PreviewWindow(tk.Toplevel):
                                          for column in range(BOARD_SIZE)):
             self.game_over = True
             self._log("*** GAME OVER: NO DROP AVAILABLE ***")
-        self._draw()
+        self._draw_now()
 
     def hold(self) -> None:
-        if self.complete or self.game_over:
+        if self.complete or self.game_over or self.drop_pending:
             return
         if not self.hold_available:
             self._log("HOLD -> UNAVAILABLE")
@@ -1090,6 +1118,8 @@ class PreviewWindow(tk.Toplevel):
         self._draw()
 
     def move_cursor(self, delta: int) -> None:
+        if self.drop_pending:
+            return
         self.cursor = max(MIN_CURSOR, min(BOARD_SIZE - 1, self.cursor + delta))
         self._draw()
 
@@ -1166,6 +1196,7 @@ class PreviewWindow(tk.Toplevel):
                           f"Move limit: {self.turn_limit or '-'}\n"
                           f"Score: {self.score}\nCombo: {self.combo}\nMerges: {self.merge_count}")
         self.cursor_var.set(f"Column: {self.cursor + 1}")
+        self.canvas.update_idletasks()
 
 if __name__ == "__main__":
     StageEditor().mainloop()
