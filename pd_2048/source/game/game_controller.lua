@@ -220,6 +220,14 @@ function GameController:getPracticeNextValue()
     end
 
     local value = values[state.practiceNextIndex]
+    if state.practiceNextPolicy == "FIXED" then
+        if value == nil then
+            state.practiceNextExhausted = true
+            return values[#values] or 2
+        end
+        state.practiceNextIndex += 1
+        return value
+    end
     state.practiceNextIndex += 1
     if state.practiceNextIndex > #values then
         state.practiceNextIndex = 1
@@ -233,7 +241,8 @@ function GameController:finishTurn()
     state.rotationEndBoard = nil
     state.holdAvailable = true
     self:advanceNextQueue()
-    state.nextAnimationGameOver = not self:canDropInAnyColumn()
+    state.nextAnimationGameOver = state.practiceNextExhausted
+        or not self:canDropInAnyColumn()
     state.animationProgress = 0
     state.animationDuration = 0.30
     state.phase = GamePhase.NEXT_ANIM
@@ -566,6 +575,7 @@ function GameController:applyPracticeScenario(scenario)
     state.practiceNextValues = {}
     state.practiceNextIndex = 1
     state.practiceNextPolicy = scenario.nextPolicy or "LOOP"
+    state.practiceNextExhausted = false
     state.practiceObjectiveMode = scenario.objectiveMode or "ANY"
     state.practiceObjectives = {}
     for i, objective in ipairs(scenario.objectives or {}) do
@@ -645,6 +655,7 @@ function GameController:start(mode, practiceStage)
     state.practiceNextValues = {}
     state.practiceNextIndex = 1
     state.practiceNextPolicy = nil
+    state.practiceNextExhausted = false
     state.practiceObjectives = {}
     state.practiceObjectiveMode = "ANY"
     state.practiceMergeCount = 0
@@ -714,7 +725,7 @@ function GameController:finishHoldAnimation()
     state.holdAnimationReturnValue = 0
     state.holdAnimationNextValue = 0
     state.rewindHoldAnimationActive = false
-    if not self:canDropInAnyColumn() then self:beginGameOver()
+    if state.practiceNextExhausted or not self:canDropInAnyColumn() then self:beginGameOver()
     else state.phase = GamePhase.INPUT end
 end
 

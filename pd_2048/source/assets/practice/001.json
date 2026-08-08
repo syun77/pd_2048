@@ -42,5 +42,6 @@
       "type": "TILE_VALUE",
       "value": 16
     }
-  ]
+  ],
+  "turnLimit": 0
 }

@@ -34,13 +34,14 @@ DEFAULT_RANDOM_VALUES = [2, 4] # ランダムブロックの値.
 DEFAULT_RANDOM_WEIGHTS = [90, 10] # ランダムブロックの出現確率.
 DEFAULT_NEXT_POLICY = "LOOP" # NEXTポリシー: ループ.
 RANDOM_NEXT_POLICY = "RANDOM" # NEXTポリシー: ランダム.
+FIXED_NEXT_POLICY = "FIXED" # NEXTポリシー: 固定列終了.
 DEFAULT_OBJECTIVE_MODE = "ANY"
 ALL_OBJECTIVE_MODE = "ALL"
 DEFAULT_OBJECTIVE_TYPE = "TILE_VALUE"
 DEFAULT_OBJECTIVE_VALUE = 64
 DEFAULT_TURN_LIMIT = 0
 MAX_TURN_LIMIT = 999
-NEXT_POLICY_OPTIONS = [DEFAULT_NEXT_POLICY, RANDOM_NEXT_POLICY]
+NEXT_POLICY_OPTIONS = [DEFAULT_NEXT_POLICY, FIXED_NEXT_POLICY, RANDOM_NEXT_POLICY]
 OBJECTIVE_MODE_OPTIONS = [DEFAULT_OBJECTIVE_MODE, ALL_OBJECTIVE_MODE]
 OBJECTIVE_TYPE_OPTIONS = ["TILE_VALUE", "COMBO", "SCORE", "MERGE_COUNT"]
 OBJECTIVE_TYPE_LABELS = {
@@ -210,6 +211,7 @@ class StageEditor(tk.Tk):
         self.value_tiles: list[tuple[tk.Canvas, int]] = []
         self.next_listbox: tk.Listbox | None = None
         self._updating_next_listbox = False
+        self.random_field_widgets: list[tk.Widget] = []
         self._build_ui()
         self._bind_shortcuts()
         self._load_last_file()
@@ -303,13 +305,19 @@ class StageEditor(tk.Tk):
                               values=NEXT_POLICY_OPTIONS, state="readonly",
                               width=POLICY_COMBOBOX_WIDTH)
         policy.grid(row=1, column=1, sticky="w", pady=FORM_ROW_PAD_Y)
-        policy.bind("<<ComboboxSelected>>", lambda _: self._mark_changed())
-        ttk.Label(form, text="Random values").grid(row=4, column=0, sticky="w")
-        ttk.Entry(form, textvariable=self.random_values_var, width=20).grid(
-            row=4, column=1, columnspan=3, sticky="w")
-        ttk.Label(form, text="Random weights").grid(row=5, column=0, sticky="w")
-        ttk.Entry(form, textvariable=self.random_weights_var, width=20).grid(
-            row=5, column=1, columnspan=3, sticky="w")
+        policy.bind("<<ComboboxSelected>>", self._select_next_policy)
+        random_values_label = ttk.Label(form, text="Random values")
+        random_values_label.grid(row=4, column=0, sticky="w")
+        random_values_entry = ttk.Entry(form, textvariable=self.random_values_var, width=20)
+        random_values_entry.grid(row=4, column=1, columnspan=3, sticky="w")
+        random_weights_label = ttk.Label(form, text="Random weights")
+        random_weights_label.grid(row=5, column=0, sticky="w")
+        random_weights_entry = ttk.Entry(form, textvariable=self.random_weights_var, width=20)
+        random_weights_entry.grid(row=5, column=1, columnspan=3, sticky="w")
+        self.random_field_widgets = [
+            random_values_label, random_values_entry,
+            random_weights_label, random_weights_entry,
+        ]
 
         ttk.Label(form, text="Move Limit (0 = unlimited)").grid(
             row=6, column=0, sticky="w")
@@ -342,16 +350,6 @@ class StageEditor(tk.Tk):
         buttons.grid(row=1, column=2, sticky="ew", pady=BUTTONS_PAD_Y)
         ttk.Button(buttons, text="Preview / Check", command=self.preview).grid(
             row=0, column=0, columnspan=2, sticky="w", pady=(0, BUTTON_PAD_X))
-        ttk.Button(buttons, text="Undo", command=self.undo).grid(
-            row=1, column=0, sticky="w", padx=(0, BUTTON_PAD_X))
-        ttk.Button(buttons, text="Redo", command=self.redo).grid(
-            row=1, column=1, sticky="w", padx=BUTTON_PAD_X)
-        ttk.Button(buttons, text="Open", command=self.open_stage).grid(
-            row=2, column=0, sticky="w", padx=(0, BUTTON_PAD_X),
-            pady=(BUTTON_PAD_X, 0))
-        ttk.Button(buttons, text="Save", command=self.save_stage).grid(
-            row=2, column=1, sticky="w", padx=BUTTON_PAD_X,
-            pady=(BUTTON_PAD_X, 0))
         ttk.Label(root, textvariable=self.status_var, anchor="w").grid(
             row=2, column=0, columnspan=3, sticky="ew")
         self._reset_model(new_stage())
@@ -384,6 +382,18 @@ class StageEditor(tk.Tk):
             return
         self._mark_changed()
         self.objective_type_var.set(internal_value)
+
+    def _select_next_policy(self, _event=None) -> None:
+        self._mark_changed()
+        self._update_random_fields_visibility()
+
+    def _update_random_fields_visibility(self) -> None:
+        if self.policy_var.get() == RANDOM_NEXT_POLICY:
+            for widget in self.random_field_widgets:
+                widget.grid()
+        else:
+            for widget in self.random_field_widgets:
+                widget.grid_remove()
 
     def _select_next_item(self, _event=None) -> None:
         if self._updating_next_listbox or self.next_listbox is None:
@@ -500,6 +510,7 @@ class StageEditor(tk.Tk):
                 self.board[block["y"] - 1][block["x"] - 1] = block.get("value", EMPTY_CELL)
         self.label_var.set(self.stage.get("label", ""))
         self.policy_var.set(self.stage.get("nextPolicy", DEFAULT_NEXT_POLICY))
+        self._update_random_fields_visibility()
         values = self.stage.get("nextValues", [])
         for i, var in enumerate(self.next_vars):
             var.set(str(values[i]) if i < len(values) else str(DEFAULT_BLOCK_VALUE))
@@ -555,6 +566,7 @@ class StageEditor(tk.Tk):
         self.history.append(self._snapshot())
         self.redo_history.clear()
         self.dirty = True
+        self._update_title()
 
     # ---------- Board ----------
     def _draw_board(self) -> None:
@@ -754,7 +766,7 @@ class StageEditor(tk.Tk):
 
     def _update_title(self) -> None:
         name = self.current_path.name if self.current_path else "Untitled"
-        self.title(("*" if self.dirty else "") + name + " - " + WINDOW_TITLE)
+        self.title(name + ("*" if self.dirty else "") + " - " + WINDOW_TITLE)
 
     # ---------- Undo / redo ----------
     def undo(self) -> None:
@@ -892,17 +904,26 @@ class PreviewWindow(tk.Toplevel):
             return DEFAULT_FALLBACK_VALUE
         return self.random.choices(values, weights=weights, k=1)[0]
 
-    def _next_value(self) -> int:
+    def _next_value(self) -> int | None:
         if self.stage.get("nextPolicy", DEFAULT_NEXT_POLICY) == RANDOM_NEXT_POLICY:
             return self._random_value()
         values = self.stage.get("nextValues", [DEFAULT_BLOCK_VALUE]) or [DEFAULT_BLOCK_VALUE]
+        if self.stage.get("nextPolicy", DEFAULT_NEXT_POLICY) == FIXED_NEXT_POLICY:
+            if self.next_index >= len(values):
+                return None
+            value = values[self.next_index]
+            self.next_index += 1
+            return value
         value = values[self.next_index % len(values)]
         self.next_index += 1
         return value
 
     def _ensure_queue(self, count: int) -> None:
         while len(self.next_queue) < count:
-            self.next_queue.append(self._next_value())
+            value = self._next_value()
+            if value is None:
+                return
+            self.next_queue.append(value)
 
     def _is_playable(self, x: int, y: int) -> bool:
         return 0 <= x < BOARD_SIZE and 0 <= y < BOARD_SIZE and (x, y) != CENTER
@@ -1030,9 +1051,12 @@ class PreviewWindow(tk.Toplevel):
         self._resolve((x, y), evaluation)
         self.hold_available = True
         self._ensure_queue(PREVIEW_NEXT_QUEUE_SIZE)
-        self.current_value = self.next_queue.pop(0)
+        self.current_value = self.next_queue.pop(0) if self.next_queue else None
         self._ensure_queue(PREVIEW_NEXT_QUEUE_SIZE)
         self._check_objective()
+        if self.current_value is None and not self.complete:
+            self.game_over = True
+            self._log("*** GAME OVER: FIXED NEXT EXHAUSTED ***")
         if (not self.complete and self.turn_limit > DEFAULT_TURN_LIMIT
                 and self.turn >= self.turn_limit):
             self.game_over = True
@@ -1052,9 +1076,13 @@ class PreviewWindow(tk.Toplevel):
         if self.hold_value == NO_HOLD_VALUE:
             self.hold_value = self.current_value
             self._ensure_queue(HOLD_QUEUE_SIZE)
-            self.current_value = self.next_queue.pop(0)
+            self.current_value = (self.next_queue.pop(0)
+                                  if self.next_queue else None)
             self._ensure_queue(PREVIEW_NEXT_QUEUE_SIZE)
             self._log(f"HOLD {self.hold_value}; next current={self.current_value}")
+            if self.current_value is None:
+                self.game_over = True
+                self._log("*** GAME OVER: FIXED NEXT EXHAUSTED ***")
         else:
             self.current_value, self.hold_value = self.hold_value, self.current_value
             self._log(f"HOLD SWAP current={self.current_value} hold={self.hold_value}")
@@ -1121,7 +1149,7 @@ class PreviewWindow(tk.Toplevel):
         self.canvas.create_text(current_left + PREVIEW_CELL_SIZE / 2,
                                 (PREVIEW_BLOCK_TOP + PREVIEW_TOP
                                  - PREVIEW_BLOCK_BOTTOM_GAP) / 2,
-                                text=str(self.current_value), fill=BLOCK_TEXT_FILL,
+                                text=str(self.current_value or "-"), fill=BLOCK_TEXT_FILL,
                                 font=BLOCK_FONT)
         cursor_y = PREVIEW_TOP + PREVIEW_CELL_SIZE * BOARD_SIZE + PREVIEW_CURSOR_TOP_GAP
         self.canvas.create_rectangle(self.cursor * PREVIEW_CELL_SIZE

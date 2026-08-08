@@ -67,6 +67,7 @@ function UndoController:restore()
     state.lastRandomBlockValue = restored.lastRandomBlockValue or 0
     state.consecutiveRandomBlockCount = restored.consecutiveRandomBlockCount or 0
     state.practiceNextIndex = restored.practiceNextIndex or 1
+    state.practiceNextExhausted = restored.practiceNextExhausted or false
     state.practiceMergeCount = restored.practiceMergeCount or 0
     state.practiceVictoryPending = false
     state.nextValues = restored.nextValues

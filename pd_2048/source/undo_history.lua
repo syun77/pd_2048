@@ -13,6 +13,7 @@ function UndoHistory.push(history, state, action)
         lastRandomBlockValue = state.lastRandomBlockValue,
         consecutiveRandomBlockCount = state.consecutiveRandomBlockCount,
         practiceNextIndex = state.practiceNextIndex,
+        practiceNextExhausted = state.practiceNextExhausted,
         practiceMergeCount = state.practiceMergeCount,
         hasRotation = false, rotationClockwise = false, action = action, nextValues = {},
     }

@@ -27,6 +27,7 @@ function GameState.new()
         practiceNextValues = {},
         practiceNextIndex = 1,
         practiceNextPolicy = nil,
+        practiceNextExhausted = false,
         practiceObjectives = {},
         practiceObjectiveMode = "ANY",
         practiceMergeCount = 0,
