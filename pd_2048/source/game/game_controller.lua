@@ -219,6 +219,11 @@ function GameController:promoteHoldIfNextEmpty()
     return promotedValue
 end
 
+function GameController:updateHoldAvailability()
+    local state = self.state
+    state.holdAvailable = state.nextValues[2] ~= 0 or state.holdValue ~= 0
+end
+
 function GameController:getPracticeNextValue()
     local state = self.state
     local values = state.practiceNextValues
@@ -241,6 +246,7 @@ function GameController:getPracticeNextValue()
             state.practiceNextExhausted = true
             return 0
         end
+        state.practiceNextIndex += 1
     elseif state.practiceNextPolicy ~= "STATIC" then
         state.practiceNextIndex += 1
         if state.practiceNextIndex > #values then
@@ -258,7 +264,7 @@ function GameController:finishTurn()
     state.holdAvailable = true
     self:advanceNextQueue()
     local promotedValue = self:promoteHoldIfNextEmpty()
-    state.holdAvailable = state.nextValues[2] ~= 0
+    self:updateHoldAvailability()
     if state.nextValues[1] == 0 then
         if state.practiceVictoryPending then
             self:beginPracticeVictory()
@@ -718,6 +724,7 @@ function GameController:start(mode, practiceStage)
             state.nextValues[i] = TileGenerator.nextForState(state.board, state)
         end
     end
+    self:updateHoldAvailability()
     if state.mode == Config.GAME_MODE.PRACTICE
         and #state.practiceObjectives > 0 then
         state.practiceObjectiveText = self:formatPracticeObjective(
@@ -735,10 +742,15 @@ end
 
 function GameController:holdCurrentBlock()
     local state = self.state
-    if not state.holdAvailable then return end
     local currentValue = state.nextValues[1]
     if currentValue == 0 then
         self:beginGameOver()
+        return
+    end
+    if not state.holdAvailable then
+		-- HOLDできない.
+		self:setMessage("CAN'T HOLD", 700)
+		self.sound:play_se("error")
         return
     end
     state.holdAnimationSourceValue = currentValue
@@ -755,7 +767,7 @@ function GameController:holdCurrentBlock()
     end
     -- HOLDはDROP前の待機中であれば何度でも使用できる。
     -- UNDOはDROP開始時のスナップショットへ戻すため、HOLD単体は履歴に残さない。
-    state.holdAvailable = state.nextValues[2] ~= 0
+    self:updateHoldAvailability()
     state.rewindHoldAnimationActive = false
     self.sound:play_se("hold")
     state.animationProgress = 0
