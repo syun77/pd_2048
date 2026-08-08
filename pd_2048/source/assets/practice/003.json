@@ -1,0 +1,47 @@
+{
+  "id": "001",
+  "label": "COMBO 4",
+  "initialBoard": [
+    {
+      "x": 2,
+      "y": 3,
+      "value": 8
+    },
+    {
+      "x": 4,
+      "y": 3,
+      "value": 8
+    }
+  ],
+  "nextValues": [
+    2,
+    4,
+    2,
+    2,
+    8,
+    2,
+    4,
+    2,
+    4,
+    2
+  ],
+  "nextPolicy": "FIXED",
+  "nextRandom": {
+    "values": [
+      2,
+      4
+    ],
+    "weights": [
+      90,
+      10
+    ]
+  },
+  "objectiveMode": "ANY",
+  "objectives": [
+    {
+      "type": "COMBO",
+      "value": 4
+    }
+  ],
+  "turnLimit": 8
+}

@@ -690,7 +690,7 @@ class StageEditor(tk.Tk):
         self.status_var.set(f"Saved: {self.current_path.name}")
 
     def save_as(self) -> None:
-        path = filedialog.asksaveasfilename(initialdir=str(EDITOR_DIR),
+        path = filedialog.asksaveasfilename(initialdir=str(self._file_dialog_initial_dir()),
                                             initialfile=DEFAULT_SAVE_FILENAME,
                                             defaultextension=".json",
                                             filetypes=[("JSON", "*.json")])
@@ -701,10 +701,15 @@ class StageEditor(tk.Tk):
     def open_stage(self) -> None:
         if not self._confirm_discard():
             return
-        path = filedialog.askopenfilename(initialdir=str(EDITOR_DIR),
+        path = filedialog.askopenfilename(initialdir=str(self._file_dialog_initial_dir()),
                                           filetypes=[("JSON", "*.json")])
         if path:
             self._load_path(Path(path))
+
+    def _file_dialog_initial_dir(self) -> Path:
+        if self.current_path is not None and self.current_path.is_file():
+            return self.current_path.parent
+        return EDITOR_DIR
 
     def _load_path(self, path: Path) -> None:
         try:
