@@ -57,7 +57,7 @@ NEXT_COMBOBOX_WIDTH = 5
 NEXT_BOX_PAD_X = 2
 NEXT_BOX_PAD_BOTTOM = 3
 FIXED_NEXT_LIST_WIDTH = 18
-FIXED_NEXT_LIST_HEIGHT = 6
+FIXED_NEXT_LIST_HEIGHT = 10
 FIXED_NEXT_EMPTY_LABEL = "---"
 FIXED_NEXT_LABEL_PAD_Y = 6
 FIXED_NEXT_LIST_BOTTOM_PAD = 6
@@ -308,15 +308,18 @@ class StageEditor(tk.Tk):
 
         buttons = ttk.Frame(root)
         buttons.grid(row=1, column=2, sticky="ew", pady=BUTTONS_PAD_Y)
-        ttk.Button(buttons, text="Preview / Check", command=self.preview).pack(
-            side="left", padx=(0, FIRST_BUTTON_RIGHT_PAD))
-        ttk.Button(buttons, text="Undo", command=self.undo).pack(
-            side="left", padx=BUTTON_PAD_X)
-        ttk.Button(buttons, text="Redo", command=self.redo).pack(
-            side="left", padx=BUTTON_PAD_X)
-        ttk.Button(buttons, text="Save", command=self.save_stage).pack(side="right")
-        ttk.Button(buttons, text="Open", command=self.open_stage).pack(
-            side="right", padx=BUTTON_PAD_X)
+        ttk.Button(buttons, text="Preview / Check", command=self.preview).grid(
+            row=0, column=0, columnspan=2, sticky="w", pady=(0, BUTTON_PAD_X))
+        ttk.Button(buttons, text="Undo", command=self.undo).grid(
+            row=1, column=0, sticky="w", padx=(0, BUTTON_PAD_X))
+        ttk.Button(buttons, text="Redo", command=self.redo).grid(
+            row=1, column=1, sticky="w", padx=BUTTON_PAD_X)
+        ttk.Button(buttons, text="Open", command=self.open_stage).grid(
+            row=2, column=0, sticky="w", padx=(0, BUTTON_PAD_X),
+            pady=(BUTTON_PAD_X, 0))
+        ttk.Button(buttons, text="Save", command=self.save_stage).grid(
+            row=2, column=1, sticky="w", padx=BUTTON_PAD_X,
+            pady=(BUTTON_PAD_X, 0))
         ttk.Label(root, textvariable=self.status_var, anchor="w").grid(
             row=2, column=0, columnspan=3, sticky="ew")
         self._reset_model(new_stage())
