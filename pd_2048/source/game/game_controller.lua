@@ -263,6 +263,7 @@ function GameController:finishTurn()
     state.rotationEndBoard = nil
     state.holdAvailable = true
     self:advanceNextQueue()
+    self:updatePracticeObjective()
     local promotedValue = self:promoteHoldIfNextEmpty()
     self:updateHoldAvailability()
     if state.nextValues[1] == 0 then
@@ -293,6 +294,7 @@ function GameController:getPracticeMaxTileValue()
     self.state.board:foreach(function(_, _, value)
         if value > maxValue then maxValue = value end
     end)
+    if self.state.holdValue > maxValue then maxValue = self.state.holdValue end
     return maxValue
 end
 
@@ -758,12 +760,14 @@ function GameController:holdCurrentBlock()
     state.holdAnimationNextValue = 0
     if state.holdValue == 0 then
         state.holdValue = currentValue
+        self:updatePracticeObjective()
         self:advanceNextQueue()
         self:promoteHoldIfNextEmpty()
         -- 空HOLDでは、繰り上がったNEXTを選択列の落下開始位置へ移動する。
         state.holdAnimationNextValue = state.nextValues[1]
     else
         state.holdValue, state.nextValues[1] = currentValue, state.holdValue
+        self:updatePracticeObjective()
     end
     -- HOLDはDROP前の待機中であれば何度でも使用できる。
     -- UNDOはDROP開始時のスナップショットへ戻すため、HOLD単体は履歴に残さない。
@@ -782,7 +786,9 @@ function GameController:finishHoldAnimation()
     state.holdAnimationReturnValue = 0
     state.holdAnimationNextValue = 0
     state.rewindHoldAnimationActive = false
-    if state.nextValues[1] == 0 or not self:canDropInAnyColumn() then self:beginGameOver()
+    if state.practiceVictoryPending then
+        self:beginPracticeVictory()
+    elseif state.nextValues[1] == 0 or not self:canDropInAnyColumn() then self:beginGameOver()
     else state.phase = GamePhase.INPUT end
 end
 

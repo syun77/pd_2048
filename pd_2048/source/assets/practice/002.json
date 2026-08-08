@@ -1,14 +1,47 @@
 {
-  "id": "002",
-  "label": "4 COMBO",
+  "id": "001",
+  "label": "MAKE 32",
   "initialBoard": [
-    { "x": 2, "y": 3, "value": 8 },
-    { "x": 4, "y": 3, "value": 8 }
+    {
+      "x": 2,
+      "y": 3,
+      "value": 8
+    },
+    {
+      "x": 4,
+      "y": 3,
+      "value": 8
+    }
   ],
-  "nextValues": [2, 2, 2, 2, 4, 4, 8, 8],
-  "nextPolicy": "LOOP",
+  "nextValues": [
+    2,
+    4,
+    16,
+    4,
+    2,
+    2,
+    2,
+    2,
+    4,
+    2
+  ],
+  "nextPolicy": "FIXED",
+  "nextRandom": {
+    "values": [
+      2,
+      4
+    ],
+    "weights": [
+      90,
+      10
+    ]
+  },
   "objectiveMode": "ANY",
   "objectives": [
-    { "type": "COMBO", "value": 4 }
-  ]
+    {
+      "type": "TILE_VALUE",
+      "value": 32
+    }
+  ],
+  "turnLimit": 6
 }

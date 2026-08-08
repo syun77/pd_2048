@@ -163,6 +163,7 @@ ROTATION_CLOCKWISE = "CLOCKWISE"
 ROTATION_COUNTER_CLOCKWISE = "COUNTER-CLOCKWISE"
 # キーバインド設定.
 KEY_BINDINGS = {
+    "open": ("<Command-o>", "<Control-o>"),
     "save": ("<Command-s>", "<Control-s>"),
     "undo": ("<Command-z>", "<Control-z>"),
     "redo": ("<Command-Shift-z>", "<Control-Shift-z>"),
@@ -358,6 +359,8 @@ class StageEditor(tk.Tk):
         self._reset_model(new_stage())
 
     def _bind_shortcuts(self) -> None:
+        for key in KEY_BINDINGS["open"]:
+            self.bind_all(key, lambda _: self.open_stage())
         for key in KEY_BINDINGS["save"]:
             self.bind_all(key, lambda _: self.save_stage())
         for key in KEY_BINDINGS["undo"]:
