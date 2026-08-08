@@ -38,9 +38,22 @@ DEFAULT_OBJECTIVE_MODE = "ANY"
 ALL_OBJECTIVE_MODE = "ALL"
 DEFAULT_OBJECTIVE_TYPE = "TILE_VALUE"
 DEFAULT_OBJECTIVE_VALUE = 64
+DEFAULT_TURN_LIMIT = 0
+MAX_TURN_LIMIT = 999
 NEXT_POLICY_OPTIONS = [DEFAULT_NEXT_POLICY, RANDOM_NEXT_POLICY]
 OBJECTIVE_MODE_OPTIONS = [DEFAULT_OBJECTIVE_MODE, ALL_OBJECTIVE_MODE]
 OBJECTIVE_TYPE_OPTIONS = ["TILE_VALUE", "COMBO", "SCORE", "MERGE_COUNT"]
+OBJECTIVE_TYPE_LABELS = {
+    "TILE_VALUE": "ブロック作成",
+    "COMBO": "コンボ数",
+    "SCORE": "スコア",
+    "MERGE_COUNT": "累計マージ数",
+}
+OBJECTIVE_TYPE_DISPLAY_OPTIONS = [OBJECTIVE_TYPE_LABELS[key]
+                                  for key in OBJECTIVE_TYPE_OPTIONS]
+OBJECTIVE_TYPE_VALUES_BY_LABEL = {
+    label: value for value, label in OBJECTIVE_TYPE_LABELS.items()
+}
 
 # Editor UI parameters
 EDITOR_PADDING = 8
@@ -61,6 +74,10 @@ FIXED_NEXT_LIST_HEIGHT = 10
 FIXED_NEXT_EMPTY_LABEL = "---"
 FIXED_NEXT_LABEL_PAD_Y = 6
 FIXED_NEXT_LIST_BOTTOM_PAD = 6
+FIXED_NEXT_DISABLED_BLEND_RATIO = 0.5
+FIXED_NEXT_DARK_BACKGROUND_THRESHOLD = 32768
+FIXED_NEXT_DARK_FOREGROUND = "#f0f0f0"
+FIXED_NEXT_LIGHT_FOREGROUND = "#202020"
 FORM_ROW_PAD_Y = 2
 OBJECTIVE_FRAME_PADDING = 5
 OBJECTIVE_FRAME_TOP_PAD = 8
@@ -82,8 +99,8 @@ CENTER_OUTLINE = "#999"
 BLOCK_FILL = "#222"
 BLOCK_TEXT_FILL = "white"
 BLOCK_INSET = 3
-CENTER_MARK_INSET = 20
 CENTER_MARK_SIZE = 24
+CENTER_MARK_INSET = (CELL_SIZE - CENTER_MARK_SIZE) // 2
 BLOCK_FONT = ("Helvetica", 16, "bold")
 VALUE_SELECTOR_FONT = ("Helvetica", 10, "bold")
 # 数値選択UIのパラメータ
@@ -161,6 +178,7 @@ def new_stage() -> dict:
                         "weights": DEFAULT_RANDOM_WEIGHTS.copy()},
         "objectiveMode": DEFAULT_OBJECTIVE_MODE,
         "objectives": [{"type": DEFAULT_OBJECTIVE_TYPE, "value": DEFAULT_OBJECTIVE_VALUE}],
+        "turnLimit": DEFAULT_TURN_LIMIT,
     }
 
 
@@ -182,7 +200,10 @@ class StageEditor(tk.Tk):
         self.random_weights_var = tk.StringVar(value=DEFAULT_RANDOM_WEIGHTS_TEXT)
         self.objective_mode_var = tk.StringVar(value=DEFAULT_OBJECTIVE_MODE)
         self.objective_type_var = tk.StringVar(value=DEFAULT_OBJECTIVE_TYPE)
+        self.objective_type_display_var = tk.StringVar()
         self.objective_value_var = tk.StringVar(value=DEFAULT_OBJECTIVE_VALUE_TEXT)
+        self.turn_limit_var = tk.StringVar(value=str(DEFAULT_TURN_LIMIT))
+        self.turn_limit_var.trace_add("write", lambda *_: self._refresh_next_listbox())
         self.status_var = tk.StringVar(value=DEFAULT_STATUS)
         self.board: list[list[int]] = []
         self.next_vars: list[tk.StringVar] = []
@@ -290,18 +311,29 @@ class StageEditor(tk.Tk):
         ttk.Entry(form, textvariable=self.random_weights_var, width=20).grid(
             row=5, column=1, columnspan=3, sticky="w")
 
+        ttk.Label(form, text="Move Limit (0 = unlimited)").grid(
+            row=6, column=0, sticky="w")
+        ttk.Spinbox(form, from_=DEFAULT_TURN_LIMIT, to=MAX_TURN_LIMIT,
+                    increment=1, textvariable=self.turn_limit_var,
+                    width=OBJECTIVE_VALUE_ENTRY_WIDTH).grid(
+                        row=6, column=1, sticky="w")
+
         objective = ttk.LabelFrame(form, text="Clear Objective",
                                    padding=OBJECTIVE_FRAME_PADDING)
-        objective.grid(row=6, column=0, columnspan=4, sticky="ew",
+        objective.grid(row=7, column=0, columnspan=4, sticky="ew",
                        pady=(OBJECTIVE_FRAME_TOP_PAD, 0))
         ttk.Label(objective, text="Mode").grid(row=0, column=0, sticky="w")
         ttk.Combobox(objective, textvariable=self.objective_mode_var,
                      values=OBJECTIVE_MODE_OPTIONS, state="readonly", width=8).grid(
                          row=0, column=1, sticky="w")
         ttk.Label(objective, text="Type").grid(row=1, column=0, sticky="w")
-        ttk.Combobox(objective, textvariable=self.objective_type_var,
-                     values=OBJECTIVE_TYPE_OPTIONS, state="readonly",
-                     width=OBJECTIVE_TYPE_COMBOBOX_WIDTH).grid(row=1, column=1, sticky="w")
+        objective_type = ttk.Combobox(
+                     objective, textvariable=self.objective_type_display_var,
+                     values=OBJECTIVE_TYPE_DISPLAY_OPTIONS, state="readonly",
+                     width=OBJECTIVE_TYPE_COMBOBOX_WIDTH,
+                     )
+        objective_type.grid(row=1, column=1, sticky="w")
+        objective_type.bind("<<ComboboxSelected>>", self._select_objective_type)
         ttk.Label(objective, text="Value").grid(row=2, column=0, sticky="w")
         ttk.Entry(objective, textvariable=self.objective_value_var,
                   width=OBJECTIVE_VALUE_ENTRY_WIDTH).grid(row=2, column=1, sticky="w")
@@ -337,12 +369,21 @@ class StageEditor(tk.Tk):
                          if self.next_listbox is not None else ())
         if selected_next:
             index = selected_next[0] - 1
-            if index >= 0 and self.next_vars[index].get() != str(value):
+            if index >= 0 and self._is_next_item_enabled(index + 1) \
+                    and self.next_vars[index].get() != str(value):
                 self._mark_changed()
                 self.next_vars[index].set(str(value))
                 self._refresh_next_listbox()
         self.selected_value.set(value)
         self._update_value_tiles()
+
+    def _select_objective_type(self, _event=None) -> None:
+        display_value = self.objective_type_display_var.get()
+        internal_value = OBJECTIVE_TYPE_VALUES_BY_LABEL.get(display_value)
+        if internal_value is None or internal_value == self.objective_type_var.get():
+            return
+        self._mark_changed()
+        self.objective_type_var.set(internal_value)
 
     def _select_next_item(self, _event=None) -> None:
         if self._updating_next_listbox or self.next_listbox is None:
@@ -351,26 +392,78 @@ class StageEditor(tk.Tk):
         if not selected:
             return
         index = selected[0] - 1
+        if index >= 0 and not self._is_next_item_enabled(index + 1):
+            self.next_listbox.selection_clear(0, tk.END)
+            return
         if index < 0 or self.next_vars[index].get() == str(self.selected_value.get()):
             return
         self._mark_changed()
         self.next_vars[index].set(str(self.selected_value.get()))
         self._refresh_next_listbox()
 
+    def _is_next_item_enabled(self, item_number: int) -> bool:
+        try:
+            turn_limit = int(self.turn_limit_var.get())
+        except ValueError:
+            turn_limit = DEFAULT_TURN_LIMIT
+        return turn_limit <= DEFAULT_TURN_LIMIT or item_number <= turn_limit
+
+    def _get_list_foregrounds(self) -> tuple[str, str]:
+        """Return theme-aware normal and subdued Listbox text colors."""
+        if self.next_listbox is None:
+            return FIXED_NEXT_LIGHT_FOREGROUND, "#888888"
+        try:
+            background = self.next_listbox.winfo_rgb(
+                self.next_listbox.cget("background"))
+        except tk.TclError:
+            return FIXED_NEXT_LIGHT_FOREGROUND, "#888888"
+        background_luminance = sum(background) / len(background)
+        normal = (FIXED_NEXT_DARK_FOREGROUND
+                  if background_luminance < FIXED_NEXT_DARK_BACKGROUND_THRESHOLD
+                  else FIXED_NEXT_LIGHT_FOREGROUND)
+        foreground = self.next_listbox.winfo_rgb(normal)
+        ratio = FIXED_NEXT_DISABLED_BLEND_RATIO
+        blended = tuple(
+            round(bg + (fg - bg) * ratio)
+            for fg, bg in zip(foreground, background)
+        )
+        disabled = "#%02x%02x%02x" % tuple(channel // 256 for channel in blended)
+        return normal, disabled
+
     def _refresh_next_listbox(self) -> None:
         if self.next_listbox is None:
             return
         selected = self.next_listbox.curselection()
         selected_index = selected[0] if selected else None
+        try:
+            turn_limit = int(self.turn_limit_var.get())
+        except ValueError:
+            turn_limit = DEFAULT_TURN_LIMIT
+        normal_foreground, disabled_foreground = self._get_list_foregrounds()
         self._updating_next_listbox = True
         try:
             self.next_listbox.delete(0, tk.END)
             self.next_listbox.insert(tk.END, FIXED_NEXT_EMPTY_LABEL)
             for index, var in enumerate(self.next_vars):
                 self.next_listbox.insert(tk.END, f"{index + 1:02}: {var.get()}")
-            if selected_index is not None and selected_index <= len(self.next_vars):
+                if turn_limit > DEFAULT_TURN_LIMIT and index + 1 > turn_limit:
+                    self.next_listbox.itemconfigure(
+                        index + 1,
+                        foreground=disabled_foreground)
+                else:
+                    self.next_listbox.itemconfigure(
+                        index + 1, foreground=normal_foreground)
+            selected_is_enabled = (
+                selected_index is not None
+                and (selected_index == 0
+                     or turn_limit <= DEFAULT_TURN_LIMIT
+                     or selected_index <= turn_limit)
+            )
+            if selected_is_enabled and selected_index <= len(self.next_vars):
                 self.next_listbox.selection_set(selected_index)
                 self.next_listbox.activate(selected_index)
+            elif selected_index is not None:
+                self.next_listbox.selection_clear(0, tk.END)
         finally:
             self._updating_next_listbox = False
 
@@ -417,8 +510,13 @@ class StageEditor(tk.Tk):
         self.objective_mode_var.set(self.stage.get("objectiveMode", DEFAULT_OBJECTIVE_MODE))
         objective = (self.stage.get("objectives") or
                      [{"type": DEFAULT_OBJECTIVE_TYPE, "value": DEFAULT_OBJECTIVE_VALUE}])[0]
-        self.objective_type_var.set(objective.get("type", DEFAULT_OBJECTIVE_TYPE))
+        objective_type = objective.get("type", DEFAULT_OBJECTIVE_TYPE)
+        self.objective_type_var.set(objective_type)
+        self.objective_type_display_var.set(
+            OBJECTIVE_TYPE_LABELS.get(objective_type,
+                                      OBJECTIVE_TYPE_LABELS[DEFAULT_OBJECTIVE_TYPE]))
         self.objective_value_var.set(str(objective.get("value", DEFAULT_OBJECTIVE_VALUE)))
+        self.turn_limit_var.set(str(self.stage.get("turnLimit", DEFAULT_TURN_LIMIT)))
         self._draw_board()
 
     def _snapshot(self) -> dict:
@@ -432,6 +530,7 @@ class StageEditor(tk.Tk):
             "objective_mode": self.objective_mode_var.get(),
             "objective_type": self.objective_type_var.get(),
             "objective_value": self.objective_value_var.get(),
+            "turn_limit": self.turn_limit_var.get(),
         }
 
     def _restore_snapshot(self, snapshot: dict) -> None:
@@ -445,7 +544,11 @@ class StageEditor(tk.Tk):
         self.random_weights_var.set(snapshot["random_weights"])
         self.objective_mode_var.set(snapshot["objective_mode"])
         self.objective_type_var.set(snapshot["objective_type"])
+        self.objective_type_display_var.set(
+            OBJECTIVE_TYPE_LABELS.get(snapshot["objective_type"],
+                                      OBJECTIVE_TYPE_LABELS[DEFAULT_OBJECTIVE_TYPE]))
         self.objective_value_var.set(snapshot["objective_value"])
+        self.turn_limit_var.set(snapshot["turn_limit"])
         self._draw_board()
 
     def _mark_changed(self) -> None:
@@ -507,6 +610,7 @@ class StageEditor(tk.Tk):
         random_values = [int(x.strip()) for x in self.random_values_var.get().split(",") if x.strip()]
         random_weights = [int(x.strip()) for x in self.random_weights_var.get().split(",") if x.strip()]
         objective_value = int(self.objective_value_var.get())
+        turn_limit = int(self.turn_limit_var.get())
         blocks = [{"x": x + 1, "y": y + 1, "value": self.board[y][x]}
                   for y in range(BOARD_SIZE) for x in range(BOARD_SIZE)
                   if self.board[y][x]]
@@ -519,6 +623,7 @@ class StageEditor(tk.Tk):
             "nextRandom": {"values": random_values, "weights": random_weights},
             "objectiveMode": self.objective_mode_var.get(),
             "objectives": [{"type": self.objective_type_var.get(), "value": objective_value}],
+            "turnLimit": turn_limit,
         }
 
     def _validate(self, stage: dict) -> list[str]:
@@ -544,6 +649,8 @@ class StageEditor(tk.Tk):
                 errors.append("Random weights cannot be negative")
         if stage["objectives"][0]["value"] <= 0:
             errors.append("Objective value must be positive")
+        if stage.get("turnLimit", DEFAULT_TURN_LIMIT) < DEFAULT_TURN_LIMIT:
+            errors.append("Move limit cannot be negative")
         return errors
 
     def save_stage(self) -> None:
@@ -593,6 +700,7 @@ class StageEditor(tk.Tk):
             stage.setdefault("objectiveMode", DEFAULT_OBJECTIVE_MODE)
             stage.setdefault("objectives", [{"type": DEFAULT_OBJECTIVE_TYPE,
                                               "value": DEFAULT_OBJECTIVE_VALUE}])
+            stage.setdefault("turnLimit", DEFAULT_TURN_LIMIT)
             errors = self._validate(stage)
             if errors:
                 raise ValueError("\n".join(errors))
@@ -701,6 +809,7 @@ class PreviewWindow(tk.Toplevel):
         self.combo = NO_EVALUATION
         self.merge_count = NO_EVALUATION
         self.turn = NO_EVALUATION
+        self.turn_limit = self.stage.get("turnLimit", DEFAULT_TURN_LIMIT)
         self.random = random.Random(stage.get("randomSeed", DEFAULT_RANDOM_SEED))
         self.complete = False
         self.game_over = False
@@ -762,6 +871,7 @@ class PreviewWindow(tk.Toplevel):
         self.combo = NO_EVALUATION
         self.merge_count = NO_EVALUATION
         self.turn = NO_EVALUATION
+        self.turn_limit = self.stage.get("turnLimit", DEFAULT_TURN_LIMIT)
         self.complete = False
         self.game_over = False
         self.random = random.Random(self.stage.get("randomSeed", DEFAULT_RANDOM_SEED))
@@ -923,6 +1033,10 @@ class PreviewWindow(tk.Toplevel):
         self.current_value = self.next_queue.pop(0)
         self._ensure_queue(PREVIEW_NEXT_QUEUE_SIZE)
         self._check_objective()
+        if (not self.complete and self.turn_limit > DEFAULT_TURN_LIMIT
+                and self.turn >= self.turn_limit):
+            self.game_over = True
+            self._log("*** GAME OVER: MOVE LIMIT REACHED ***")
         if not self.complete and not any(self._find_drop_cell(column)
                                          for column in range(BOARD_SIZE)):
             self.game_over = True
@@ -1021,6 +1135,7 @@ class PreviewWindow(tk.Toplevel):
         state = "CLEAR" if self.complete else "GAME OVER" if self.game_over else "PLAYING"
         self.info_var.set(f"State: {state}\nTurn: {self.turn}\nCurrent: {self.current_value}\n"
                           f"NEXT: {preview}\nHOLD: {self.hold_value or '-'}\n"
+                          f"Move limit: {self.turn_limit or '-'}\n"
                           f"Score: {self.score}\nCombo: {self.combo}\nMerges: {self.merge_count}")
         self.cursor_var.set(f"Column: {self.cursor + 1}")
 
