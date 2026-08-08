@@ -28,6 +28,8 @@ function GameState.new()
         practiceNextIndex = 1,
         practiceNextPolicy = nil,
         practiceNextExhausted = false,
+        practiceTurnLimit = 0,
+        practiceTurnCount = 0,
         practiceObjectives = {},
         practiceObjectiveMode = "ANY",
         practiceMergeCount = 0,

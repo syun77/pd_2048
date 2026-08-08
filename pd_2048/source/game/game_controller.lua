@@ -241,7 +241,11 @@ function GameController:finishTurn()
     state.rotationEndBoard = nil
     state.holdAvailable = true
     self:advanceNextQueue()
-    state.nextAnimationGameOver = state.practiceNextExhausted
+    local practiceTurnLimitReached = state.mode == Config.GAME_MODE.PRACTICE
+        and state.practiceTurnLimit > 0
+        and state.practiceTurnCount >= state.practiceTurnLimit
+    state.nextAnimationGameOver = practiceTurnLimitReached
+        or state.practiceNextExhausted
         or not self:canDropInAnyColumn()
     state.animationProgress = 0
     state.animationDuration = 0.30
@@ -572,6 +576,7 @@ end
 function GameController:applyPracticeScenario(scenario)
     local state = self.state
     state.practiceScenarioId = scenario.id
+    state.practiceTurnLimit = math.max(0, scenario.turnLimit or 0)
     state.practiceNextValues = {}
     state.practiceNextIndex = 1
     state.practiceNextPolicy = scenario.nextPolicy or "LOOP"
@@ -625,6 +630,8 @@ function GameController:start(mode, practiceStage)
     state.timerStartedAt = nil
     state.timerLastUpdateAt = nil
     state.timeoutPending = false
+    state.practiceTurnLimit = 0
+    state.practiceTurnCount = 0
     state.holdValue = 0
     state.holdAvailable = true
     state.lastRandomBlockValue = 0
@@ -738,6 +745,9 @@ function GameController:beginDrop()
     end
     local x, y = self:findDropCell(state.cursorX)
     self.undoController:save("DROP")
+    if state.mode == Config.GAME_MODE.PRACTICE then
+        state.practiceTurnCount += 1
+    end
     self.session:resetCombo()
     state.pendingDropX, state.pendingDropY = x, y
     state.pendingDropValue = state.nextValues[1]

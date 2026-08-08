@@ -102,7 +102,7 @@ function App:draw()
     self.sceneManager:draw()
 
 	-- FPSの描画.
-    pd.drawFPS(4, 4)
+    pd.drawFPS(2, 2)
 
     if state.phase == Config.GAME_PHASE.UNDO_ROTATING
         or state.rewindHoldAnimationActive then

@@ -152,6 +152,8 @@ SCORE_PER_MERGED_TILE = 100
 COMBO_BONUS_MULTIPLIER = 2
 COMBO_BONUS_SCALE = 100
 NO_HOLD_VALUE = 0
+NO_TARGET = 0
+HOLD_QUEUE_SIZE = PREVIEW_NEXT_QUEUE_SIZE
 ROTATION_EDGE = BOARD_SIZE - 1
 DEFAULT_FALLBACK_VALUE = 2
 MIN_CURSOR = 0
@@ -826,6 +828,7 @@ class PreviewWindow(tk.Toplevel):
         self.random = random.Random(stage.get("randomSeed", DEFAULT_RANDOM_SEED))
         self.complete = False
         self.game_over = False
+        self.failure_reason = None
         self.drop_pending = False
         self.drop_after_id = None
         self.cursor_var = tk.StringVar()
@@ -837,6 +840,7 @@ class PreviewWindow(tk.Toplevel):
         self.bind("<Right>", lambda _: self.move_cursor(1))
         self.bind("<Down>", lambda _: self.drop())
         self.bind("<space>", lambda _: self.drop())
+        self.bind("<KeyPress-s>", lambda _: self.hold()) # Playdate Simulatorの操作に合わせて "S"キーでもホールド可能.
         self.bind("<KeyPress-h>", lambda _: self.hold())
         self.bind("<KeyPress-H>", lambda _: self.hold())
         self.bind("<KeyPress-r>", lambda _: self.reset())
@@ -893,6 +897,7 @@ class PreviewWindow(tk.Toplevel):
         self.turn_limit = self.stage.get("turnLimit", DEFAULT_TURN_LIMIT)
         self.complete = False
         self.game_over = False
+        self.failure_reason = None
         self.random = random.Random(self.stage.get("randomSeed", DEFAULT_RANDOM_SEED))
         self.log.configure(state="normal")
         self.log.delete("1.0", "end")
@@ -901,6 +906,7 @@ class PreviewWindow(tk.Toplevel):
         self.current_value = self.next_queue.pop(0)
         self._ensure_queue(PREVIEW_NEXT_QUEUE_SIZE)
         self._log(f"RESET  board loaded, current={self.current_value}")
+        self._check_objective()
         self._draw()
 
     def _random_value(self) -> int:
@@ -1083,16 +1089,13 @@ class PreviewWindow(tk.Toplevel):
         self._ensure_queue(PREVIEW_NEXT_QUEUE_SIZE)
         self._check_objective()
         if self.current_value is None and not self.complete:
-            self.game_over = True
-            self._log("*** GAME OVER: FIXED NEXT EXHAUSTED ***")
+            self._fail("*** FAILED: FIXED NEXT EXHAUSTED ***")
         if (not self.complete and self.turn_limit > DEFAULT_TURN_LIMIT
                 and self.turn >= self.turn_limit):
-            self.game_over = True
-            self._log("*** GAME OVER: MOVE LIMIT REACHED ***")
+            self._fail("*** FAILED: MOVE LIMIT REACHED ***")
         if not self.complete and not any(self._find_drop_cell(column)
                                          for column in range(BOARD_SIZE)):
-            self.game_over = True
-            self._log("*** GAME OVER: NO DROP AVAILABLE ***")
+            self._fail("*** FAILED: NO DROP AVAILABLE ***")
         self._draw_now()
 
     def hold(self) -> None:
@@ -1109,8 +1112,7 @@ class PreviewWindow(tk.Toplevel):
             self._ensure_queue(PREVIEW_NEXT_QUEUE_SIZE)
             self._log(f"HOLD {self.hold_value}; next current={self.current_value}")
             if self.current_value is None:
-                self.game_over = True
-                self._log("*** GAME OVER: FIXED NEXT EXHAUSTED ***")
+                self._fail("*** FAILED: FIXED NEXT EXHAUSTED ***")
         else:
             self.current_value, self.hold_value = self.hold_value, self.current_value
             self._log(f"HOLD SWAP current={self.current_value} hold={self.hold_value}")
@@ -1123,7 +1125,14 @@ class PreviewWindow(tk.Toplevel):
         self.cursor = max(MIN_CURSOR, min(BOARD_SIZE - 1, self.cursor + delta))
         self._draw()
 
-    def _check_objective(self) -> None:
+    def _fail(self, message: str) -> None:
+        if self.complete or self.game_over:
+            return
+        self.game_over = True
+        self.failure_reason = message
+        self._log(message)
+
+    def _objective_results(self) -> list[bool]:
         objectives = self.stage.get("objectives", [])
         results = []
         max_tile = max(max(row) for row in self.board)
@@ -1136,12 +1145,28 @@ class PreviewWindow(tk.Toplevel):
                 "SCORE": self.score >= target,
                 "MERGE_COUNT": self.merge_count >= target,
             }.get(kind, False))
+        return results
+
+    def _check_objective(self) -> None:
+        results = self._objective_results()
         if results and ((self.stage.get("objectiveMode") == ALL_OBJECTIVE_MODE and all(results))
                         or (self.stage.get("objectiveMode", DEFAULT_OBJECTIVE_MODE)
                             != ALL_OBJECTIVE_MODE and any(results))):
             if not self.complete:
                 self.complete = True
                 self._log("*** OBJECTIVE COMPLETE ***")
+
+    def _objective_summary(self) -> str:
+        objectives = self.stage.get("objectives", [])
+        results = self._objective_results()
+        if not objectives:
+            return "-"
+        labels = []
+        for objective, achieved in zip(objectives, results):
+            kind = objective.get("type", DEFAULT_OBJECTIVE_TYPE)
+            target = objective.get("value", NO_TARGET)
+            labels.append(f"{kind} {target} {'OK' if achieved else '...'}")
+        return ", ".join(labels)
 
     def _draw(self) -> None:
         self.canvas.delete("all")
@@ -1190,10 +1215,13 @@ class PreviewWindow(tk.Toplevel):
                                      fill="#333", outline="#333")
         self._ensure_queue(PREVIEW_NEXT_DISPLAY_COUNT)
         preview = ", ".join(map(str, self.next_queue[:PREVIEW_NEXT_DISPLAY_COUNT]))
-        state = "CLEAR" if self.complete else "GAME OVER" if self.game_over else "PLAYING"
+        state = "CLEAR" if self.complete else "FAILED" if self.game_over else "PLAYING"
+        result = "OBJECTIVE COMPLETE" if self.complete else self.failure_reason or "-"
         self.info_var.set(f"State: {state}\nTurn: {self.turn}\nCurrent: {self.current_value}\n"
                           f"NEXT: {preview}\nHOLD: {self.hold_value or '-'}\n"
                           f"Move limit: {self.turn_limit or '-'}\n"
+                          f"Objective: {self._objective_summary()}\n"
+                          f"Result: {result}\n"
                           f"Score: {self.score}\nCombo: {self.combo}\nMerges: {self.merge_count}")
         self.cursor_var.set(f"Column: {self.cursor + 1}")
         self.canvas.update_idletasks()

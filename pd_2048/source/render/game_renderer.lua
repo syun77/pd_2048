@@ -300,6 +300,8 @@ function GameRenderer:drawHeader()
         elapsedTimeMs = state.elapsedTimeMs,
         coreRushValue = state.coreRushValue,
         practiceObjectiveText = state.practiceObjectiveText,
+        practiceTurnCount = state.practiceTurnCount,
+        practiceTurnLimit = state.practiceTurnLimit,
     })
     state.comboDisplayFrame += 1
 end

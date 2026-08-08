@@ -46,6 +46,13 @@ function HudRenderer.coreRush(elapsedTimeMs)
         248, 4, kTextAlignment.right)
 end
 
+function HudRenderer.practice(turnCount, turnLimit)
+    gfx.drawText("MOVES: ", 152, 4)
+    local displayTurn = math.min(turnCount + 1, turnLimit)
+    gfx.drawTextAligned(string.format("%d/%d", displayTurn, turnLimit),
+        248, 4, kTextAlignment.right)
+end
+
 function HudRenderer.combo(combo, comboDisplayFrame, comboBonusScore)
     if combo <= 1 then return end
     if comboDisplayFrame >= Config.COMBO_BLINK_DURATION_FRAMES
@@ -103,6 +110,9 @@ end
 
 function HudRenderer.header(ctx)
     if ctx.mode == Config.GAME_MODE.PRACTICE then
+		if ctx.practiceTurnLimit > 0 then
+			HudRenderer.practice(ctx.practiceTurnCount, ctx.practiceTurnLimit)
+		end
 		-- PRACTICEモードでのクリア目標.
         gfx.drawText(ctx.practiceObjectiveText ~= nil and "GOAL: " or "PRACTICE",
             Config.PRACTICE_GOAL_X, Config.PRACTICE_GOAL_Y)

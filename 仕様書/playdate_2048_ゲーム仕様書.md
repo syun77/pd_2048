@@ -268,6 +268,7 @@ NORMALとTIME ATTACKで別々のハイスコアを保存する。保存キーは
 - シナリオの`objectives`でクリア目標を設定できる。
 - `TILE_VALUE`は指定値以上のブロック作成、`COMBO`は指定コンボ数、`SCORE`は指定スコア、`MERGE_COUNT`は指定マージ回数を目標とする。
 - 複数目標は`objectiveMode`が`ANY`ならいずれか、`ALL`ならすべて達成した時点でクリアする。
+- `turnLimit`が1以上の場合、指定手数に達してもクリア条件を満たしていなければ失敗（ゲームオーバー）とする。クリア条件の達成は失敗より優先する。
 
 ACHIEVEMENTS画面は現在`NO ACHIEVEMENTS YET`を表示するだけで、実績データは未実装である。STATISTICS画面はNORMALとTIME ATTACKのハイスコアを表示する。
 
@@ -277,6 +278,7 @@ ACHIEVEMENTS画面は現在`NO ACHIEVEMENTS YET`を表示するだけで、実�
 |---|---|
 | SCORE | 左側の情報パネル。通常モード・TIME ATTACK共通 |
 | TIME | TIME ATTACK時のみ上部に残り時間を表示 |
+| MOVES | PRACTICEで手数制限が1以上の場合、現在手数/手数制限を上部に表示 |
 | HOLD | 左側にHOLDブロックを表示。A操作を併記 |
 | NEXT | 右側に次の3ブロックを表示 |
 | 盤面 | 中央の160×160px領域 |
