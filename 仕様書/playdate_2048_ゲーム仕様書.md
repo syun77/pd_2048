@@ -269,6 +269,7 @@ NORMALとTIME ATTACKで別々のハイスコアを保存する。保存キーは
 - `TILE_VALUE`は指定値以上のブロック作成、`COMBO`は指定コンボ数、`SCORE`は指定スコア、`MERGE_COUNT`は指定マージ回数を目標とする。
 - 複数目標は`objectiveMode`が`ANY`ならいずれか、`ALL`ならすべて達成した時点でクリアする。
 - `turnLimit`が1以上の場合、指定手数に達してもクリア条件を満たしていなければ失敗（ゲームオーバー）とする。クリア条件の達成は失敗より優先する。
+- `turnLimit`が1以上の場合、出現ブロック数は指定手数までとする。NEXTが空になった後にHOLDブロックが残っていれば、それを次の操作対象とし、NEXTがない状態ではHOLDを使用できない。
 
 ACHIEVEMENTS画面は現在`NO ACHIEVEMENTS YET`を表示するだけで、実績データは未実装である。STATISTICS画面はNORMALとTIME ATTACKのハイスコアを表示する。
 

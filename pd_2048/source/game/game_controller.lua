@@ -210,28 +210,44 @@ function GameController:advanceNextQueue()
     end
 end
 
+function GameController:promoteHoldIfNextEmpty()
+    local state = self.state
+    if state.nextValues[1] ~= 0 or state.holdValue == 0 then return end
+    local promotedValue = state.holdValue
+    state.nextValues[1] = promotedValue
+    state.holdValue = 0
+    return promotedValue
+end
+
 function GameController:getPracticeNextValue()
     local state = self.state
     local values = state.practiceNextValues
-    if #values == 0 then return 2 end
-
-    if state.practiceNextPolicy == "STATIC" then
-        return values[1]
+    if #values == 0 then
+        return state.practiceTurnLimit > 0 and 0 or 2
+    end
+    if state.practiceTurnLimit > 0
+        and state.practiceSpawnCount >= state.practiceTurnLimit then
+        return 0
     end
 
-    local value = values[state.practiceNextIndex]
+    local value
+    if state.practiceNextPolicy == "STATIC" then
+        value = values[1]
+    else
+        value = values[state.practiceNextIndex]
+    end
     if state.practiceNextPolicy == "FIXED" then
         if value == nil then
             state.practiceNextExhausted = true
-            return values[#values] or 2
+            return 0
         end
+    elseif state.practiceNextPolicy ~= "STATIC" then
         state.practiceNextIndex += 1
-        return value
+        if state.practiceNextIndex > #values then
+            state.practiceNextIndex = 1
+        end
     end
-    state.practiceNextIndex += 1
-    if state.practiceNextIndex > #values then
-        state.practiceNextIndex = 1
-    end
+    state.practiceSpawnCount += 1
     return value
 end
 
@@ -241,15 +257,29 @@ function GameController:finishTurn()
     state.rotationEndBoard = nil
     state.holdAvailable = true
     self:advanceNextQueue()
-    local practiceTurnLimitReached = state.mode == Config.GAME_MODE.PRACTICE
-        and state.practiceTurnLimit > 0
-        and state.practiceTurnCount >= state.practiceTurnLimit
-    state.nextAnimationGameOver = practiceTurnLimitReached
-        or state.practiceNextExhausted
+    local promotedValue = self:promoteHoldIfNextEmpty()
+    state.holdAvailable = state.nextValues[2] ~= 0
+    if state.nextValues[1] == 0 then
+        if state.practiceVictoryPending then
+            self:beginPracticeVictory()
+        else
+            self:beginGameOver()
+        end
+        return
+    end
+    state.nextAnimationGameOver = state.nextValues[1] == 0
         or not self:canDropInAnyColumn()
     state.animationProgress = 0
     state.animationDuration = 0.30
-    state.phase = GamePhase.NEXT_ANIM
+    if promotedValue ~= nil then
+        state.holdAnimationSourceValue = 0
+        state.holdAnimationReturnValue = promotedValue
+        state.holdAnimationNextValue = 0
+        state.nextAnimationGameOver = false
+        state.phase = GamePhase.HOLD_ANIM
+    else
+        state.phase = GamePhase.NEXT_ANIM
+    end
 end
 
 function GameController:getPracticeMaxTileValue()
@@ -579,6 +609,7 @@ function GameController:applyPracticeScenario(scenario)
     state.practiceTurnLimit = math.max(0, scenario.turnLimit or 0)
     state.practiceNextValues = {}
     state.practiceNextIndex = 1
+    state.practiceSpawnCount = 0
     state.practiceNextPolicy = scenario.nextPolicy or "LOOP"
     state.practiceNextExhausted = false
     state.practiceObjectiveMode = scenario.objectiveMode or "ANY"
@@ -704,13 +735,19 @@ end
 
 function GameController:holdCurrentBlock()
     local state = self.state
+    if not state.holdAvailable then return end
     local currentValue = state.nextValues[1]
+    if currentValue == 0 then
+        self:beginGameOver()
+        return
+    end
     state.holdAnimationSourceValue = currentValue
     state.holdAnimationReturnValue = state.holdValue
     state.holdAnimationNextValue = 0
     if state.holdValue == 0 then
         state.holdValue = currentValue
         self:advanceNextQueue()
+        self:promoteHoldIfNextEmpty()
         -- 空HOLDでは、繰り上がったNEXTを選択列の落下開始位置へ移動する。
         state.holdAnimationNextValue = state.nextValues[1]
     else
@@ -718,7 +755,7 @@ function GameController:holdCurrentBlock()
     end
     -- HOLDはDROP前の待機中であれば何度でも使用できる。
     -- UNDOはDROP開始時のスナップショットへ戻すため、HOLD単体は履歴に残さない。
-    state.holdAvailable = true
+    state.holdAvailable = state.nextValues[2] ~= 0
     state.rewindHoldAnimationActive = false
     self.sound:play_se("hold")
     state.animationProgress = 0
@@ -728,16 +765,21 @@ end
 
 function GameController:finishHoldAnimation()
     local state = self.state
+    self:promoteHoldIfNextEmpty()
     state.holdAnimationSourceValue = 0
     state.holdAnimationReturnValue = 0
     state.holdAnimationNextValue = 0
     state.rewindHoldAnimationActive = false
-    if state.practiceNextExhausted or not self:canDropInAnyColumn() then self:beginGameOver()
+    if state.nextValues[1] == 0 or not self:canDropInAnyColumn() then self:beginGameOver()
     else state.phase = GamePhase.INPUT end
 end
 
 function GameController:beginDrop()
     local state = self.state
+    if state.nextValues[1] == 0 then
+        self:beginGameOver()
+        return
+    end
     if not self:isDropAvailable() then
         self:setMessage("NO SPACE", 700)
         self.sound:play_se("error")

@@ -27,6 +27,7 @@ end
 
 function GameRenderer:drawFallingBlock(rotationAngle)
     local state = self.state
+    if state.pendingDropValue == 0 then return end
     local startY = Config.BOARD_Y - Config.CELL_SIZE
     local targetY = Config.BOARD_Y + (state.pendingDropY - 1) * Config.CELL_SIZE
     local y = startY + (targetY - startY) * state.animationProgress
@@ -37,6 +38,7 @@ end
 
 function GameRenderer:drawLandingPreview()
     local state = self.state
+    if state.nextValues[1] == 0 then return end
     local landingX, landingY = self.findDropCell(state.cursorX)
     if landingX == nil then return end
 
@@ -80,6 +82,7 @@ end
 
 function GameRenderer:drawDropPreview()
     local state = self.state
+    if state.nextValues[1] == 0 then return end
     local px = Config.BOARD_X + (state.cursorX - 1) * Config.CELL_SIZE
     local py = Config.BOARD_Y - Config.CELL_SIZE
 
@@ -211,6 +214,7 @@ end
 
 function GameRenderer:drawNextAnimation()
     local state = self.state
+    if state.nextValues[1] == 0 then return end
     local progress = self:easeInOut(state.animationProgress)
     local sourceCenterX = Config.NEXT_BOX_X + Config.NEXT_BOX_WIDTH * 0.5
     local sourceCenterY = Config.NEXT_BOX_Y + Config.NEXT_BOX_HEIGHT * 0.5

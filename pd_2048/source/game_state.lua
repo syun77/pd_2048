@@ -26,6 +26,7 @@ function GameState.new()
         practiceScenarioId = nil,
         practiceNextValues = {},
         practiceNextIndex = 1,
+        practiceSpawnCount = 0,
         practiceNextPolicy = nil,
         practiceNextExhausted = false,
         practiceTurnLimit = 0,

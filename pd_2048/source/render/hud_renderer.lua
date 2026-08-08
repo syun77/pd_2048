@@ -46,12 +46,24 @@ function HudRenderer.coreRush(elapsedTimeMs)
         248, 4, kTextAlignment.right)
 end
 
+-- PRACTICEモードでの残り手数の描画.
 function HudRenderer.practice(turnCount, turnLimit)
-    gfx.drawText("MOVES: ", 152, 4)
     local displayTurn = math.min(turnCount + 1, turnLimit)
+	-- 手数テキストの描画.
+    gfx.drawText("MOVES: ", 152, 4)
     gfx.drawTextAligned(string.format("%d/%d", displayTurn, turnLimit),
-        248, 4, kTextAlignment.right)
-end
+        260, 4, kTextAlignment.right)
+	-- 最後の手は点滅.
+    if displayTurn >= turnLimit then
+        local blinkProgress = pd.getCurrentTimeMilliseconds()
+            % Config.PRACTICE_TURN_WARNING_BLINK_PERIOD
+        if blinkProgress < Config.PRACTICE_TURN_WARNING_BLINK_ON_DURATION then
+            gfx.setLineWidth(2)
+            gfx.drawRoundRect(136, 2, 140, 20, 4)
+            gfx.setLineWidth(1)
+        end
+    end
+ end
 
 function HudRenderer.combo(combo, comboDisplayFrame, comboBonusScore)
     if combo <= 1 then return end
@@ -93,8 +105,11 @@ function HudRenderer.next(values, phase)
         end
         local index = phase == Config.GAME_PHASE.NEXT_ANIM and i or i + 1
         local y = Config.NEXT_BOX_Y + (i - 1) * (Config.NEXT_BOX_HEIGHT + Config.NEXT_BOX_GAP)
-        drawPreviewBox(values[index], Config.NEXT_BOX_X, y,
-            Config.NEXT_BOX_WIDTH, Config.NEXT_BOX_HEIGHT)
+        local value = values[index]
+        if value ~= nil and value ~= 0 then
+            drawPreviewBox(value, Config.NEXT_BOX_X, y,
+                Config.NEXT_BOX_WIDTH, Config.NEXT_BOX_HEIGHT)
+        end
     end
 end
 

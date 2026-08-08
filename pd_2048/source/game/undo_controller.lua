@@ -23,6 +23,7 @@ function UndoController:save(action)
         lastRandomBlockValue = state.lastRandomBlockValue,
         consecutiveRandomBlockCount = state.consecutiveRandomBlockCount,
         practiceNextIndex = state.practiceNextIndex,
+        practiceSpawnCount = state.practiceSpawnCount,
         practiceTurnCount = state.practiceTurnCount,
         practiceMergeCount = state.practiceMergeCount,
         nextValues = state.nextValues,
@@ -68,6 +69,7 @@ function UndoController:restore()
     state.lastRandomBlockValue = restored.lastRandomBlockValue or 0
     state.consecutiveRandomBlockCount = restored.consecutiveRandomBlockCount or 0
     state.practiceNextIndex = restored.practiceNextIndex or 1
+    state.practiceSpawnCount = restored.practiceSpawnCount or 0
     state.practiceTurnCount = restored.practiceTurnCount or 0
     state.practiceNextExhausted = restored.practiceNextExhausted or false
     state.practiceMergeCount = restored.practiceMergeCount or 0
