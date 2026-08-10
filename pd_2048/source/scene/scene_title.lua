@@ -19,7 +19,7 @@ function TitleScene.new(context)
         menuItems = {
             { label = "NORMAL GAME", scene = GameConfig.SCENE.GAME,
               mode = GameConfig.GAME_MODE.NORMAL },
-            { label = "TIME ATTACK", submenu = true },
+            { label = "TIME ATTACK", submenu = true, submenuPage = "TIME_ATTACK" },
             { label = "PRACTICE", submenu = true, submenuPage = "PRACTICE" },
             { label = "ACHIEVEMENTS", scene = GameConfig.SCENE.ACHIEVEMENTS },
             { label = "STATISTICS", scene = GameConfig.SCENE.STATISTICS },
