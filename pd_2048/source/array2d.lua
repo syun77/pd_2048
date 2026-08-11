@@ -3,6 +3,11 @@
 -- 2次元配列を1次元配列で管理するユーティリティクラスです。
 import "CoreLibs/object"
 
+---@class Array2D 2次元配列を1次元配列で管理するユーティリティクラス
+---@field width integer 幅
+---@field height integer 高さ
+---@field data table<integer, integer> データ配列
+---@field outOfBoundsValue integer 境界外の値として返す値（必要に応じて変更可能）
 class("Array2D").extends()
 -- コンストラクタ
 function Array2D:init(width, height, default_value)
@@ -33,6 +38,9 @@ function Array2D:_getindex(x, y)
 end
 
 -- 値の取得 (get)
+---@param x integer X座標 (1始まり)
+---@param y integer Y座標 (1始まり)
+---@return integer 値
 function Array2D:get(x, y)
     local index = self:_get_index(x, y)
     if index == -1 then
@@ -42,6 +50,9 @@ function Array2D:get(x, y)
 end
 
 -- 値の設定 (set)
+---@param x integer X座標 
+---@param y integer Y座標
+---@param v integer 設定する値
 function Array2D:set(x, y, v)
     local index = self:_get_index(x, y)
     if index == -1 then
@@ -127,9 +138,9 @@ function Array2D:slideY(dy)
 end
 
 -- 特定の列のみをY方向にスライドする.
--- @param column スライドする列のインデックス (1始まり)
--- @param dy スライド量 (正の値で下方向、負の値で上方向)
--- @return 有効なパネルの数を返す.
+---@param column integer スライドする列のインデックス (1始まり)
+---@param dy integer スライド量 (正の値で下方向、負の値で上方向)
+---@return integer 有効なパネルの数を返す.
 function Array2D:slideColumnY(column, dy)
 	if dy == 0 then return end -- スライド量が0の場合は何もしない
 	local ret = 0

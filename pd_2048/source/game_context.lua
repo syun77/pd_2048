@@ -12,8 +12,10 @@ local gfx <const> = playdate.graphics
 
 ---ゲームコンテキスト.
 ---@class GameContext : Object
+---@field sound Sound ゲームのサウンド管理オブジェクト
+---@field font Font ゲームで使用するフォントオブジェクト
+---@field instance GameContext シングルトンインスタンス
 class("GameContext").extends()
-
 GameContext.instance = nil
 
 -- シングルトンインスタンスを取得.
