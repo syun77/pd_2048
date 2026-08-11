@@ -15,10 +15,11 @@ end
 
 function HudRenderer.timeAttack(elapsedTimeMs)
     local totalCentiseconds = math.floor(math.max(0, elapsedTimeMs) / 10)
-    local seconds = math.floor(totalCentiseconds / 100)
+	local minutes = math.floor(totalCentiseconds / 6000)
+    local seconds = math.floor(totalCentiseconds / 100) % 60
     local centiseconds = totalCentiseconds % 100
 	gfx.drawText("TIME: ", 152, 4)
-    local text = string.format("%02d.%02d", seconds, centiseconds)
+    local text = string.format("%02d:%02d.%02d", minutes, seconds, centiseconds)
     gfx.drawTextAligned(text, 200, 4, kTextAlignment.left)
 end
 

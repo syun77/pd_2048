@@ -287,9 +287,11 @@ function OverlayRenderer:drawGameOver(selectedIndex)
         if self.state.mode == Config.GAME_MODE.PRACTICE then
             resultDetail = "CLEAR " .. (self.state.practiceObjectiveText or "PRACTICE")
         else
+			-- TIME ATTACKモードでは、経過時間を表示する。
             local centiseconds = math.floor(self.state.elapsedTimeMs / 10)
-            resultDetail = string.format("TIME %02d.%02d",
-                math.floor(centiseconds / 100), centiseconds % 100)
+			local minutes = math.floor(centiseconds / 6000)
+			local seconds = math.floor(centiseconds / 100) % 60	
+            resultDetail = string.format("TIME %02d:%02d.%02d", minutes, seconds, centiseconds % 100)
         end
     end
     self:drawMenu(200, 130, {

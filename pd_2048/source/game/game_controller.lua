@@ -752,8 +752,8 @@ function GameController:start(mode, practiceStage)
     state.crisisBgmActive = false
 	-- BGM再生開始.
     self.sound:playGameBgm()
-	-- "GET READY" ボイスを再生.
-	self.sound:play_se("voice_getready")
+	-- 開始SEの再生
+	self.sound:play_se("start")
 end
 
 function GameController:holdCurrentBlock()
