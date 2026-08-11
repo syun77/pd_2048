@@ -140,9 +140,24 @@ function Sound:play_bgm(bgmIndex, isStop)
 	if bStop == nil then
 		bStop = true
 	end
-	if bStop == false and self:isPlaying() then
-		-- 再生中のBGMがある場合は何もしない.
-		return
+	if bStop == false then
+		if self.isChangingBgm and self.player ~= nil then
+			-- フェードアウト中の再生要求はフェードをキャンセルして再開する.
+			local player = self.player
+			player:setFinishCallback(nil)
+			player:setVolume(1.0)
+			self.isChangingBgm = false
+			player:setFinishCallback(function(finishedPlayer, sound)
+				sound:onBgmFinished(finishedPlayer)
+			end, self)
+			if not player:isPlaying() then
+				player:play()
+			end
+			return
+		elseif self:isPlaying() then
+			-- 再生中のBGMがある場合は何もしない.
+			return
+		end
 	end
 	local index = bgmIndex
 	if index == nil or index < 0 then
@@ -157,6 +172,7 @@ function Sound:play_bgm(bgmIndex, isStop)
 		if self.player ~= nil then
 			self.isChangingBgm = true
 			self.player:setFinishCallback(nil)
+			self.player:setVolume(1.0)
 			self.player:stop()
 			self.isChangingBgm = false
 		end
