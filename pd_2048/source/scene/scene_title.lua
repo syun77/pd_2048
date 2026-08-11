@@ -18,6 +18,11 @@ function TitleScene.new(context)
         selectedIndex = 1,
         menuSelectionController = MenuSelectionController.new(),
         page = "ROOT",
+        selectedByPage = {
+            ROOT = 1,
+            TIME_ATTACK = 1,
+            PRACTICE = 1,
+        },
         menuItems = {
             { label = "NORMAL GAME", scene = GameConfig.SCENE.GAME,
               mode = GameConfig.GAME_MODE.NORMAL },
@@ -40,13 +45,29 @@ function TitleScene.new(context)
     }, TitleScene)
 end
 
+local function getRootIndexForPage(scene, page)
+    for index, item in ipairs(scene.menuItems) do
+        if item.submenuPage == page then return index end
+    end
+    return scene.selectedByPage.ROOT or 1
+end
+
+function TitleScene:clampSelectedIndex()
+    local items = self:getCurrentItems()
+    if #items == 0 then
+        self.selectedIndex = 1
+    elseif self.selectedIndex < 1 then
+        self.selectedIndex = 1
+    elseif self.selectedIndex > #items then
+        self.selectedIndex = #items
+    end
+    self.selectedByPage[self.page] = self.selectedIndex
+end
+
 -- 開始.
 function TitleScene:enter(params)
 	-- メニュー用BGMを再生.
     self.context.sound:playMenuBgm()
-    self.page = params ~= nil and params.page or "ROOT"
-    self.selectedIndex = 1
-    MenuSelectionController.reset(self.menuSelectionController)
     self.practiceItems = {}
     for _, stage in ipairs(PracticeStageLoader.loadAll()) do
         table.insert(self.practiceItems, {
@@ -57,6 +78,12 @@ function TitleScene:enter(params)
             practiceStage = stage,
         })
     end
+    self.page = params ~= nil and params.page or "ROOT"
+    self.selectedIndex = params ~= nil and params.selectedIndex
+        or self.selectedByPage[self.page]
+        or 1
+    self:clampSelectedIndex()
+    MenuSelectionController.reset(self.menuSelectionController)
 end
 
 function TitleScene:moveSelection(delta, items)
@@ -81,8 +108,11 @@ function TitleScene:update()
     -- 選択項目.
     local previousIndex = self.selectedIndex
     if pd.buttonJustPressed(pd.kButtonB) and self.page ~= "ROOT" then
+        local parentIndex = getRootIndexForPage(self, self.page)
+        self.selectedByPage[self.page] = 1
         self.page = "ROOT"
-        self.selectedIndex = 1
+        self.selectedIndex = parentIndex
+        self.selectedByPage.ROOT = self.selectedIndex
         MenuSelectionController.reset(self.menuSelectionController)
         self.context.sound:play_se("cancel")
         return
@@ -99,9 +129,11 @@ function TitleScene:update()
     if pd.buttonJustPressed(pd.kButtonA) then
         self.context.sound:play_se("decide")
         local item = items[self.selectedIndex]
+        self.selectedByPage[self.page] = self.selectedIndex
         if item.submenu then
             self.page = item.submenuPage
             self.selectedIndex = 1
+            self.selectedByPage[self.page] = self.selectedIndex
             MenuSelectionController.reset(self.menuSelectionController)
             return
         end

@@ -26,7 +26,13 @@ function GameOverScene.new(context)
 end
 
 function GameOverScene:enter()
-    self.selectedIndex = 1
+    local state = self.context.game:getState()
+    if state.mode == GameConfig.GAME_MODE.PRACTICE
+        and state.result == GameConfig.GAME_RESULT.VICTORY then
+        self.selectedIndex = 2
+    else
+        self.selectedIndex = 1
+    end
     MenuSelectionController.reset(self.menuSelectionController)
 end
 
@@ -60,10 +66,9 @@ function GameOverScene:update()
             local state = self.context.game:getState()
             self.context.game:start(state.mode)
             self.manager:change(GameConfig.SCENE.GAME)
-        elseif self.context.game:getState().mode == GameConfig.GAME_MODE.PRACTICE then
-            self.manager:change(GameConfig.SCENE.TITLE, { page = "PRACTICE" })
         else
-            self.manager:change(GameConfig.SCENE.TITLE)
+            local returnTitle, returnParams = getModeSelectItem(self)
+            self.manager:change(GameConfig.SCENE.TITLE, returnParams)
         end
     end
 end

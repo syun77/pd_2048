@@ -373,8 +373,15 @@ function OverlayRenderer:drawGameOver(selectedIndex)
             resultDetail = string.format("TIME %02d:%02d.%02d", minutes, seconds, centiseconds % 100)
         end
     end
-    local returnLabel = self.state.mode == Config.GAME_MODE.PRACTICE
-        and "STAGE SELECT" or "TITLE"
+    local returnLabel = "TITLE"
+    if self.state.mode == Config.GAME_MODE.PRACTICE then
+        returnLabel = "STAGE SELECT"
+    elseif self.state.mode == Config.GAME_MODE.TIME_ATTACK
+        or self.state.mode == Config.GAME_MODE.TIME_ATTACK_256
+        or self.state.mode == Config.GAME_MODE.TIME_ATTACK_2048
+        or self.state.mode == Config.GAME_MODE.CORE_RUSH then
+        returnLabel = "MODE SELECT"
+    end
     self:drawMenu(200, 130, {
         resultTitle,
         resultDetail,
