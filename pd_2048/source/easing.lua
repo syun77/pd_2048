@@ -54,7 +54,7 @@ local pi = math.pi
 local sin = math.sin
 local cos = math.cos
 local sqrt = math.sqrt
-local pow = math.pow or function(a, b)
+local pow = function(a, b)
     return a ^ b
 end
 local asin = math.asin

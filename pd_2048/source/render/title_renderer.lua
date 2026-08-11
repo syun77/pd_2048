@@ -23,7 +23,7 @@ function TitleRenderer:drawTitle(selectedIndex, menuItems, title)
     end
     if title ~= nil then self:drawCenteredText(title, 42) end
     self.menuRenderer:drawMenu(200, title == nil and 132 or 132,
-        labels, selectedIndex, gfx.kColorWhite)
+        labels, selectedIndex, gfx.kColorWhite, title == nil and nil or 5)
     if title ~= nil then self:drawCenteredText("B: BACK", 214) end
 end
 

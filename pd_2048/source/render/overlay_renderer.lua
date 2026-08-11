@@ -16,6 +16,9 @@ function OverlayRenderer.new(dependencies)
         state = dependencies.state,
         sound = dependencies.sound,
         isRewindAvailable = dependencies.isRewindAvailable,
+        menuScrollLastOffset = nil,
+        menuScrollUpAnimationOffset = 0,
+        menuScrollDownAnimationOffset = 0,
     }, OverlayRenderer)
 end
 
@@ -217,10 +220,17 @@ function OverlayRenderer:drawPracticeComplete()
 end
 
 -- 中心座標を基準に、選択可能なメニューを描画する。
-function OverlayRenderer:drawMenu(centerX, centerY, items, selectedIndex, backgroundColor)
+---@param centerX integer メニューの中心座標X.
+---@param centerY integer メニューの中心座標Y.
+---@param items string[] メニュー項目文字列の配列.
+---@param selectedIndex integer 選択中の項目のインデックス.
+---@param backgroundColor integer? メニューの背景色 (playdate.graphics.kColor). nilの場合は黒.
+---@param maxVisibleItems integer? 最大表示項目数. nilの場合は全て表示.
+function OverlayRenderer:drawMenu(centerX, centerY, items, selectedIndex, backgroundColor, maxVisibleItems)
     if items == nil or #items == 0 then return end
     backgroundColor = backgroundColor or gfx.kColorBlack
 
+	-- 最大の幅と高さの合計を計算する.
     local maxTextWidth = 0
     local textHeight = 0
     for _, item in ipairs(items) do
@@ -234,11 +244,43 @@ function OverlayRenderer:drawMenu(centerX, centerY, items, selectedIndex, backgr
     local verticalPadding = 8
     local itemHeight = textHeight + 8
     local menuWidth = maxTextWidth + horizontalPadding * 2
-    local menuHeight = #items * itemHeight + verticalPadding * 2
+    local contentHeight = #items * itemHeight
+    local scrollable = maxVisibleItems ~= nil and #items > maxVisibleItems
+    local scrollIndicatorHeight = scrollable and textHeight or 0
+    local visibleItemCount = scrollable and maxVisibleItems or #items
+    local visibleContentHeight = visibleItemCount * itemHeight
+    local menuHeight = visibleContentHeight + verticalPadding * 2
+        + scrollIndicatorHeight * 2
 	menuWidth += mergin * 2 -- 左右に余白を追加.
 
     local menuX = math.floor(centerX - menuWidth * 0.5)
     local menuY = math.floor(centerY - menuHeight * 0.5)
+    local contentTop = menuY + verticalPadding + scrollIndicatorHeight
+    local contentBottom = contentTop + visibleContentHeight
+    local scrollOffset = 0
+    if scrollable and selectedIndex ~= nil then
+        local clampedIndex = math.max(1, math.min(#items, selectedIndex))
+        local firstVisibleIndex = clampedIndex - math.floor(maxVisibleItems * 0.5)
+        local maxFirstVisibleIndex = #items - maxVisibleItems + 1
+        firstVisibleIndex = math.max(1, math.min(maxFirstVisibleIndex,
+            firstVisibleIndex))
+        scrollOffset = (firstVisibleIndex - 1) * itemHeight
+    end
+    if scrollable then
+        if self.menuScrollLastOffset ~= nil then
+			-- スクロール方向の変化を検出して、スクロールカーソルのアニメーションを開始する.
+            if scrollOffset < self.menuScrollLastOffset then
+                self.menuScrollUpAnimationOffset = -8
+            elseif scrollOffset > self.menuScrollLastOffset then
+                self.menuScrollDownAnimationOffset = 8
+            end
+        end
+        self.menuScrollLastOffset = scrollOffset
+    else
+        self.menuScrollLastOffset = nil
+        self.menuScrollUpAnimationOffset = 0
+        self.menuScrollDownAnimationOffset = 0
+    end
 
     local previousColor = gfx.getColor()
     local previousDrawMode = gfx.getImageDrawMode()
@@ -251,8 +293,40 @@ function OverlayRenderer:drawMenu(centerX, centerY, items, selectedIndex, backgr
         gfx.setColor(gfx.kColorBlack)
     end
     for index, item in ipairs(items) do
-        local itemY = menuY + verticalPadding + (index - 1) * itemHeight
-        self:drawCenteredText(item, itemY)
+        local itemY = contentTop + (index - 1) * itemHeight - scrollOffset
+        if itemY >= contentTop and itemY + textHeight <= contentBottom then
+            self:drawCenteredText(item, itemY)
+        end
+    end
+    if scrollable then
+        local hasHiddenAbove = scrollOffset > 0
+        local hasHiddenBelow = scrollOffset + (contentBottom - contentTop) < contentHeight
+		-- スクロールカーソルのサイズ.
+        local indicatorHalfWidth = 10 -- 幅.
+		local indicatorHeight = 12 -- 高さ.
+        local indicatorOffsetY = -8 -- 上下Y座標調整用.
+        if hasHiddenAbove then
+			-- 上方向のスクロールカーソル描画.
+            local topY = menuY - indicatorOffsetY
+                + self.menuScrollUpAnimationOffset
+            gfx.fillPolygon(centerX, topY,
+                centerX - indicatorHalfWidth, topY + indicatorHeight,
+                centerX + indicatorHalfWidth, topY + indicatorHeight)
+        end
+        if hasHiddenBelow then
+			-- 下方向のスクロールカーソル描画.
+            local bottomY = menuY + menuHeight + indicatorOffsetY - 8
+                + self.menuScrollDownAnimationOffset
+            gfx.fillPolygon(centerX, bottomY,
+                centerX - indicatorHalfWidth, bottomY - indicatorHeight,
+                centerX + indicatorHalfWidth, bottomY - indicatorHeight)
+        end
+        if self.menuScrollUpAnimationOffset < 0 then
+            self.menuScrollUpAnimationOffset += 1
+        end
+        if self.menuScrollDownAnimationOffset > 0 then
+            self.menuScrollDownAnimationOffset -= 1
+        end
     end
     gfx.setImageDrawMode(previousDrawMode)
 
@@ -261,7 +335,7 @@ function OverlayRenderer:drawMenu(centerX, centerY, items, selectedIndex, backgr
         return
     end
     selectedIndex = math.max(1, math.min(#items, selectedIndex))
-    local selectedY = menuY + verticalPadding + (selectedIndex - 1) * itemHeight
+    local selectedY = contentTop + (selectedIndex - 1) * itemHeight - scrollOffset
 
 	-- カーソルを XORで描画.
 	gfx.setColor(gfx.kColorXOR)
