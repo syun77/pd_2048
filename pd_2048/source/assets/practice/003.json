@@ -1,6 +1,6 @@
 {
   "id": "001",
-  "label": "COMBO 3",
+  "label": "MAKE 32",
   "initialBoard": [
     {
       "x": 2,
@@ -14,13 +14,13 @@
     }
   ],
   "nextValues": [
+    2,
+    4,
+    16,
     4,
     2,
     2,
     2,
-    2,
-    2,
-    4,
     2,
     4,
     2
@@ -39,9 +39,9 @@
   "objectiveMode": "ANY",
   "objectives": [
     {
-      "type": "COMBO",
-      "value": 3
+      "type": "TILE_VALUE",
+      "value": 32
     }
   ],
-  "turnLimit": 5
+  "turnLimit": 6
 }

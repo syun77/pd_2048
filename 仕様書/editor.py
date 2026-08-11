@@ -11,6 +11,7 @@ import copy
 import json
 import os
 import random
+import sys
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
@@ -188,7 +189,7 @@ def new_stage() -> dict:
 
 
 class StageEditor(tk.Tk):
-    def __init__(self) -> None:
+    def __init__(self, initial_paths: tuple[str, ...] = ()) -> None:
         super().__init__()
         self.title(WINDOW_TITLE)
         #self.geometry("800x500")
@@ -216,9 +217,14 @@ class StageEditor(tk.Tk):
         self.next_listbox: tk.Listbox | None = None
         self._updating_next_listbox = False
         self.random_field_widgets: list[tk.Widget] = []
+        self._drop_command: str | None = None
         self._build_ui()
         self._bind_shortcuts()
-        self._load_last_file()
+        self._bind_file_drop()
+        if initial_paths:
+            self._open_file_paths(initial_paths, confirm_discard=False)
+        else:
+            self._load_last_file()
         self.protocol("WM_DELETE_WINDOW", self._close)
 
     # ---------- UI ----------
@@ -367,6 +373,44 @@ class StageEditor(tk.Tk):
             self.bind_all(key, lambda _: self.undo())
         for key in KEY_BINDINGS["redo"]:
             self.bind_all(key, lambda _: self.redo())
+
+    def _bind_file_drop(self) -> None:
+        """Register native/optional TkDND callbacks when the Tk build supports them."""
+        try:
+            self.tk.createcommand("::tk::mac::OpenDocument",
+                                  self._open_native_documents)
+        except tk.TclError:
+            pass
+
+        try:
+            self.tk.call("package", "require", "tkdnd")
+            self.tk.call("tkdnd::drop_target", "register", self._w, "DND_Files")
+            self._drop_command = self.register(self._open_drop_data)
+            self.tk.call("bind", self._w, "<<Drop>>", self._drop_command + " %D")
+        except tk.TclError:
+            # tkdnd is an optional Tk extension. Startup-argument and macOS
+            # OpenDocument handling remain available without it.
+            self._drop_command = None
+
+    def _open_native_documents(self, *paths: str) -> None:
+        self._open_file_paths(tuple(paths))
+
+    def _open_drop_data(self, data: str) -> str:
+        try:
+            paths = tuple(self.tk.splitlist(data))
+        except tk.TclError:
+            paths = (data,)
+        self._open_file_paths(paths)
+        return "copy"
+
+    def _open_file_paths(self, paths: tuple[str, ...],
+                         confirm_discard: bool = True) -> None:
+        if len(paths) != 1:
+            messagebox.showerror("Open failed", "Drop one stage JSON file at a time")
+            return
+        if confirm_discard and not self._confirm_discard():
+            return
+        self._load_path(Path(paths[0]).expanduser())
 
     def _select_value(self, value: int) -> None:
         selected_next = (self.next_listbox.curselection()
@@ -714,6 +758,8 @@ class StageEditor(tk.Tk):
     def _load_path(self, path: Path) -> None:
         try:
             stage = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(stage, dict):
+                raise ValueError("The stage JSON root must be an object")
             stage.setdefault("label", path.stem)
             stage.setdefault("initialBoard", [])
             stage.setdefault("nextValues", [DEFAULT_BLOCK_VALUE] * MAX_NEXT)
@@ -727,7 +773,8 @@ class StageEditor(tk.Tk):
             errors = self._validate(stage)
             if errors:
                 raise ValueError("\n".join(errors))
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
+        except (OSError, ValueError, TypeError, KeyError, IndexError,
+                json.JSONDecodeError) as exc:
             messagebox.showerror("Open failed", str(exc))
             return
         self.current_path = path
@@ -1235,4 +1282,4 @@ class PreviewWindow(tk.Toplevel):
         self.canvas.update_idletasks()
 
 if __name__ == "__main__":
-    StageEditor().mainloop()
+    StageEditor(tuple(sys.argv[1:])).mainloop()
