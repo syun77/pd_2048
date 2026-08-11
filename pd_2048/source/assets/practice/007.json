@@ -1,6 +1,10 @@
 {
   "id": "001",
   "label": "COMBO 4",
+  "description": {
+    "ja": "4コンボを達成する",
+    "en": "Achieve a 4-combo"
+  },
   "initialBoard": [
     {
       "x": 2,

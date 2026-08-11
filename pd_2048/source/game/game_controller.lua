@@ -628,6 +628,8 @@ end
 function GameController:applyPracticeScenario(scenario)
     local state = self.state
     state.practiceScenarioId = scenario.id
+    state.practiceDescriptionText = PracticeStageLoader.descriptionForSystemLanguage(
+        scenario)
     state.practiceTurnLimit = math.max(0, scenario.turnLimit or 0)
     state.practiceNextValues = {}
     state.practiceNextIndex = 1
@@ -721,6 +723,7 @@ function GameController:start(mode, practiceStage)
     state.practiceVictoryPending = false
     state.practiceCompleteUntil = 0
     state.practiceObjectiveText = ""
+    state.practiceDescriptionText = ""
     self.autoPlayer:reset()
     state.previewImpulseRotationDegrees = 0
     if state.mode == Config.GAME_MODE.PRACTICE then

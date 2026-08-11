@@ -38,6 +38,7 @@ function GameState.new()
         practiceVictoryPending = false,
         practiceCompleteUntil = 0,
         practiceObjectiveText = "",
+        practiceDescriptionText = "",
         elapsedTimeMs = 0,
         remainingTimeMs = nil,
         timerStartedAt = nil,

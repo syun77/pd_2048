@@ -1,6 +1,10 @@
 {
   "id": "001",
   "label": "MAKE 16",
+  "description": {
+    "ja": "タイル16を作成する",
+    "en": "Create a 16 tile"
+  },
   "initialBoard": [
     {
       "x": 2,

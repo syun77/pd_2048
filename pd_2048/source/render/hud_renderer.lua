@@ -121,6 +121,14 @@ function HudRenderer.header(ctx)
             gfx.drawText(ctx.practiceObjectiveText,
                 Config.PRACTICE_OBJECTIVE_X, Config.PRACTICE_OBJECTIVE_Y)
         end
+        if ctx.practiceDescriptionText ~= nil
+            and ctx.practiceDescriptionText ~= "" then
+            gfx.drawTextInRect(ctx.practiceDescriptionText,
+                Config.PRACTICE_DESCRIPTION_X,
+                Config.PRACTICE_DESCRIPTION_Y,
+                Config.PRACTICE_DESCRIPTION_WIDTH,
+                Config.PRACTICE_DESCRIPTION_HEIGHT)
+        end
     elseif ctx.mode == Config.GAME_MODE.TIME_ATTACK
         or ctx.mode == Config.GAME_MODE.TIME_ATTACK_256
         or ctx.mode == Config.GAME_MODE.TIME_ATTACK_2048 then

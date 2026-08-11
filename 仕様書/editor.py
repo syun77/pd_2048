@@ -30,6 +30,8 @@ VALUES = [2 ** n for n in range(MIN_BLOCK_EXPONENT, MAX_BLOCK_EXPONENT + 1)]
 # デフォルト値.
 DEFAULT_STAGE_ID = "001" # ステージID.
 DEFAULT_STAGE_LABEL = "NEW STAGE" # ステージラベル.
+DEFAULT_DESCRIPTION_JA = ""
+DEFAULT_DESCRIPTION_EN = ""
 DEFAULT_BLOCK_VALUE = 2 # デフォルトブロック値.
 DEFAULT_RANDOM_VALUES = [2, 4] # ランダムブロックの値.
 DEFAULT_RANDOM_WEIGHTS = [90, 10] # ランダムブロックの出現確率.
@@ -81,6 +83,7 @@ FIXED_NEXT_DARK_BACKGROUND_THRESHOLD = 32768
 FIXED_NEXT_DARK_FOREGROUND = "#f0f0f0"
 FIXED_NEXT_LIGHT_FOREGROUND = "#202020"
 FORM_ROW_PAD_Y = 2
+DESCRIPTION_ENTRY_WIDTH = 30
 OBJECTIVE_FRAME_PADDING = 5
 OBJECTIVE_FRAME_TOP_PAD = 8
 OBJECTIVE_TYPE_COMBOBOX_WIDTH = 16
@@ -177,6 +180,7 @@ def new_stage() -> dict:
     return {
         "id": DEFAULT_STAGE_ID,
         "label": DEFAULT_STAGE_LABEL,
+        "description": {"ja": DEFAULT_DESCRIPTION_JA, "en": DEFAULT_DESCRIPTION_EN},
         "initialBoard": [],
         "nextValues": [DEFAULT_BLOCK_VALUE] * MAX_NEXT,
         "nextPolicy": DEFAULT_NEXT_POLICY,
@@ -201,6 +205,8 @@ class StageEditor(tk.Tk):
         self.stage = new_stage()
         self.selected_value = tk.IntVar(value=DEFAULT_BLOCK_VALUE)
         self.label_var = tk.StringVar()
+        self.description_ja_var = tk.StringVar(value=DEFAULT_DESCRIPTION_JA)
+        self.description_en_var = tk.StringVar(value=DEFAULT_DESCRIPTION_EN)
         self.policy_var = tk.StringVar(value=DEFAULT_NEXT_POLICY)
         self.random_values_var = tk.StringVar(value=DEFAULT_RANDOM_VALUES_TEXT)
         self.random_weights_var = tk.StringVar(value=DEFAULT_RANDOM_WEIGHTS_TEXT)
@@ -310,11 +316,21 @@ class StageEditor(tk.Tk):
         ttk.Label(form, text="Label").grid(row=0, column=0, sticky="w")
         ttk.Entry(form, textvariable=self.label_var, width=FORM_ENTRY_WIDTH).grid(
             row=0, column=1, columnspan=3, sticky="ew", pady=FORM_ROW_PAD_Y)
-        ttk.Label(form, text="NEXT mode").grid(row=1, column=0, sticky="w")
+        ttk.Label(form, text="Description JA").grid(row=1, column=0, sticky="w")
+        ttk.Entry(form, textvariable=self.description_ja_var,
+                  width=DESCRIPTION_ENTRY_WIDTH).grid(
+                      row=1, column=1, columnspan=3, sticky="ew",
+                      pady=FORM_ROW_PAD_Y)
+        ttk.Label(form, text="Description EN").grid(row=2, column=0, sticky="w")
+        ttk.Entry(form, textvariable=self.description_en_var,
+                  width=DESCRIPTION_ENTRY_WIDTH).grid(
+                      row=2, column=1, columnspan=3, sticky="ew",
+                      pady=FORM_ROW_PAD_Y)
+        ttk.Label(form, text="NEXT mode").grid(row=3, column=0, sticky="w")
         policy = ttk.Combobox(form, textvariable=self.policy_var,
                               values=NEXT_POLICY_OPTIONS, state="readonly",
                               width=POLICY_COMBOBOX_WIDTH)
-        policy.grid(row=1, column=1, sticky="w", pady=FORM_ROW_PAD_Y)
+        policy.grid(row=3, column=1, sticky="w", pady=FORM_ROW_PAD_Y)
         policy.bind("<<ComboboxSelected>>", self._select_next_policy)
         random_values_label = ttk.Label(form, text="Random values")
         random_values_label.grid(row=4, column=0, sticky="w")
@@ -559,6 +575,13 @@ class StageEditor(tk.Tk):
             if LOGICAL_COORDINATE_OFFSET <= block.get("x", INVALID_COORDINATE) <= BOARD_SIZE and LOGICAL_COORDINATE_OFFSET <= block.get("y", INVALID_COORDINATE) <= BOARD_SIZE:
                 self.board[block["y"] - 1][block["x"] - 1] = block.get("value", EMPTY_CELL)
         self.label_var.set(self.stage.get("label", ""))
+        description = self.stage.get("description", {})
+        if isinstance(description, str):
+            self.description_ja_var.set("")
+            self.description_en_var.set(description)
+        else:
+            self.description_ja_var.set(description.get("ja", ""))
+            self.description_en_var.set(description.get("en", ""))
         self.policy_var.set(self.stage.get("nextPolicy", DEFAULT_NEXT_POLICY))
         self._update_random_fields_visibility()
         values = self.stage.get("nextValues", [])
@@ -584,6 +607,8 @@ class StageEditor(tk.Tk):
         return {
             "board": copy.deepcopy(self.board),
             "label": self.label_var.get(),
+            "description_ja": self.description_ja_var.get(),
+            "description_en": self.description_en_var.get(),
             "policy": self.policy_var.get(),
             "next": [v.get() for v in self.next_vars],
             "random_values": self.random_values_var.get(),
@@ -597,6 +622,8 @@ class StageEditor(tk.Tk):
     def _restore_snapshot(self, snapshot: dict) -> None:
         self.board = copy.deepcopy(snapshot["board"])
         self.label_var.set(snapshot["label"])
+        self.description_ja_var.set(snapshot["description_ja"])
+        self.description_en_var.set(snapshot["description_en"])
         self.policy_var.set(snapshot["policy"])
         for var, value in zip(self.next_vars, snapshot["next"]):
             var.set(value)
@@ -679,6 +706,10 @@ class StageEditor(tk.Tk):
         return {
             "id": self.stage.get("id", DEFAULT_STAGE_ID),
             "label": self.label_var.get().strip(),
+            "description": {
+                "ja": self.description_ja_var.get().strip(),
+                "en": self.description_en_var.get().strip(),
+            },
             "initialBoard": blocks,
             "nextValues": values,
             "nextPolicy": self.policy_var.get(),
@@ -692,6 +723,16 @@ class StageEditor(tk.Tk):
         errors = []
         if not stage["label"]:
             errors.append("Label is required")
+        description = stage.get("description", {})
+        if isinstance(description, str):
+            pass
+        elif not isinstance(description, dict):
+            errors.append("Description must be an object")
+        else:
+            if not isinstance(description.get("ja", ""), str):
+                errors.append("Japanese description must be text")
+            if not isinstance(description.get("en", ""), str):
+                errors.append("English description must be text")
         if len(stage["nextValues"]) != MAX_NEXT:
             errors.append("NEXT must contain 10 values")
         for block in stage["initialBoard"]:
@@ -761,6 +802,8 @@ class StageEditor(tk.Tk):
             if not isinstance(stage, dict):
                 raise ValueError("The stage JSON root must be an object")
             stage.setdefault("label", path.stem)
+            stage.setdefault("description", {"ja": DEFAULT_DESCRIPTION_JA,
+                                             "en": DEFAULT_DESCRIPTION_EN})
             stage.setdefault("initialBoard", [])
             stage.setdefault("nextValues", [DEFAULT_BLOCK_VALUE] * MAX_NEXT)
             stage.setdefault("nextPolicy", DEFAULT_NEXT_POLICY)
@@ -1223,6 +1266,14 @@ class PreviewWindow(tk.Toplevel):
             labels.append(f"{kind} {target} {'OK' if achieved else '...'}")
         return ", ".join(labels)
 
+    def _description_summary(self) -> str:
+        description = self.stage.get("description", {})
+        if isinstance(description, str):
+            return description or "-"
+        if not isinstance(description, dict):
+            return "-"
+        return description.get("en") or description.get("ja") or "-"
+
     def _draw(self) -> None:
         self.canvas.delete("all")
         for y in range(BOARD_SIZE):
@@ -1275,6 +1326,7 @@ class PreviewWindow(tk.Toplevel):
         self.info_var.set(f"State: {state}\nTurn: {self.turn}\nCurrent: {self.current_value}\n"
                           f"NEXT: {preview}\nHOLD: {self.hold_value or '-'}\n"
                           f"Move limit: {self.turn_limit or '-'}\n"
+                          f"Description: {self._description_summary()}\n"
                           f"Objective: {self._objective_summary()}\n"
                           f"Result: {result}\n"
                           f"Score: {self.score}\nCombo: {self.combo}\nMerges: {self.merge_count}")
