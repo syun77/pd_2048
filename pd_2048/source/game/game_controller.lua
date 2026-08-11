@@ -53,6 +53,7 @@ end
 function GameController:isTimeAttack()
     return self.state.mode == Config.GAME_MODE.TIME_ATTACK
         or self.state.mode == Config.GAME_MODE.TIME_ATTACK_256
+        or self.state.mode == Config.GAME_MODE.TIME_ATTACK_2048
 end
 
 function GameController:isCoreRush()
@@ -549,9 +550,12 @@ function GameController:finishMerge()
     end
     state.board:set(state.mergeSourceX, state.mergeSourceY, 0)
     state.board:set(state.mergeTargetX, state.mergeTargetY, state.mergeValue)
-    local timeAttackTarget = state.mode == Config.GAME_MODE.TIME_ATTACK_256
-        and Config.TIME_ATTACK_256_TARGET_VALUE
-        or Config.TIME_ATTACK_TARGET_VALUE
+    local timeAttackTarget = Config.TIME_ATTACK_TARGET_VALUE
+    if state.mode == Config.GAME_MODE.TIME_ATTACK_256 then
+        timeAttackTarget = Config.TIME_ATTACK_256_TARGET_VALUE
+    elseif state.mode == Config.GAME_MODE.TIME_ATTACK_2048 then
+        timeAttackTarget = Config.TIME_ATTACK_2048_TARGET_VALUE
+    end
     if self:isTimeAttack() and state.mergeValue >= timeAttackTarget then
         state.timeAttackVictoryPending = true
     end
@@ -606,7 +610,12 @@ end
 function GameController:spawnInitialBlocks()
     local state = self.state
     if not self:isCoreRush() then
-        local initialValue = state.mode == Config.GAME_MODE.TIME_ATTACK_256 and 64 or 8
+        local initialValue = 8
+        if state.mode == Config.GAME_MODE.TIME_ATTACK_256 then
+            initialValue = 64
+        elseif state.mode == Config.GAME_MODE.TIME_ATTACK_2048 then
+            initialValue = 1024
+        end
         state.board:set(Config.CENTER - 1, Config.CENTER, initialValue)
         state.board:set(Config.CENTER + 1, Config.CENTER, initialValue)
     end

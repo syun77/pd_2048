@@ -29,6 +29,8 @@ function TitleScene.new(context)
               mode = GameConfig.GAME_MODE.TIME_ATTACK },
             { label = "256 SPRINT", scene = GameConfig.SCENE.GAME,
               mode = GameConfig.GAME_MODE.TIME_ATTACK_256 },
+            { label = "2048 SPRINT", scene = GameConfig.SCENE.GAME,
+              mode = GameConfig.GAME_MODE.TIME_ATTACK_2048 },
             { label = "2048 CORE RUSH", scene = GameConfig.SCENE.GAME,
               mode = GameConfig.GAME_MODE.CORE_RUSH },
         },
