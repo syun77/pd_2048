@@ -1,4 +1,5 @@
 import "game_config"
+import "menu_selection_controller"
 
 local GameOverScene = {}
 GameOverScene.__index = GameOverScene
@@ -16,27 +17,40 @@ local function getModeSelectItem(scene)
 end
 
 function GameOverScene.new(context)
-    return setmetatable({ context = context, manager = nil, selectedIndex = 1 }, GameOverScene)
+    return setmetatable({
+        context = context,
+        manager = nil,
+        selectedIndex = 1,
+        menuSelectionController = MenuSelectionController.new(),
+    }, GameOverScene)
 end
 
 function GameOverScene:enter()
     self.selectedIndex = 1
+    MenuSelectionController.reset(self.menuSelectionController)
 end
 
-function GameOverScene:update()
+function GameOverScene:moveSelection(delta)
     local previousIndex = self.selectedIndex
-    if playdate.buttonJustPressed(playdate.kButtonUp) then
-        self.context.sound:play_se("pi")
-        self.selectedIndex -= 1
-        if self.selectedIndex < 1 then self.selectedIndex = 2 end
-    elseif playdate.buttonJustPressed(playdate.kButtonDown) then
-        self.context.sound:play_se("pi")
-        self.selectedIndex += 1
-        if self.selectedIndex > 2 then self.selectedIndex = 1 end
+    self.selectedIndex += delta
+    if self.selectedIndex < 1 then
+        self.selectedIndex = 2
+    elseif self.selectedIndex > 2 then
+        self.selectedIndex = 1
     end
 
     if self.selectedIndex ~= previousIndex then
         self.context.sound:play_se("pi")
+    end
+end
+
+function GameOverScene:update()
+    local previousIndex = self.selectedIndex
+    MenuSelectionController.update(self.menuSelectionController, playdate,
+        playdate.getCurrentTimeMilliseconds(),
+        function(delta) self:moveSelection(delta) end)
+
+    if self.selectedIndex ~= previousIndex then
         return
     end
 

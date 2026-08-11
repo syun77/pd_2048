@@ -1,6 +1,8 @@
 import "CoreLibs/graphics"
+import "game_config"
 
 local gfx <const> = playdate.graphics
+local Config <const> = GameConfig
 
 local TitleRenderer = {}
 TitleRenderer.__index = TitleRenderer
@@ -13,17 +15,44 @@ function TitleRenderer.new(dependencies)
 end
 
 function TitleRenderer:drawCenteredText(text, y)
-    gfx.drawTextAligned(text, 200, y, kTextAlignment.center)
+    gfx.drawTextAligned(text, Config.SCREEN_CENTER_X, y, kTextAlignment.center)
 end
 
+-- PRACTICEモードの説明文を描画.
+---@param menuItems any[] 項目リスト.
+---@param selectedIndex integer 選択番号.
+function TitleRenderer:drawPracticeDescription(menuItems, selectedIndex)
+    if menuItems == nil or selectedIndex == nil then return end
+    local item = menuItems[selectedIndex]
+    local description = item ~= nil and item.description or nil
+    if description == nil or description == "" then return end
+
+	local centerX = Config.TITLE_PRACTICE_DESCRIPTION_X + Config.TITLE_PRACTICE_DESCRIPTION_WIDTH * 0.5
+	local centerY = Config.TITLE_PRACTICE_DESCRIPTION_Y + Config.TITLE_PRACTICE_DESCRIPTION_HEIGHT * 0.5
+	gfx.drawTextAligned(description, centerX, centerY, kTextAlignment.center)
+end
+
+-- タイトルを描画.
+---@param selectedIndex integer 選択している項目番号
+---@param menuItems any[] 項目リスト
+---@param title string|nil
 function TitleRenderer:drawTitle(selectedIndex, menuItems, title)
     local labels = {}
     for _, item in ipairs(menuItems) do
         table.insert(labels, item.label)
     end
     if title ~= nil then self:drawCenteredText(title, 42) end
-    self.menuRenderer:drawMenu(200, title == nil and 132 or 132,
+    local menuCenterY = Config.TITLE_MENU_CENTER_Y
+    if title == "PRACTICE" then
+        menuCenterY = Config.TITLE_PRACTICE_MENU_CENTER_Y
+    elseif title ~= nil then
+        menuCenterY = Config.TITLE_SUBMENU_CENTER_Y
+    end
+    self.menuRenderer:drawMenu(Config.SCREEN_CENTER_X, menuCenterY,
         labels, selectedIndex, gfx.kColorWhite, title == nil and nil or 5)
+    if title == "PRACTICE" then
+        self:drawPracticeDescription(menuItems, selectedIndex)
+    end
 end
 
 function TitleRenderer:drawMenuPage(title)

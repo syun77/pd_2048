@@ -3,6 +3,7 @@ local Config = {
 	-- システム.
     DEFAULT_REFRESH_RATE = 30, -- FPS.
     SHOW_AUTO_PLAY_MENU_ITEM = false, -- 開発時だけtrueにしてOSメニューにAuto Playを表示する.
+    SCREEN_CENTER_X = 200,
 	
 	-- メインゲーム.
     BOARD_SIZE = 5, -- 盤面のサイズ.
@@ -16,6 +17,15 @@ local Config = {
     REWIND_HOLD_DURATION_MS = 800,
     REWIND_GAUGE_WIDTH = 116,
     SCORE_MULTIPLIER = 100,
+	-- メニューの基準Y座標.
+    TITLE_MENU_CENTER_Y = 132,
+    TITLE_SUBMENU_CENTER_Y = 132,
+    TITLE_PRACTICE_MENU_CENTER_Y = 108,
+	-- PRACTICEモードの説明文の描画位置.
+    TITLE_PRACTICE_DESCRIPTION_X = 12,
+    TITLE_PRACTICE_DESCRIPTION_Y = 200,
+    TITLE_PRACTICE_DESCRIPTION_WIDTH = 376,
+    TITLE_PRACTICE_DESCRIPTION_HEIGHT = 18,
 	-- コンボ関連.
     COMBO_SCORE_COEFFICIENT = 2,
     COMBO_SCORE_EXPONENT = 1.5,

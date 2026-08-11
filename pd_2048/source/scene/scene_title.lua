@@ -2,6 +2,7 @@
 タイトル画面.
 ===============================================]]
 import "game_config"
+import "menu_selection_controller"
 import "practice_stage_loader"
 
 local pd <const> = playdate
@@ -15,6 +16,7 @@ function TitleScene.new(context)
         context = context,
         manager = nil,
         selectedIndex = 1,
+        menuSelectionController = MenuSelectionController.new(),
         page = "ROOT",
         menuItems = {
             { label = "NORMAL GAME", scene = GameConfig.SCENE.GAME,
@@ -44,14 +46,32 @@ function TitleScene:enter(params)
     self.context.sound:playMenuBgm()
     self.page = params ~= nil and params.page or "ROOT"
     self.selectedIndex = 1
+    MenuSelectionController.reset(self.menuSelectionController)
     self.practiceItems = {}
     for _, stage in ipairs(PracticeStageLoader.loadAll()) do
         table.insert(self.practiceItems, {
             label = stage.label,
+            description = PracticeStageLoader.descriptionForLanguage(stage, "en"),
             scene = GameConfig.SCENE.GAME,
             mode = GameConfig.GAME_MODE.PRACTICE,
             practiceStage = stage,
         })
+    end
+end
+
+function TitleScene:moveSelection(delta, items)
+    if #items == 0 then return end
+
+    local previousIndex = self.selectedIndex
+    self.selectedIndex += delta
+    if self.selectedIndex < 1 then
+        self.selectedIndex = #items
+    elseif self.selectedIndex > #items then
+        self.selectedIndex = 1
+    end
+
+    if self.selectedIndex ~= previousIndex then
+        self.context.sound:play_se("pi")
     end
 end
 
@@ -63,21 +83,16 @@ function TitleScene:update()
     if pd.buttonJustPressed(pd.kButtonB) and self.page ~= "ROOT" then
         self.page = "ROOT"
         self.selectedIndex = 1
+        MenuSelectionController.reset(self.menuSelectionController)
         self.context.sound:play_se("cancel")
         return
-    elseif pd.buttonJustPressed(pd.kButtonUp) then
-		self.context.sound:play_se("pi")
-        self.selectedIndex -= 1
-        if self.selectedIndex < 1 then self.selectedIndex = #items end
-    elseif pd.buttonJustPressed(pd.kButtonDown) then
-		self.context.sound:play_se("pi")
-        self.selectedIndex += 1
-        if self.selectedIndex > #items then self.selectedIndex = 1 end
     end
 
+    MenuSelectionController.update(self.menuSelectionController, pd,
+        pd.getCurrentTimeMilliseconds(),
+        function(delta) self:moveSelection(delta, items) end)
+
     if self.selectedIndex ~= previousIndex then
-		-- 項目移動SEを再生.
-        self.context.sound:play_se("pi")
         return
     end
 
@@ -87,6 +102,7 @@ function TitleScene:update()
         if item.submenu then
             self.page = item.submenuPage
             self.selectedIndex = 1
+            MenuSelectionController.reset(self.menuSelectionController)
             return
         end
         if item.mode ~= nil then
@@ -103,6 +119,7 @@ function TitleScene:draw()
     self.context.titleRenderer:drawTitle(self.selectedIndex, items, title)
 end
 
+-- 選択している項目リストを取得.
 function TitleScene:getCurrentItems()
     if self.page == "ROOT" then return self.menuItems end
     if self.page == "TIME_ATTACK" then return self.timeAttackItems end
