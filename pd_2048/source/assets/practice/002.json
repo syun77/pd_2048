@@ -1,6 +1,6 @@
 {
   "id": "001",
-  "label": "MAKE 16",
+  "label": "MAKE 16 b",
   "initialBoard": [
     {
       "x": 2,
@@ -15,8 +15,8 @@
   ],
   "nextValues": [
     2,
-    2,
     4,
+    2,
     2,
     2,
     4,
@@ -43,5 +43,5 @@
       "value": 16
     }
   ],
-  "turnLimit": 5
+  "turnLimit": 3
 }
