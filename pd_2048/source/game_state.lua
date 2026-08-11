@@ -43,6 +43,7 @@ function GameState.new()
         timerStartedAt = nil,
         timerLastUpdateAt = nil,
         timeoutPending = false,
+        startReadyUntil = 0,
         holdValue = 0,
         holdAvailable = true,
         lastRandomBlockValue = 0,

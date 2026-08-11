@@ -319,6 +319,7 @@ function GameRenderer:drawNormalFrame()
     self.overlay:drawCoreRushComplete()
     self.overlay:drawPracticeComplete()
     self.overlay:drawRewindHint()
+    self.overlay:drawStartReady()
     if state.phase == GamePhase.PAUSED then
         self.overlay:drawPause()
     else

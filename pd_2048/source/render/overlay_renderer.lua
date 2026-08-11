@@ -131,6 +131,18 @@ function OverlayRenderer:drawMessage()
     end
 end
 
+function OverlayRenderer:drawStartReady()
+    local state = self.state
+    if state.startReadyUntil == 0
+        or pd.getCurrentTimeMilliseconds() >= state.startReadyUntil then
+        return
+    end
+    gfx.fillRect(120, 101, 160, 38)
+    gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    self:drawCenteredText("GET READY", 112)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+end
+
 function OverlayRenderer:drawCoreRushGain()
     local state = self.state
     if state.mode ~= Config.GAME_MODE.CORE_RUSH

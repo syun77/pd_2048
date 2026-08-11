@@ -80,6 +80,7 @@ local bgmAmbientTable = {
 
 -- SEテーブル.
 local seTable = {
+	-- 効果音.
 	"pi",
 	"fall",
 	"fixed",
@@ -96,6 +97,9 @@ local seTable = {
 	"combo2",
 	"combo3",
 	"countdown",
+	-- ボイス.
+	"voice_getready",
+	"voice_complete",
 }
 
 class('Sound').extends()

@@ -746,14 +746,14 @@ function GameController:start(mode, practiceStage)
             state.practiceObjectives[1])
     end
     state.phase = GamePhase.INPUT
-    if state.mode == Config.GAME_MODE.TIME_ATTACK
-        or self:isTimeLimitTest() or self:isCoreRush() then
-        state.timerStartedAt = pd.getCurrentTimeMilliseconds()
-        state.timerLastUpdateAt = state.timerStartedAt
-    end
+	-- "GET READY" 表示開始.
+    state.startReadyUntil = pd.getCurrentTimeMilliseconds() + 1000
     state.message = ""
     state.crisisBgmActive = false
+	-- BGM再生開始.
     self.sound:playGameBgm()
+	-- "GET READY" ボイスを再生.
+	self.sound:play_se("voice_getready")
 end
 
 function GameController:holdCurrentBlock()
@@ -853,8 +853,20 @@ function GameController:updateCursorKeyRepeat()
     state.cursorRepeatNextAt = self.cursorController.nextAt
 end
 
+-- 更新.
 function GameController:update()
     local state = self.state
+    if state.startReadyUntil ~= 0 then
+        local now = pd.getCurrentTimeMilliseconds()
+        if now < state.startReadyUntil then return nil end
+        state.startReadyUntil = 0
+        if state.mode == Config.GAME_MODE.TIME_ATTACK
+            or self:isTimeLimitTest() or self:isCoreRush() then
+            state.timerStartedAt = now
+            state.timerLastUpdateAt = now
+        end
+        return nil
+    end
     self:updateTimeAttackTimer()
 
     if state.coreRushCompleteUntil ~= 0 then
