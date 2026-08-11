@@ -25,7 +25,7 @@ function TitleScene.new(context)
             { label = "STATISTICS", scene = GameConfig.SCENE.STATISTICS },
         },
         timeAttackItems = {
-            { label = "RACE TO 64", scene = GameConfig.SCENE.GAME,
+            { label = "64 SPRINT", scene = GameConfig.SCENE.GAME,
               mode = GameConfig.GAME_MODE.TIME_ATTACK },
             { label = "TIME LIMIT TEST", scene = GameConfig.SCENE.GAME,
               mode = GameConfig.GAME_MODE.TIME_LIMIT_TEST },

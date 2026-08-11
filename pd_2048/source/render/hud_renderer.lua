@@ -23,7 +23,7 @@ function HudRenderer.timeAttack(elapsedTimeMs)
 end
 
 -- 旧TIME ATTACKの残り時間と制限時間バー描画。
--- 現行のRACE TO 64では使用せず、時間制限モード用に保持する。
+-- 現行の64 SPRINTでは使用せず、時間制限モード用に保持する。
 function HudRenderer.timeAttackLimit(remainingTimeMs, totalTimeMs)
     totalTimeMs = totalTimeMs or Config.TIME_ATTACK_LIMIT_MS
     remainingTimeMs = math.max(0, math.min(totalTimeMs, remainingTimeMs))
