@@ -52,10 +52,7 @@ end
 
 function GameController:isTimeAttack()
     return self.state.mode == Config.GAME_MODE.TIME_ATTACK
-end
-
-function GameController:isTimeLimitTest()
-    return self.state.mode == Config.GAME_MODE.TIME_LIMIT_TEST
+        or self.state.mode == Config.GAME_MODE.TIME_ATTACK_256
 end
 
 function GameController:isCoreRush()
@@ -97,8 +94,7 @@ end
 
 function GameController:saveTimeAttackBestTime()
     local state = self.state
-    if state.mode ~= Config.GAME_MODE.TIME_ATTACK
-        or state.result ~= GameResult.VICTORY then return end
+    if not self:isTimeAttack() or state.result ~= GameResult.VICTORY then return end
     if state.timeAttackBestTimeMs == nil
         or state.elapsedTimeMs < state.timeAttackBestTimeMs then
         state.timeAttackBestTimeMs = state.elapsedTimeMs
@@ -140,7 +136,7 @@ end
 
 function GameController:beginRewindHold()
     local state = self.state
-    if self:isTimeAttack() or self:isTimeLimitTest() then
+    if self:isTimeAttack() then
         self:setMessage("REWIND UNAVAILABLE", 700)
         self.sound:play_se("error")
         return
@@ -195,7 +191,7 @@ function GameController:findMergeForBlock(sourceX, sourceY, activeValue)
 end
 
 function GameController:isRewindAvailable()
-    if self:isTimeAttack() or self:isTimeLimitTest() then return false end
+    if self:isTimeAttack() then return false end
     return self.undoController:isAvailable()
 end
 
@@ -440,8 +436,7 @@ end
 -- タイムアタックモードでの制限時間の更新.
 function GameController:updateTimeAttackTimer()
     local state = self.state
-    if (not self:isTimeAttack() and not self:isTimeLimitTest()
-        and not self:isCoreRush()) or state.result ~= nil
+    if (not self:isTimeAttack() and not self:isCoreRush()) or state.result ~= nil
         or state.timerStartedAt == nil then
 		-- タイムアタックモードでなければ何もしない.
         return
@@ -459,16 +454,6 @@ function GameController:updateTimeAttackTimer()
 	-- 経過時間を加算.
     state.elapsedTimeMs += math.max(0, now - state.timerLastUpdateAt)
     state.timerLastUpdateAt = now
-    if self:isTimeLimitTest() then
-        local previousRemainingTimeMs = state.remainingTimeMs
-        state.remainingTimeMs = math.max(0,
-            Config.TIME_ATTACK_LIMIT_MS - state.elapsedTimeMs)
-        if self:shouldPlayTimeAttackWarning(
-            previousRemainingTimeMs, state.remainingTimeMs) then
-            self.sound:play_se("countdown")
-        end
-        if state.remainingTimeMs <= 0 then state.timeoutPending = true end
-    end
 end
 
 function GameController:finishNextAnimation()
@@ -564,8 +549,10 @@ function GameController:finishMerge()
     end
     state.board:set(state.mergeSourceX, state.mergeSourceY, 0)
     state.board:set(state.mergeTargetX, state.mergeTargetY, state.mergeValue)
-    if self:isTimeAttack()
-        and state.mergeValue >= Config.TIME_ATTACK_TARGET_VALUE then
+    local timeAttackTarget = state.mode == Config.GAME_MODE.TIME_ATTACK_256
+        and Config.TIME_ATTACK_256_TARGET_VALUE
+        or Config.TIME_ATTACK_TARGET_VALUE
+    if self:isTimeAttack() and state.mergeValue >= timeAttackTarget then
         state.timeAttackVictoryPending = true
     end
     self.session:recordMerge(state.mergeValue)
@@ -619,8 +606,9 @@ end
 function GameController:spawnInitialBlocks()
     local state = self.state
     if not self:isCoreRush() then
-        state.board:set(Config.CENTER - 1, Config.CENTER, 8)
-        state.board:set(Config.CENTER + 1, Config.CENTER, 8)
+        local initialValue = state.mode == Config.GAME_MODE.TIME_ATTACK_256 and 64 or 8
+        state.board:set(Config.CENTER - 1, Config.CENTER, initialValue)
+        state.board:set(Config.CENTER + 1, Config.CENTER, initialValue)
     end
 end
 
@@ -677,8 +665,7 @@ function GameController:start(mode, practiceStage)
     state.timeAttackVictoryPending = false
     state.highScore = state.normalHighScore
     state.elapsedTimeMs = 0
-    state.remainingTimeMs = self:isTimeLimitTest()
-        and Config.TIME_ATTACK_LIMIT_MS or nil
+    state.remainingTimeMs = nil
     state.timerStartedAt = nil
     state.timerLastUpdateAt = nil
     state.timeoutPending = false
@@ -860,8 +847,7 @@ function GameController:update()
         local now = pd.getCurrentTimeMilliseconds()
         if now < state.startReadyUntil then return nil end
         state.startReadyUntil = 0
-        if state.mode == Config.GAME_MODE.TIME_ATTACK
-            or self:isTimeLimitTest() or self:isCoreRush() then
+        if self:isTimeAttack() or self:isCoreRush() then
             state.timerStartedAt = now
             state.timerLastUpdateAt = now
         end
@@ -892,9 +878,7 @@ function GameController:update()
     if state.phase ~= GamePhase.INPUT then self:resetCursorKeyRepeat() end
 
     if state.phase == GamePhase.INPUT then
-        if state.timeoutPending then
-            self:beginTimeUp()
-        elseif self.autoPlayEnabled then
+        if self.autoPlayEnabled then
             local command = self.autoPlayer:poll(nil, {
                 phase = state.phase,
                 cursorX = state.cursorX,
@@ -934,11 +918,6 @@ function GameController:update()
         or state.phase == GamePhase.NEXT_ANIM
         or state.phase == GamePhase.HOLD_ANIM then
         self:advanceAnimation()
-    end
-
-    if state.timeoutPending and state.phase == GamePhase.INPUT
-        and state.result == nil then
-        self:beginTimeUp()
     end
 
     if state.result ~= nil then return { scene = Config.SCENE.GAME_OVER } end

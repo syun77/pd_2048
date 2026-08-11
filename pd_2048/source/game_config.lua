@@ -23,8 +23,7 @@ local Config = {
     COMBO_STEADY_DURATION_FRAMES = 30,
 	-- TIME ATTACKモード.
     TIME_ATTACK_TARGET_VALUE = 64,
-	-- 旧時間制限バー描画用の設定.
-    TIME_ATTACK_LIMIT_MS = 60000,
+    TIME_ATTACK_256_TARGET_VALUE = 256,
 	-- CORE RUSHモード.
     CORE_RUSH_GAIN_DISPLAY_MS = 900,
     CORE_RUSH_COMPLETE_DISPLAY_MS = 2000, -- CORE RUSHモードのクリア表示時間.
@@ -65,7 +64,7 @@ local Config = {
     GAME_MODE = {
         NORMAL = "NORMAL",
         TIME_ATTACK = "TIME_ATTACK",
-        TIME_LIMIT_TEST = "TIME_LIMIT_TEST",
+        TIME_ATTACK_256 = "TIME_ATTACK_256",
         CORE_RUSH = "CORE_RUSH",
         PRACTICE = "PRACTICE",
     },

@@ -27,8 +27,8 @@ function TitleScene.new(context)
         timeAttackItems = {
             { label = "64 SPRINT", scene = GameConfig.SCENE.GAME,
               mode = GameConfig.GAME_MODE.TIME_ATTACK },
-            { label = "TIME LIMIT TEST", scene = GameConfig.SCENE.GAME,
-              mode = GameConfig.GAME_MODE.TIME_LIMIT_TEST },
+            { label = "256 SPRINT", scene = GameConfig.SCENE.GAME,
+              mode = GameConfig.GAME_MODE.TIME_ATTACK_256 },
             { label = "2048 CORE RUSH", scene = GameConfig.SCENE.GAME,
               mode = GameConfig.GAME_MODE.CORE_RUSH },
         },
