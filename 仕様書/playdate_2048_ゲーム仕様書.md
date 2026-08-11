@@ -302,7 +302,7 @@ ACHIEVEMENTS画面は現在`NO ACHIEVEMENTS YET`を表示するだけで、実�
 
 ゲームオーバーまたはTIME ATTACK／CORE RUSHの勝利時に、盤面とスコアを背景としてメニューを表示する。メニュー項目は結果表示、スコア、`RETRY`、`TITLE`である。上下キーで選択し、Aボタンで決定する。
 
-TIME ATTACKで64を作成した結果は`VICTORY`とクリアタイムを表示する。
+TIME ATTACKで64を作成した結果は`COMPLETE`とクリアタイムを表示する。時間制限モードで時間切れになった場合は`TIME OVER`を表示する。
 
 ## 12. ゲーム状態とアニメーション
 

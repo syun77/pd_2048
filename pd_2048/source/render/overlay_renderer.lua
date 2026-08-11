@@ -173,7 +173,8 @@ end
 
 function OverlayRenderer:drawCoreRushComplete()
     local state = self.state
-    if state.mode ~= Config.GAME_MODE.CORE_RUSH
+    if (state.mode ~= Config.GAME_MODE.CORE_RUSH
+        and state.mode ~= Config.GAME_MODE.TIME_ATTACK)
         or state.coreRushCompleteUntil == 0
         or pd.getCurrentTimeMilliseconds() >= state.coreRushCompleteUntil then
         return
@@ -278,7 +279,8 @@ function OverlayRenderer:drawGameOver(selectedIndex)
     if self.state.result == Config.GAME_RESULT.TIME_UP then
         resultTitle = "TIME UP"
     elseif self.state.result == Config.GAME_RESULT.VICTORY then
-        resultTitle = "VICTORY"
+        resultTitle = self.state.mode == Config.GAME_MODE.TIME_ATTACK
+            and "COMPLETE" or "VICTORY"
     end
     local resultDetail = "SCORE " .. tostring(self.state.score)
     if self.state.result == Config.GAME_RESULT.VICTORY then
