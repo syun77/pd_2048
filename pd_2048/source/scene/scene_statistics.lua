@@ -16,7 +16,7 @@ end
 
 function StatisticsScene:update()
     if playdate.buttonJustPressed(playdate.kButtonB) then
-        self.context.sound:play_se("decide")
+        self.context.sound:play_se("cancel")
         self.manager:change(GameConfig.SCENE.TITLE)
     end
 end

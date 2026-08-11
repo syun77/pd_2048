@@ -14,9 +14,11 @@ end
 function GameOverScene:update()
     local previousIndex = self.selectedIndex
     if playdate.buttonJustPressed(playdate.kButtonUp) then
+        self.context.sound:play_se("pi")
         self.selectedIndex -= 1
         if self.selectedIndex < 1 then self.selectedIndex = 2 end
     elseif playdate.buttonJustPressed(playdate.kButtonDown) then
+        self.context.sound:play_se("pi")
         self.selectedIndex += 1
         if self.selectedIndex > 2 then self.selectedIndex = 1 end
     end
@@ -29,8 +31,11 @@ function GameOverScene:update()
     if playdate.buttonJustPressed(playdate.kButtonA) then
         self.context.sound:play_se("decide")
         if self.selectedIndex == 1 then
-            self.context.game:start(self.context.game:getState().mode)
+            local state = self.context.game:getState()
+            self.context.game:start(state.mode)
             self.manager:change(GameConfig.SCENE.GAME)
+        elseif self.context.game:getState().mode == GameConfig.GAME_MODE.PRACTICE then
+            self.manager:change(GameConfig.SCENE.TITLE, { page = "PRACTICE" })
         else
             self.manager:change(GameConfig.SCENE.TITLE)
         end

@@ -39,10 +39,10 @@ function TitleScene.new(context)
 end
 
 -- 開始.
-function TitleScene:enter()
+function TitleScene:enter(params)
 	-- メニュー用BGMを再生.
     self.context.sound:playMenuBgm()
-    self.page = "ROOT"
+    self.page = params ~= nil and params.page or "ROOT"
     self.selectedIndex = 1
     self.practiceItems = {}
     for _, stage in ipairs(PracticeStageLoader.loadAll()) do
@@ -63,12 +63,14 @@ function TitleScene:update()
     if pd.buttonJustPressed(pd.kButtonB) and self.page ~= "ROOT" then
         self.page = "ROOT"
         self.selectedIndex = 1
-        self.context.sound:play_se("pi")
+        self.context.sound:play_se("cancel")
         return
     elseif pd.buttonJustPressed(pd.kButtonUp) then
+		self.context.sound:play_se("pi")
         self.selectedIndex -= 1
         if self.selectedIndex < 1 then self.selectedIndex = #items end
     elseif pd.buttonJustPressed(pd.kButtonDown) then
+		self.context.sound:play_se("pi")
         self.selectedIndex += 1
         if self.selectedIndex > #items then self.selectedIndex = 1 end
     end

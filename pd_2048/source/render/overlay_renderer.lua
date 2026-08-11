@@ -299,11 +299,13 @@ function OverlayRenderer:drawGameOver(selectedIndex)
             resultDetail = string.format("TIME %02d:%02d.%02d", minutes, seconds, centiseconds % 100)
         end
     end
+    local returnLabel = self.state.mode == Config.GAME_MODE.PRACTICE
+        and "STAGE SELECT" or "TITLE"
     self:drawMenu(200, 130, {
         resultTitle,
         resultDetail,
         "RETRY",
-        "TITLE",
+        returnLabel,
     }, selectedIndex + 2)
 end
 

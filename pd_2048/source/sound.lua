@@ -82,6 +82,7 @@ local bgmAmbientTable = {
 local seTable = {
 	-- 効果音.
 	"pi",
+	"cancel",
 	"fall",
 	"fixed",
 	"merge",

@@ -306,7 +306,7 @@ ACHIEVEMENTS画面は現在`NO ACHIEVEMENTS YET`を表示するだけで、実�
 
 ### 11.3 ゲームオーバー画面
 
-ゲームオーバーまたはTIME ATTACK／CORE RUSHの勝利時に、盤面とスコアを背景としてメニューを表示する。メニュー項目は結果表示、スコア、`RETRY`、`TITLE`である。上下キーで選択し、Aボタンで決定する。
+ゲームオーバーまたはTIME ATTACK／CORE RUSHの勝利時に、盤面とスコアを背景としてメニューを表示する。通常モード、TIME ATTACK、CORE RUSHのメニュー項目は結果表示、スコア、`RETRY`、`TITLE`である。PRACTICEの失敗時・クリア時は、結果表示、目標、`RETRY`、`STAGE SELECT`（問題選択へ戻る）を表示する。上下キーで選択し、Aボタンで決定する。
 
 TIME ATTACKで目標ブロック（64 SPRINTは64、256 SPRINTは256、2048 SPRINTは2048）を作成した結果は`COMPLETE`とクリアタイムを表示する。
 
