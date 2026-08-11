@@ -1,28 +1,28 @@
 {
   "id": "001",
-  "label": "COMBO 3",
+  "label": "COMBO 5",
   "initialBoard": [
     {
       "x": 2,
       "y": 3,
-      "value": 8
+      "value": 16
     },
     {
       "x": 4,
       "y": 3,
-      "value": 8
+      "value": 16
     }
   ],
   "nextValues": [
-    4,
-    2,
-    2,
-    2,
-    2,
+    8,
+    16,
     2,
     4,
-    2,
     4,
+    4,
+    16,
+    2,
+    2,
     2
   ],
   "nextPolicy": "FIXED",
@@ -40,8 +40,8 @@
   "objectives": [
     {
       "type": "COMBO",
-      "value": 3
+      "value": 5
     }
   ],
-  "turnLimit": 5
+  "turnLimit": 10
 }

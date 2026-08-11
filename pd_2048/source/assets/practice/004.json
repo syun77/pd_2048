@@ -1,6 +1,6 @@
 {
   "id": "001",
-  "label": "COMBO 3",
+  "label": "COMBO 4",
   "initialBoard": [
     {
       "x": 2,
@@ -14,12 +14,12 @@
     }
   ],
   "nextValues": [
+    2,
+    8,
+    2,
+    2,
+    8,
     4,
-    2,
-    2,
-    2,
-    2,
-    2,
     4,
     2,
     4,
@@ -40,8 +40,8 @@
   "objectives": [
     {
       "type": "COMBO",
-      "value": 3
+      "value": 4
     }
   ],
-  "turnLimit": 5
+  "turnLimit": 8
 }

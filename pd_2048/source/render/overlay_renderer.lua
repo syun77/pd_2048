@@ -283,7 +283,8 @@ function OverlayRenderer:drawGameOver(selectedIndex)
     elseif self.state.result == Config.GAME_RESULT.VICTORY then
         resultTitle = (self.state.mode == Config.GAME_MODE.TIME_ATTACK
             or self.state.mode == Config.GAME_MODE.TIME_ATTACK_256
-            or self.state.mode == Config.GAME_MODE.TIME_ATTACK_2048)
+            or self.state.mode == Config.GAME_MODE.TIME_ATTACK_2048
+            or self.state.mode == Config.GAME_MODE.PRACTICE)
             and "COMPLETE" or "VICTORY"
     end
     local resultDetail = "SCORE " .. tostring(self.state.score)
