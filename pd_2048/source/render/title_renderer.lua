@@ -41,7 +41,10 @@ end
 function TitleRenderer:drawStatistics()
     self:drawMenuPage("STATISTICS")
     self:drawCenteredText("NORMAL  " .. tostring(self.state.normalHighScore), 120)
-    self:drawCenteredText("TIME ATTACK  " .. tostring(self.state.timeAttackHighScore), 144)
+    local timeAttackBest = self.state.timeAttackBestTimeMs
+    local timeAttackText = timeAttackBest == nil and "--" or string.format("%02d.%02d",
+        math.floor(timeAttackBest / 1000), math.floor(timeAttackBest / 10) % 100)
+    self:drawCenteredText("TIME ATTACK  " .. timeAttackText, 144)
     local best = self.state.coreRushBestTimeMs
     local bestText = best == nil and "--" or string.format("%02d.%02d",
         math.floor(best / 1000), math.floor(best / 10) % 100)

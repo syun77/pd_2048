@@ -54,6 +54,10 @@ function GameController:isTimeAttack()
     return self.state.mode == Config.GAME_MODE.TIME_ATTACK
 end
 
+function GameController:isTimeLimitTest()
+    return self.state.mode == Config.GAME_MODE.TIME_LIMIT_TEST
+end
+
 function GameController:isCoreRush()
     return self.state.mode == Config.GAME_MODE.CORE_RUSH
 end
@@ -72,9 +76,9 @@ function GameController:loadHighScore()
     if ok and type(value) == "number" then
         self.state.normalHighScore = value
     end
-    local okTimeAttack, timeAttackValue = pcall(pd.datastore.read, "timeAttackHighScore")
+    local okTimeAttack, timeAttackValue = pcall(pd.datastore.read, "timeAttackBestTimeMs")
     if okTimeAttack and type(timeAttackValue) == "number" then
-        self.state.timeAttackHighScore = timeAttackValue
+        self.state.timeAttackBestTimeMs = timeAttackValue
     end
     local okCoreRush, coreRushValue = pcall(pd.datastore.read, "coreRushBestTimeMs")
     if okCoreRush and type(coreRushValue) == "number" then
@@ -85,14 +89,20 @@ end
 
 function GameController:saveCurrentModeHighScore()
     local state = self.state
-    if state.mode == Config.GAME_MODE.TIME_ATTACK then
-        if state.score > state.timeAttackHighScore then
-            state.timeAttackHighScore = state.score
-            pd.datastore.write(state.timeAttackHighScore, "timeAttackHighScore")
-        end
-    elseif state.mode == Config.GAME_MODE.NORMAL and state.score > state.normalHighScore then
+    if state.mode == Config.GAME_MODE.NORMAL and state.score > state.normalHighScore then
         state.normalHighScore = state.score
         pd.datastore.write(state.normalHighScore, "highScore")
+    end
+end
+
+function GameController:saveTimeAttackBestTime()
+    local state = self.state
+    if state.mode ~= Config.GAME_MODE.TIME_ATTACK
+        or state.result ~= GameResult.VICTORY then return end
+    if state.timeAttackBestTimeMs == nil
+        or state.elapsedTimeMs < state.timeAttackBestTimeMs then
+        state.timeAttackBestTimeMs = state.elapsedTimeMs
+        pd.datastore.write(state.timeAttackBestTimeMs, "timeAttackBestTimeMs")
     end
 end
 
@@ -130,7 +140,7 @@ end
 
 function GameController:beginRewindHold()
     local state = self.state
-    if self:isTimeAttack() then
+    if self:isTimeAttack() or self:isTimeLimitTest() then
         self:setMessage("REWIND UNAVAILABLE", 700)
         self.sound:play_se("error")
         return
@@ -185,7 +195,7 @@ function GameController:findMergeForBlock(sourceX, sourceY, activeValue)
 end
 
 function GameController:isRewindAvailable()
-    if self:isTimeAttack() then return false end
+    if self:isTimeAttack() or self:isTimeLimitTest() then return false end
     return self.undoController:isAvailable()
 end
 
@@ -259,6 +269,10 @@ end
 
 function GameController:finishTurn()
     local state = self.state
+    if state.timeAttackVictoryPending then
+        self:beginVictory()
+        return
+    end
     state.rotationStartBoard = nil
     state.rotationEndBoard = nil
     state.holdAvailable = true
@@ -426,7 +440,8 @@ end
 -- タイムアタックモードでの制限時間の更新.
 function GameController:updateTimeAttackTimer()
     local state = self.state
-    if (not self:isTimeAttack() and not self:isCoreRush()) or state.result ~= nil
+    if (not self:isTimeAttack() and not self:isTimeLimitTest()
+        and not self:isCoreRush()) or state.result ~= nil
         or state.timerStartedAt == nil then
 		-- タイムアタックモードでなければ何もしない.
         return
@@ -444,26 +459,20 @@ function GameController:updateTimeAttackTimer()
 	-- 経過時間を加算.
     state.elapsedTimeMs += math.max(0, now - state.timerLastUpdateAt)
     state.timerLastUpdateAt = now
-	local prevRemainingTimeMs = state.remainingTimeMs
-    if self:isTimeAttack() then
-        state.remainingTimeMs = math.max(0, Config.TIME_ATTACK_LIMIT_MS - state.elapsedTimeMs)
-    end
-
-	if not self:isTimeAttack() then return end
-	-- 60秒タイムアタックのみ時間切れを判定する。
-	if self:shouldPlayTimeAttackWarning(prevRemainingTimeMs, state.remainingTimeMs) then
-		-- 時間切れ警告音の再生.
-		self.sound:play_se("countdown")
-	end
-
-    if state.remainingTimeMs <= 0 then
-		-- 時間切れ.
-        state.timeoutPending = true
+    if self:isTimeLimitTest() then
+        local previousRemainingTimeMs = state.remainingTimeMs
+        state.remainingTimeMs = math.max(0,
+            Config.TIME_ATTACK_LIMIT_MS - state.elapsedTimeMs)
+        if self:shouldPlayTimeAttackWarning(
+            previousRemainingTimeMs, state.remainingTimeMs) then
+            self.sound:play_se("countdown")
+        end
+        if state.remainingTimeMs <= 0 then state.timeoutPending = true end
     end
 end
 
 function GameController:finishNextAnimation()
-    if self.state.coreRushVictoryPending then
+    if self.state.timeAttackVictoryPending or self.state.coreRushVictoryPending then
         self:beginVictory()
     elseif self.state.practiceVictoryPending then
         self:beginPracticeVictory()
@@ -555,6 +564,10 @@ function GameController:finishMerge()
     end
     state.board:set(state.mergeSourceX, state.mergeSourceY, 0)
     state.board:set(state.mergeTargetX, state.mergeTargetY, state.mergeValue)
+    if self:isTimeAttack()
+        and state.mergeValue >= Config.TIME_ATTACK_TARGET_VALUE then
+        state.timeAttackVictoryPending = true
+    end
     self.session:recordMerge(state.mergeValue)
     state.practiceMergeCount += 1
     state.activeMergeX, state.activeMergeY = state.mergeTargetX, state.mergeTargetY
@@ -661,10 +674,10 @@ function GameController:start(mode, practiceStage)
     state.coreRushGainUntil = 0
     state.coreRushCompleteUntil = 0
     state.coreRushVictoryPending = false
-    state.highScore = state.mode == Config.GAME_MODE.TIME_ATTACK
-        and state.timeAttackHighScore or state.normalHighScore
+    state.timeAttackVictoryPending = false
+    state.highScore = state.normalHighScore
     state.elapsedTimeMs = 0
-    state.remainingTimeMs = state.mode == Config.GAME_MODE.TIME_ATTACK
+    state.remainingTimeMs = self:isTimeLimitTest()
         and Config.TIME_ATTACK_LIMIT_MS or nil
     state.timerStartedAt = nil
     state.timerLastUpdateAt = nil
@@ -733,7 +746,8 @@ function GameController:start(mode, practiceStage)
             state.practiceObjectives[1])
     end
     state.phase = GamePhase.INPUT
-    if state.mode == Config.GAME_MODE.TIME_ATTACK or self:isCoreRush() then
+    if state.mode == Config.GAME_MODE.TIME_ATTACK
+        or self:isTimeLimitTest() or self:isCoreRush() then
         state.timerStartedAt = pd.getCurrentTimeMilliseconds()
         state.timerLastUpdateAt = state.timerStartedAt
     end
@@ -847,7 +861,8 @@ function GameController:update()
         if pd.getCurrentTimeMilliseconds() >= state.coreRushCompleteUntil then
             state.coreRushCompleteUntil = 0
             state.result = GameResult.VICTORY
-            self:saveCoreRushBestTime()
+            if self:isCoreRush() then self:saveCoreRushBestTime()
+            elseif self:isTimeAttack() then self:saveTimeAttackBestTime() end
             return { scene = Config.SCENE.GAME_OVER }
         end
         return nil

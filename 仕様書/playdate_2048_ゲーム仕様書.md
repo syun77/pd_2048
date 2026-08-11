@@ -24,7 +24,7 @@
 | ゲームモード | NORMAL、TIME ATTACK、CORE RUSH、PRACTICE |
 | 入力 | 上下左右キー、A、B |
 | 通常終了条件 | 合法な落下先が全列でなくなる |
-| TIME ATTACK終了条件 | 開始から60秒経過、または通常のゲームオーバー |
+| TIME ATTACK終了条件 | 64のブロックを作成、または通常のゲームオーバー |
 | CORE RUSH勝利条件 | 中央に表示される累積値が2048を超える |
 
 ## 3. 盤面と座標
@@ -234,7 +234,15 @@ bonus = floor(2 * combo^1.5 - 2 * (combo - 1)^1.5)
 
 新しいDROPを開始するとコンボは0へ戻る。コンボが2以上になると、コンボ表示とコンボSEを再生する。
 
-NORMALとTIME ATTACKで別々のハイスコアを保存する。保存キーは通常モードが`highScore`、TIME ATTACKが`timeAttackHighScore`である。CORE RUSHはクリアタイムを`coreRushBestTimeMs`へ保存し、短い記録をベストとする。
+NORMALはスコア、TIME ATTACKとCORE RUSHはクリアタイムを記録する。保存キーは通常モードが`highScore`、TIME ATTACKが`timeAttackBestTimeMs`、CORE RUSHが`coreRushBestTimeMs`であり、クリアタイムは短い記録をベストとする。
+
+### 10.1 TIME ATTACK
+
+- タイトルの`TIME ATTACK`サブメニューから`RACE TO 64`を選択する。
+- 通常ルールでゲームを開始し、64のブロックを作成するまでの経過時間を競う。
+- 制限時間は設けない。
+- 64のブロック作成後に勝利し、クリアタイムを保存する。
+- 同サブメニューの`TIME LIMIT TEST`は、旧時間制限モードの残り時間バーを確認するための検証用モードである。
 
 ### 10.1 CORE RUSH
 
@@ -278,7 +286,7 @@ ACHIEVEMENTS画面は現在`NO ACHIEVEMENTS YET`を表示するだけで、実�
 | 表示 | 位置・内容 |
 |---|---|
 | SCORE | 左側の情報パネル。通常モード・TIME ATTACK共通 |
-| TIME | TIME ATTACK時のみ上部に残り時間を表示 |
+| TIME | TIME ATTACK時のみ上部に64作成までの経過時間を表示 |
 | MOVES | PRACTICEで手数制限が1以上の場合、現在手数/手数制限を上部に表示 |
 | HOLD | 左側にHOLDブロックを表示。A操作を併記 |
 | NEXT | 右側に次の3ブロックを表示 |
@@ -292,9 +300,9 @@ ACHIEVEMENTS画面は現在`NO ACHIEVEMENTS YET`を表示するだけで、実�
 
 ### 11.3 ゲームオーバー画面
 
-ゲームオーバーまたはTIME ATTACKの時間切れ時に、盤面とスコアを背景としてメニューを表示する。メニュー項目は結果表示、スコア、`RETRY`、`TITLE`である。上下キーで選択し、Aボタンで決定する。
+ゲームオーバーまたはTIME ATTACK／CORE RUSHの勝利時に、盤面とスコアを背景としてメニューを表示する。メニュー項目は結果表示、スコア、`RETRY`、`TITLE`である。上下キーで選択し、Aボタンで決定する。
 
-TIME ATTACKの時間切れ結果は`TIME UP`と表示する。
+TIME ATTACKで64を作成した結果は`VICTORY`とクリアタイムを表示する。
 
 ## 12. ゲーム状態とアニメーション
 
@@ -322,7 +330,7 @@ TIME ATTACKの時間切れ結果は`TIME UP`と表示する。
 
 盤面の見た目が満杯でなくても、接着条件を満たす落下先がなければゲームオーバーとなる。逆に、マージや配置によって合法な落下先が生じれば継続できる。
 
-TIME ATTACKでは、残り時間が0になった時点で、現在のアニメーションを直ちに中断せず、入力フェーズへ戻ったタイミングで`TIME UP`を確定する。ポーズ状態ではタイマーを進めない実装だが、通常のゲーム画面からPAUSEDへ入る操作は未実装である。
+TIME ATTACKとCORE RUSHではゲーム開始からの経過時間を計測する。勝利条件を満たしたマージのアニメーション完了後に勝利表示へ遷移し、ポーズ状態ではタイマーを進めない実装だが、通常のゲーム画面からPAUSEDへ入る操作は未実装である。
 
 ## 14. システムメニューと補助機能
 

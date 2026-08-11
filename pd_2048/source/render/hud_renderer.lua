@@ -13,28 +13,39 @@ function HudRenderer.score(score)
         24 + Config.PANEL_OFFSET_Y, kTextAlignment.right)
 end
 
-function HudRenderer.timeAttack(remainingTimeMs, totalTimeMs)
+function HudRenderer.timeAttack(elapsedTimeMs)
+    local totalCentiseconds = math.floor(math.max(0, elapsedTimeMs) / 10)
+    local seconds = math.floor(totalCentiseconds / 100)
+    local centiseconds = totalCentiseconds % 100
+	gfx.drawText("TIME: ", 152, 4)
+    local text = string.format("%02d.%02d", seconds, centiseconds)
+    gfx.drawTextAligned(text, 200, 4, kTextAlignment.left)
+end
+
+-- 旧TIME ATTACKの残り時間と制限時間バー描画。
+-- 現行のRACE TO 64では使用せず、時間制限モード用に保持する。
+function HudRenderer.timeAttackLimit(remainingTimeMs, totalTimeMs)
     totalTimeMs = totalTimeMs or Config.TIME_ATTACK_LIMIT_MS
     remainingTimeMs = math.max(0, math.min(totalTimeMs, remainingTimeMs))
     local totalTenths = math.floor(remainingTimeMs / 100)
     local seconds = math.floor(totalTenths / 10)
     local tenths = totalTenths % 10
-	gfx.drawText("TIME: ", 152, 4)
+    gfx.drawText("TIME: ", 152, 4)
     local text = string.format("%02d.%d", seconds, tenths)
     gfx.drawTextAligned(text, 248, 4, kTextAlignment.right)
 
-	-- XORで反転描画.
-	gfx.setLineWidth(1)
-	gfx.setColor(gfx.kColorXOR)
-	local barWidth = 160
-	local barWidthProgress = barWidth * (remainingTimeMs / totalTimeMs)
-	local barHeight = 18
-	local barX = 132
-	local barY = 2
-	gfx.fillRoundRect(barX, barY, barWidthProgress, barHeight, 4)
-	-- 外枠を描画.
-	gfx.setColor(gfx.kColorBlack)
-	gfx.drawRoundRect(barX, barY, barWidth, barHeight, 4)
+    -- XORで反転描画.
+    gfx.setLineWidth(1)
+    gfx.setColor(gfx.kColorXOR)
+    local barWidth = 160
+    local barWidthProgress = barWidth * (remainingTimeMs / totalTimeMs)
+    local barHeight = 18
+    local barX = 132
+    local barY = 2
+    gfx.fillRoundRect(barX, barY, barWidthProgress, barHeight, 4)
+    -- 外枠を描画.
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawRoundRect(barX, barY, barWidth, barHeight, 4)
 end
 
 function HudRenderer.coreRush(elapsedTimeMs)
@@ -136,7 +147,9 @@ function HudRenderer.header(ctx)
                 Config.PRACTICE_OBJECTIVE_X, Config.PRACTICE_OBJECTIVE_Y)
         end
     elseif ctx.mode == Config.GAME_MODE.TIME_ATTACK then
-        HudRenderer.timeAttack(ctx.remainingTimeMs, Config.TIME_ATTACK_LIMIT_MS)
+        HudRenderer.timeAttack(ctx.elapsedTimeMs)
+    elseif ctx.mode == Config.GAME_MODE.TIME_LIMIT_TEST then
+        HudRenderer.timeAttackLimit(ctx.remainingTimeMs)
     elseif ctx.mode == Config.GAME_MODE.CORE_RUSH then
         HudRenderer.coreRush(ctx.elapsedTimeMs)
     end
