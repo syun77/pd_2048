@@ -340,10 +340,21 @@ TIME ATTACKとCORE RUSHではゲーム開始からの経過時間を計測する
 
 ## 14. システムメニューと補助機能
 
-Playdateのシステムメニューに次の項目を登録する。
+Playdateのシステムメニュー項目は画面遷移時に切り替える。
+
+| 画面 | 項目 |
+|---|---|
+| タイトル | なし |
+| ゲーム（NORMAL GAME） | `Auto Play`、`Back to Title`、`Retry` |
+| ゲーム（TIME ATTACK） | `Auto Play`、`Mode Select`、`Retry` |
+| ゲーム（PRACTICE） | `Auto Play`、`Stage Select`、`Retry` |
+| ゲームオーバー | 現在のモードに応じた戻り項目（`Back to Title`、`Mode Select`、`Stage Select`）と`Retry` |
+| ACHIEVEMENTS、STATISTICS | `Back to Title` |
 
 - `Auto Play`：自動プレイの有効・無効を切り替える開発・補助機能
 - `Back to Title`：タイトルへ戻る
+- `Mode Select`：TIME ATTACKのモード選択へ戻る
+- `Stage Select`：PRACTICEのステージ選択へ戻る
 - `Retry`：現在のモードでリスタート
 
 Auto Playは通常の入力と同じDROP、HOLD、左右移動コマンドをゲームコントローラへ渡す。

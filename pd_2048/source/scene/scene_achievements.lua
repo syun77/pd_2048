@@ -25,5 +25,16 @@ function AchievementsScene:draw()
     self.context.titleRenderer:drawAchievements()
 end
 
+function AchievementsScene:getSystemMenuItems()
+    return {
+        {
+            title = "Back to Title",
+            callback = function()
+                self.manager:change(GameConfig.SCENE.TITLE)
+            end,
+        },
+    }
+end
+
 _G.AchievementsScene = AchievementsScene
 return AchievementsScene

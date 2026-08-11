@@ -25,5 +25,16 @@ function StatisticsScene:draw()
     self.context.titleRenderer:drawStatistics()
 end
 
+function StatisticsScene:getSystemMenuItems()
+    return {
+        {
+            title = "Back to Title",
+            callback = function()
+                self.manager:change(GameConfig.SCENE.TITLE)
+            end,
+        },
+    }
+end
+
 _G.StatisticsScene = StatisticsScene
 return StatisticsScene

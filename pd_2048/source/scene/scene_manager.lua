@@ -18,6 +18,11 @@ function SceneManager:change(name, params)
     self.currentName = name
     self.current = nextScene
     if nextScene.enter ~= nil then nextScene:enter(params) end
+    local menuItems = nil
+    if nextScene.getSystemMenuItems ~= nil then
+        menuItems = nextScene:getSystemMenuItems()
+    end
+    self.context.systemMenu:setItems(menuItems)
 end
 
 function SceneManager:update()

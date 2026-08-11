@@ -46,6 +46,10 @@ function GameController:setAutoPlayEnabled(value)
     self.autoPlayer:reset()
 end
 
+function GameController:isAutoPlayEnabled()
+    return self.autoPlayEnabled
+end
+
 function GameController:getState()
     return self.state
 end

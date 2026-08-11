@@ -3,6 +3,18 @@ import "game_config"
 local GameOverScene = {}
 GameOverScene.__index = GameOverScene
 
+local function getModeSelectItem(scene)
+    local game = scene.context.game
+    local state = game:getState()
+    if state.mode == GameConfig.GAME_MODE.PRACTICE then
+        return "Stage Select", { page = "PRACTICE" }
+    elseif game:isTimeAttack() or game:isCoreRush() then
+        return "Mode Select", { page = "TIME_ATTACK" }
+    end
+
+    return "Back to Title", nil
+end
+
 function GameOverScene.new(context)
     return setmetatable({ context = context, manager = nil, selectedIndex = 1 }, GameOverScene)
 end
@@ -44,6 +56,26 @@ end
 
 function GameOverScene:draw()
     self.context.renderer:drawGameOverFrame(self.selectedIndex)
+end
+
+function GameOverScene:getSystemMenuItems()
+    local returnTitle, returnParams = getModeSelectItem(self)
+    return {
+        {
+            title = returnTitle,
+            callback = function()
+                self.manager:change(GameConfig.SCENE.TITLE, returnParams)
+            end,
+        },
+        {
+            title = "Retry",
+            callback = function()
+                local state = self.context.game:getState()
+                self.context.game:start(state.mode)
+                self.manager:change(GameConfig.SCENE.GAME)
+            end,
+        },
+    }
 end
 
 _G.GameOverScene = GameOverScene

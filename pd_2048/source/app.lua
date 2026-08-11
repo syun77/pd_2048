@@ -5,6 +5,7 @@ import "game/game_controller"
 import "render/game_renderer"
 import "render/overlay_renderer"
 import "render/title_renderer"
+import "system_menu_controller"
 import "scene/scene_manager"
 import "scene/scene_context"
 import "scene/scene_title"
@@ -55,6 +56,7 @@ function App.new()
         renderer = self.renderer,
         titleRenderer = self.titleRenderer,
         sound = sound,
+        systemMenu = SystemMenuController.new(pd.getSystemMenu()),
     })
     self.sceneManager = SceneManager.new(self.sceneContext)
     self.sceneManager:register(Config.SCENE.TITLE, TitleScene.new(self.sceneContext))
@@ -63,8 +65,6 @@ function App.new()
     self.sceneManager:register(Config.SCENE.ACHIEVEMENTS, AchievementsScene.new(self.sceneContext))
     self.sceneManager:register(Config.SCENE.STATISTICS, StatisticsScene.new(self.sceneContext))
 
-	-- システムメニューを登録.
-    self:registerSystemMenu()
 	-- FPSを設定.
     pd.display.setRefreshRate(Config.DEFAULT_REFRESH_RATE)
 	-- メニューBGMを再生.
@@ -73,19 +73,6 @@ function App.new()
     self.sceneManager:change(Config.SCENE.TITLE)
 
     return self
-end
-
-function App:registerSystemMenu()
-    pd.getSystemMenu():addCheckmarkMenuItem("Auto Play", false, function(value)
-        self.game:setAutoPlayEnabled(value)
-    end)
-    pd.getSystemMenu():addMenuItem("Back to Title", function()
-        self.sceneManager:change(GameConfig.SCENE.TITLE)
-    end)
-    pd.getSystemMenu():addMenuItem("Retry", function()
-        self.game:start(self.game:getState().mode)
-        self.sceneManager:change(GameConfig.SCENE.GAME)
-    end)
 end
 
 -- 更新.
