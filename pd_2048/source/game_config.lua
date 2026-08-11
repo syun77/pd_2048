@@ -2,6 +2,8 @@
 local Config = {
 	-- システム.
     DEFAULT_REFRESH_RATE = 30, -- FPS.
+    SHOW_AUTO_PLAY_MENU_ITEM = false, -- 開発時だけtrueにしてOSメニューにAuto Playを表示する.
+	
 	-- メインゲーム.
     BOARD_SIZE = 5, -- 盤面のサイズ.
     CENTER = 3, -- 盤面の中心.

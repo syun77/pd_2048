@@ -36,30 +36,35 @@ end
 
 function NormalGameScene:getSystemMenuItems()
     local returnTitle, returnParams = getModeSelectItem(self)
-    return {
-        {
+    local items = {}
+
+    if GameConfig.SHOW_AUTO_PLAY_MENU_ITEM then
+        items[#items + 1] = {
             type = "checkmark",
             title = "Auto Play",
             value = self.context.game:isAutoPlayEnabled(),
             callback = function(value)
                 self.context.game:setAutoPlayEnabled(value)
             end,
-        },
-        {
-            title = returnTitle,
-            callback = function()
-                self.manager:change(GameConfig.SCENE.TITLE, returnParams)
-            end,
-        },
-        {
-            title = "Retry",
-            callback = function()
-                local state = self.context.game:getState()
-                self.context.game:start(state.mode)
-                self.manager:change(GameConfig.SCENE.GAME)
-            end,
-        },
+        }
+    end
+
+    items[#items + 1] = {
+        title = returnTitle,
+        callback = function()
+            self.manager:change(GameConfig.SCENE.TITLE, returnParams)
+        end,
     }
+    items[#items + 1] = {
+        title = "Retry",
+        callback = function()
+            local state = self.context.game:getState()
+            self.context.game:start(state.mode)
+            self.manager:change(GameConfig.SCENE.GAME)
+        end,
+    }
+
+    return items
 end
 
 _G.NormalGameScene = NormalGameScene

@@ -345,13 +345,13 @@ Playdateのシステムメニュー項目は画面遷移時に切り替える。
 | 画面 | 項目 |
 |---|---|
 | タイトル | なし |
-| ゲーム（NORMAL GAME） | `Auto Play`、`Back to Title`、`Retry` |
-| ゲーム（TIME ATTACK） | `Auto Play`、`Mode Select`、`Retry` |
-| ゲーム（PRACTICE） | `Auto Play`、`Stage Select`、`Retry` |
+| ゲーム（NORMAL GAME） | `Back to Title`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
+| ゲーム（TIME ATTACK） | `Mode Select`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
+| ゲーム（PRACTICE） | `Stage Select`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
 | ゲームオーバー | 現在のモードに応じた戻り項目（`Back to Title`、`Mode Select`、`Stage Select`）と`Retry` |
 | ACHIEVEMENTS、STATISTICS | `Back to Title` |
 
-- `Auto Play`：自動プレイの有効・無効を切り替える開発・補助機能
+- `Auto Play`：自動プレイの有効・無効を切り替える開発・補助機能。製品版では`SHOW_AUTO_PLAY_MENU_ITEM`の初期値を`false`にして非表示にする
 - `Back to Title`：タイトルへ戻る
 - `Mode Select`：TIME ATTACKのモード選択へ戻る
 - `Stage Select`：PRACTICEのステージ選択へ戻る
