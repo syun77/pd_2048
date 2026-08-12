@@ -30,6 +30,7 @@ function TitleScene.new(context)
             { label = "PRACTICE", submenu = true, submenuPage = "PRACTICE" },
             { label = "ACHIEVEMENTS", scene = GameConfig.SCENE.ACHIEVEMENTS },
             { label = "STATISTICS", scene = GameConfig.SCENE.STATISTICS },
+            { label = "SOUND TEST", scene = GameConfig.SCENE.SOUND_TEST },
         },
         timeAttackItems = {
             { label = "64 SPRINT", scene = GameConfig.SCENE.GAME,

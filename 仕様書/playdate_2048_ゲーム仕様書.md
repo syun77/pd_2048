@@ -270,14 +270,16 @@ NORMALはスコア、TIME ATTACKとCORE RUSHはクリアタイムを記録する
 
 1. `NORMAL GAME`
 2. `TIME ATTACK`
-3. `ACHIEVEMENTS`
-4. `STATISTICS`
+3. `PRACTICE`
+4. `ACHIEVEMENTS`
+5. `STATISTICS`
+6. `SOUND TEST`
 
 タイトル画面のROOTメニューから`PRACTICE`を選択できる。PRACTICEを選択すると、`assets/practice`内の連番JSONステージ一覧を読み込む。各ステージの`label`をメニュー項目として表示し、クリア済みステージは`assets/images/check.png`を付けて表示する。選択中ステージの英語説明文を画面下部に表示する。決定後は、選択したJSONの盤面・NEXT・クリア目標・説明文を使用する。ステージをクリアしたかどうかはステージIDごとにPlaydateの`datastore`へ保存する。
 
 PRACTICEなどのサブメニューで項目数が5件を超える場合は、上下キーの選択移動に合わせてメニューをスクロールし、選択中の項目が可能な限りメニュー中央に表示される。1画面に表示する項目数は5件とし、5件以下の場合はスクロールせず全項目を表示する。上側に画面外の項目がある場合は`▲`、下側に画面外の項目がある場合は`▼`を表示する。
 
-タイトル画面、TIME ATTACK/PRACTICEサブメニュー、ACHIEVEMENTS画面、STATISTICS画面の背景には、1-bit向けの幾何学模様アニメーションを表示する。背景はキャッシュ用イメージへ一定間隔で再描画し、毎フレームの計算量を抑える。負荷設定は`MENU_BACKGROUND_LOAD`で`OFF`、`LOW`、`MEDIUM`、`HIGH`から選択でき、Playdateシステムメニューの`BG: ...`から実行中にも切り替えられる。`LOW`はトルシェ風タイル、`MEDIUM`はタイルとモアレ円、`HIGH`はさらにリサージュ線を追加する。
+タイトル画面、TIME ATTACK/PRACTICEサブメニュー、ACHIEVEMENTS画面、STATISTICS画面、SOUND TEST画面の背景には、1-bit向けの幾何学模様アニメーションを表示する。背景はキャッシュ用イメージへ一定間隔で再描画し、毎フレームの計算量を抑える。負荷設定は`MENU_BACKGROUND_LOAD`で`OFF`、`LOW`、`MEDIUM`、`HIGH`から選択でき、Playdateシステムメニューの`BG: ...`から実行中にも切り替えられる。`LOW`はトルシェ風タイル、`MEDIUM`はタイルとモアレ円、`HIGH`はさらにリサージュ線を追加する。
 
 - 初期盤面は`(2,3)=8`、`(4,3)=8`。
 - NEXTの生成列は`2, 2, 4, 8`で、末尾まで進むと先頭へ戻る。
@@ -291,6 +293,8 @@ PRACTICEなどのサブメニューで項目数が5件を超える場合は、�
 - `turnLimit`が1以上の場合、出現ブロック数は指定手数までとする。NEXTが空になった後にHOLDブロックが残っていれば、それを次の操作対象とし、NEXTがない状態ではHOLDを使用できない。
 
 ACHIEVEMENTS画面は現在`NO ACHIEVEMENTS YET`を表示するだけで、実績データは未実装である。STATISTICS画面はNORMALとTIME ATTACKのハイスコアを表示する。
+
+SOUND TEST画面はBGMとSEの試聴画面である。左右キーで`BGM`と`SE`を切り替え、上下キーで項目を選択し、Aボタンで選択中のBGMまたはSEを再生する。Bボタンでタイトル画面へ戻る。BGM再生時は`assets/bgm_db`内の同名JSONを再生中の1曲分だけ読み込み、再生位置と、その時刻に対応する概算dB値を画面右側に表示する。詳細な画面仕様は後続で定義する。
 
 ### 11.2 ゲーム画面
 
@@ -357,7 +361,7 @@ Playdateのシステムメニュー項目は画面遷移時に切り替える。
 | ゲーム（TIME ATTACK） | `Mode Select`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
 | ゲーム（PRACTICE） | `Stage Select`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
 | ゲームオーバー | 現在のモードに応じた戻り項目（`Back to Title`、`Mode Select`、`Stage Select`）と`Retry` |
-| ACHIEVEMENTS、STATISTICS | `Back to Title`、`BG: ...` |
+| ACHIEVEMENTS、STATISTICS、SOUND TEST | `Back to Title`、`BG: ...` |
 
 - `Auto Play`：自動プレイの有効・無効を切り替える開発・補助機能。製品版では`SHOW_AUTO_PLAY_MENU_ITEM`の初期値を`false`にして非表示にする
 - `Back to Title`：タイトルへ戻る

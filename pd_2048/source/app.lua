@@ -14,6 +14,7 @@ import "scene/scene_game_normal"
 import "scene/scene_game_over"
 import "scene/scene_achievements"
 import "scene/scene_statistics"
+import "scene/scene_sound_test"
 
 local pd <const> = playdate
 local gfx <const> = pd.graphics
@@ -68,6 +69,7 @@ function App.new()
     self.sceneManager:register(Config.SCENE.GAME_OVER, GameOverScene.new(self.sceneContext))
     self.sceneManager:register(Config.SCENE.ACHIEVEMENTS, AchievementsScene.new(self.sceneContext))
     self.sceneManager:register(Config.SCENE.STATISTICS, StatisticsScene.new(self.sceneContext))
+    self.sceneManager:register(Config.SCENE.SOUND_TEST, SoundTestScene.new(self.sceneContext))
 
 	-- FPSを設定.
     pd.display.setRefreshRate(Config.DEFAULT_REFRESH_RATE)

@@ -310,6 +310,40 @@ function Sound:isPlaying()
 	return false
 end
 
+local function copySoundNames(source)
+	local names = {}
+	for _, name in ipairs(source) do
+		table.insert(names, name)
+	end
+	return names
+end
+
+function Sound:getBgmNames()
+	return copySoundNames(bgmTable)
+end
+
+function Sound:getSeNames()
+	return copySoundNames(seTable)
+end
+
+function Sound:playBgmByName(soundName)
+	for index, bgmName in ipairs(bgmTable) do
+		if bgmName == soundName then
+			self:play_bgm(index, true)
+			if self.player ~= nil then
+				self.player:setFinishCallback(nil)
+			end
+			return
+		end
+	end
+	print("Sound:playBgmByName() - BGM '" .. tostring(soundName) .. "' not found.")
+end
+
+function Sound:getBgmOffset()
+	if self.player == nil then return nil end
+	return self.player:getOffset()
+end
+
 -- SEを再生する.
 function Sound:play_se(soundName)
 	if self.pool ~= nil and self.pool[soundName] ~= nil then

@@ -105,5 +105,42 @@ function TitleRenderer:drawStatistics()
     self:drawCenteredText("CORE RUSH  " .. bestText, 168)
 end
 
+function TitleRenderer:drawSoundTest(selectedTab, selectedIndex, menuItems, bgmDbStatus)
+    self:drawBackground()
+    self:drawCenteredText("SOUND TEST", 34)
+    self:drawCenteredText(selectedTab, 58)
+    self.menuRenderer:drawMenu(Config.SCREEN_CENTER_X, 142,
+        menuItems, selectedIndex, gfx.kColorWhite, 6)
+
+    if bgmDbStatus == nil then return end
+
+	-- 再生時間の描画.
+    local x = 310
+    local y = 96
+	gfx.setColor(gfx.kColorWhite)
+	gfx.fillRoundRect(x - 4, y, 80, 40, 4)
+
+    gfx.drawText("TIME", x, y)
+    if bgmDbStatus.offset ~= nil then
+		local minutes = math.floor(bgmDbStatus.offset / 60)
+		local seconds = bgmDbStatus.offset - minutes * 60
+		gfx.drawText(string.format("%02d:%02.1f", minutes, seconds), x, y + 18)
+    else
+        gfx.drawText("--.-s", x, y + 18)
+    end
+
+	-- dBの描画.
+	gfx.setColor(gfx.kColorWhite)
+	gfx.fillRoundRect(x - 4, y + 60, 48, 20, 4)
+
+	gfx.drawText("DB", x, y + 44)
+    if bgmDbStatus.db ~= nil then
+        gfx.drawText(string.format("%+04.0f", bgmDbStatus.db), x, y + 62)
+        gfx.drawText(string.format("LV %03d", bgmDbStatus.level), x, y + 80)
+    else
+        gfx.drawText("--", x, y + 62)
+    end
+end
+
 _G.TitleRenderer = TitleRenderer
 return TitleRenderer

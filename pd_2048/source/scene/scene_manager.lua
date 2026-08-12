@@ -32,6 +32,7 @@ function SceneManager:refreshSystemMenu()
     local isBackgroundScene = self.currentName == GameConfig.SCENE.TITLE
         or self.currentName == GameConfig.SCENE.ACHIEVEMENTS
         or self.currentName == GameConfig.SCENE.STATISTICS
+        or self.currentName == GameConfig.SCENE.SOUND_TEST
     if isBackgroundScene
         and GameConfig.SHOW_MENU_BACKGROUND_MENU_ITEM
         and self.context.menuBackground ~= nil then

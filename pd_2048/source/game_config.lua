@@ -85,6 +85,7 @@ local Config = {
         GAME_OVER = "GAME_OVER",
         ACHIEVEMENTS = "ACHIEVEMENTS",
         STATISTICS = "STATISTICS",
+        SOUND_TEST = "SOUND_TEST",
     },
     GAME_MODE = {
         NORMAL = "NORMAL",
