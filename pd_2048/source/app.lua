@@ -88,8 +88,10 @@ function App:draw()
     gfx.clear(gfx.kColorWhite)
     self.sceneManager:draw()
 
-	-- FPSの描画.
-    pd.drawFPS(2, 2)
+	if Config.SHOW_FPS then
+		-- FPSの描画.
+		pd.drawFPS(2, 2)
+	end
 
     if state.phase == Config.GAME_PHASE.UNDO_ROTATING
         or state.rewindHoldAnimationActive then

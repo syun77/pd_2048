@@ -1,9 +1,13 @@
 -- ゲーム全体で共有する設定値。
+local DEBUG_FLAG = true -- デバッグ用フラグ。trueの場合はデバッグ情報を表示する。
+
 local Config = {
 	-- システム.
     DEFAULT_REFRESH_RATE = 30, -- FPS.
-    SHOW_AUTO_PLAY_MENU_ITEM = false, -- 開発時だけtrueにしてOSメニューにAuto Playを表示する.
-    SCREEN_CENTER_X = 200,
+    SHOW_AUTO_PLAY_MENU_ITEM = DEBUG_FLAG and true or false, -- OSメニューにAuto Playを表示する.
+	SHOW_FPS = DEBUG_FLAG and true or false, 	-- FPS表示.
+    SCREEN_CENTER_X = 200, -- 画面の中心X座標.
+	SCREEN_CENTER_Y = 120, -- 画面の中心Y座標.
 	
 	-- メインゲーム.
     BOARD_SIZE = 5, -- 盤面のサイズ.
