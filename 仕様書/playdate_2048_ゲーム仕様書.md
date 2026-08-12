@@ -277,6 +277,8 @@ NORMALはスコア、TIME ATTACKとCORE RUSHはクリアタイムを記録する
 
 PRACTICEなどのサブメニューで項目数が5件を超える場合は、上下キーの選択移動に合わせてメニューをスクロールし、選択中の項目が可能な限りメニュー中央に表示される。1画面に表示する項目数は5件とし、5件以下の場合はスクロールせず全項目を表示する。上側に画面外の項目がある場合は`▲`、下側に画面外の項目がある場合は`▼`を表示する。
 
+タイトル画面、TIME ATTACK/PRACTICEサブメニュー、ACHIEVEMENTS画面、STATISTICS画面の背景には、1-bit向けの幾何学模様アニメーションを表示する。背景はキャッシュ用イメージへ一定間隔で再描画し、毎フレームの計算量を抑える。負荷設定は`MENU_BACKGROUND_LOAD`で`OFF`、`LOW`、`MEDIUM`、`HIGH`から選択でき、Playdateシステムメニューの`BG: ...`から実行中にも切り替えられる。`LOW`はトルシェ風タイル、`MEDIUM`はタイルとモアレ円、`HIGH`はさらにリサージュ線を追加する。
+
 - 初期盤面は`(2,3)=8`、`(4,3)=8`。
 - NEXTの生成列は`2, 2, 4, 8`で、末尾まで進むと先頭へ戻る。
 - 盤面、マージ、回転、HOLD、UNDO、ゲームオーバー判定は通常ルールを使用する。
@@ -350,18 +352,19 @@ Playdateのシステムメニュー項目は画面遷移時に切り替える。
 
 | 画面 | 項目 |
 |---|---|
-| タイトル | なし |
+| タイトル | `BG: ...` |
 | ゲーム（NORMAL GAME） | `Back to Title`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
 | ゲーム（TIME ATTACK） | `Mode Select`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
 | ゲーム（PRACTICE） | `Stage Select`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
 | ゲームオーバー | 現在のモードに応じた戻り項目（`Back to Title`、`Mode Select`、`Stage Select`）と`Retry` |
-| ACHIEVEMENTS、STATISTICS | `Back to Title` |
+| ACHIEVEMENTS、STATISTICS | `Back to Title`、`BG: ...` |
 
 - `Auto Play`：自動プレイの有効・無効を切り替える開発・補助機能。製品版では`SHOW_AUTO_PLAY_MENU_ITEM`の初期値を`false`にして非表示にする
 - `Back to Title`：タイトルへ戻る
 - `Mode Select`：TIME ATTACKのモード選択へ戻る
 - `Stage Select`：PRACTICEのステージ選択へ戻る
 - `Retry`：現在のモードでリスタート
+- `BG: ...`：メニュー背景アニメーションの負荷設定を`OFF`、`LOW`、`MEDIUM`、`HIGH`の順に切り替える
 
 Auto Playは通常の入力と同じDROP、HOLD、左右移動コマンドをゲームコントローラへ渡す。
 

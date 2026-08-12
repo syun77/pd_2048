@@ -5,6 +5,7 @@ import "game/game_controller"
 import "render/game_renderer"
 import "render/overlay_renderer"
 import "render/title_renderer"
+import "render/menu_background_renderer"
 import "system_menu_controller"
 import "scene/scene_manager"
 import "scene/scene_context"
@@ -36,9 +37,11 @@ function App.new()
             return self.game:isRewindAvailable()
         end,
     })
+    self.menuBackgroundRenderer = MenuBackgroundRenderer.new()
     self.titleRenderer = TitleRenderer.new({
         state = self.game:getState(),
         menuRenderer = self.overlayRenderer,
+        background = self.menuBackgroundRenderer,
     })
     self.renderer = GameRenderer.new({
         state = self.game:getState(),
@@ -55,6 +58,7 @@ function App.new()
         game = self.game,
         renderer = self.renderer,
         titleRenderer = self.titleRenderer,
+        menuBackground = self.menuBackgroundRenderer,
         sound = sound,
         systemMenu = SystemMenuController.new(pd.getSystemMenu()),
     })

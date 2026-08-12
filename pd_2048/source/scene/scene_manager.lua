@@ -1,3 +1,5 @@
+import "game_config"
+
 local SceneManager = {}
 SceneManager.__index = SceneManager
 
@@ -18,9 +20,29 @@ function SceneManager:change(name, params)
     self.currentName = name
     self.current = nextScene
     if nextScene.enter ~= nil then nextScene:enter(params) end
+    self:refreshSystemMenu()
+end
+
+function SceneManager:refreshSystemMenu()
     local menuItems = nil
+    local nextScene = self.current
     if nextScene.getSystemMenuItems ~= nil then
         menuItems = nextScene:getSystemMenuItems()
+    end
+    local isBackgroundScene = self.currentName == GameConfig.SCENE.TITLE
+        or self.currentName == GameConfig.SCENE.ACHIEVEMENTS
+        or self.currentName == GameConfig.SCENE.STATISTICS
+    if isBackgroundScene
+        and GameConfig.SHOW_MENU_BACKGROUND_MENU_ITEM
+        and self.context.menuBackground ~= nil then
+        menuItems = menuItems or {}
+        table.insert(menuItems, {
+            title = "BG: " .. self.context.menuBackground:getLoad(),
+            callback = function()
+                self.context.menuBackground:cycleLoad()
+                self:refreshSystemMenu()
+            end,
+        })
     end
     self.context.systemMenu:setItems(menuItems)
 end

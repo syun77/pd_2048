@@ -37,6 +37,7 @@ import "CoreLibs/timer"
 - 入力検出とゲーム操作を分離し、可能なら論理コマンドへ変換する。
 - 描画は playdate.graphics を使う。1-bit 表示、画面サイズ、display scale、Sprite の dirty 更新を考慮する。
 - fillRect などのプリミティブ描画を XOR で描く場合は、描画前に gfx.setColor(gfx.kColorXOR) を設定する。
+- Playdate OS メニューの項目名はおおよそ12文字以内に収める。メニューで選択肢名も表示する場合は、その選択肢名込みで収まる長さにする。
 - 短い効果音には playdate.sound.sampleplayer、長い音声には playdate.sound.fileplayer など用途に合うプレイヤーを使う。
 - 画像・音声・フォントは処理中に繰り返し読み込まず、必要に応じて初期化時に保持する。
 

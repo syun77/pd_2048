@@ -11,8 +11,27 @@ function TitleRenderer.new(dependencies)
     return setmetatable({
         state = dependencies.state,
         menuRenderer = dependencies.menuRenderer,
+        background = dependencies.background,
+        titleImage = gfx.image.new("assets/images/title2"),
         practiceClearedImage = gfx.image.new("assets/images/check"),
     }, TitleRenderer)
+end
+
+function TitleRenderer:drawBackground()
+	local isClear = true
+    if self.titleImage ~= nil then
+		-- 背景画像があればそれで描画.
+        self.titleImage:draw(0, 0)
+		isClear = false -- 背景画像があるので消去は不要.
+	else
+		-- 存在しない場合は gfx.clear() で画面をクリアする.
+		gfx.clear()
+	end
+
+    if self.background ~= nil then
+		-- 幾何学模様で描画.
+		self.background:draw(isClear)
+	end
 end
 
 function TitleRenderer:drawCenteredText(text, y)
@@ -38,6 +57,7 @@ end
 ---@param menuItems any[] 項目リスト
 ---@param title string|nil
 function TitleRenderer:drawTitle(selectedIndex, menuItems, title)
+    self:drawBackground()
     local labels = {}
     local itemOptions = {}
     for _, item in ipairs(menuItems) do
@@ -62,6 +82,7 @@ function TitleRenderer:drawTitle(selectedIndex, menuItems, title)
 end
 
 function TitleRenderer:drawMenuPage(title)
+    self:drawBackground()
     self:drawCenteredText(title, 78)
     gfx.drawLine(100, 94, 300, 94)
 end

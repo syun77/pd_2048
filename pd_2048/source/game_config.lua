@@ -6,8 +6,12 @@ local Config = {
     DEFAULT_REFRESH_RATE = 30, -- FPS.
     SHOW_AUTO_PLAY_MENU_ITEM = DEBUG_FLAG and true or false, -- OSメニューにAuto Playを表示する.
 	SHOW_FPS = DEBUG_FLAG and true or false, 	-- FPS表示.
+    SCREEN_WIDTH = 400,
+    SCREEN_HEIGHT = 240,
     SCREEN_CENTER_X = 200, -- 画面の中心X座標.
 	SCREEN_CENTER_Y = 120, -- 画面の中心Y座標.
+    MENU_BACKGROUND_LOAD = "OFF", -- OFF/LOW/MEDIUM/HIGH.
+    SHOW_MENU_BACKGROUND_MENU_ITEM = false, -- OSメニューに背景負荷切り替えを表示する.
 	
 	-- メインゲーム.
     BOARD_SIZE = 5, -- 盤面のサイズ.
