@@ -1,9 +1,107 @@
 {
+  "definitions": {
+    "categories": [
+      {
+        "id": "SYSTEM",
+        "label": "System"
+      },
+      {
+        "id": "NORMAL",
+        "label": "Normal"
+      },
+      {
+        "id": "TIME_ATTACK",
+        "label": "Time Attack"
+      },
+      {
+        "id": "CORE_RUSH",
+        "label": "Core Rush"
+      },
+      {
+        "id": "PRACTICE",
+        "label": "Practice"
+      }
+    ],
+    "conditionTypes": [
+      {
+        "id": "MERGE_COUNT",
+        "label": "マージ回数"
+      },
+      {
+        "id": "TILE_VALUE",
+        "label": "生成したタイルの値"
+      },
+      {
+        "id": "SCORE",
+        "label": "スコア"
+      },
+      {
+        "id": "COMBO",
+        "label": "コンボ数"
+      },
+      {
+        "id": "CLEAR_MODE",
+        "label": "クリアしたモード"
+      },
+      {
+        "id": "PRACTICE_CLEAR_COUNT",
+        "label": "PRACTICEクリア数"
+      },
+      {
+        "id": "NO_REWIND_CLEAR",
+        "label": "巻き戻しなしのクリア"
+      },
+      {
+        "id": "PLAY_COUNT",
+        "label": "プレイ回数"
+      },
+      {
+        "id": "TOTAL_SCORE",
+        "label": "トータルスコア"
+      },
+      {
+        "id": "BEST_TIME_MS",
+        "label": "ベストタイム"
+      }
+    ],
+    "scopes": [
+      {
+        "id": "RUN",
+        "label": "Run"
+      },
+      {
+        "id": "LIFETIME",
+        "label": "Lifetime"
+      }
+    ],
+    "rewardTypes": [
+      {
+        "id": "NONE",
+        "label": "None"
+      },
+      {
+        "id": "BGM_UNLOCK",
+        "label": "BGM Unlock"
+      },
+      {
+        "id": "THEME_UNLOCK",
+        "label": "Theme Unlock"
+      },
+      {
+        "id": "TITLE_BADGE",
+        "label": "Title Badge"
+      },
+      {
+        "id": "SOUND_UNLOCK",
+        "label": "Sound Unlock"
+      }
+    ]
+  },
   "achievements": [
     {
       "no": 1,
       "id": "id001",
-      "category": "SYSTEM",
+      "category": "PRACTICE",
       "name": {
         "ja": "PRACTICE完了",
         "en": "PRACTICE COMPLTE"
@@ -13,11 +111,38 @@
         "en": "Completed all PRACTICE stages"
       },
       "condition": {
-        "type": "MERGE_COUNT",
+        "type": "PRACTICE_CLEAR_COUNT",
         "scope": "LIFETIME",
         "operator": ">=",
         "params": {
           "count": 1
+        }
+      },
+      "reward": {
+        "type": "NONE",
+        "id": ""
+      },
+      "hidden": false,
+      "progressVisible": true
+    },
+    {
+      "no": 2,
+      "id": "id002",
+      "category": "SYSTEM",
+      "name": {
+        "ja": "64タイルの作成",
+        "en": "64 TILE"
+      },
+      "description": {
+        "ja": "64タイルを作成した",
+        "en": "Create a 64 tile"
+      },
+      "condition": {
+        "type": "TILE_VALUE",
+        "scope": "LIFETIME",
+        "operator": ">=",
+        "params": {
+          "value": 64
         }
       },
       "reward": {
