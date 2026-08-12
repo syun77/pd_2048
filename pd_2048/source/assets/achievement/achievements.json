@@ -1,0 +1,31 @@
+{
+  "achievements": [
+    {
+      "no": 1,
+      "id": "id001",
+      "category": "SYSTEM",
+      "name": {
+        "ja": "PRACTICE完了",
+        "en": "PRACTICE COMPLTE"
+      },
+      "description": {
+        "ja": "PRACTICE をすべてクリアした",
+        "en": "Completed all PRACTICE stages"
+      },
+      "condition": {
+        "type": "MERGE_COUNT",
+        "scope": "LIFETIME",
+        "operator": ">=",
+        "params": {
+          "count": 1
+        }
+      },
+      "reward": {
+        "type": "NONE",
+        "id": ""
+      },
+      "hidden": false,
+      "progressVisible": true
+    }
+  ]
+}
