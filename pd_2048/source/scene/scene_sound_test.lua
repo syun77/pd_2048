@@ -123,11 +123,33 @@ function SoundTestScene:playSelectedItem()
     if item == nil then return end
 
     if self.selectedTab == "BGM" then
-        self.context.sound:playBgmByName(item.name)
-        self:loadBgmDb(item.name)
+        self:playBgmItem(item)
     else
         self.context.sound:play_se(item.name)
     end
+end
+
+function SoundTestScene:playBgmItem(item)
+    if item == nil then return end
+
+    self.context.sound:playBgmByName(item.name, function(player, scene)
+        scene:onBgmFinished(player)
+    end, self)
+    self:loadBgmDb(item.name)
+end
+
+function SoundTestScene:onBgmFinished()
+    local items = self.bgmItems
+    if #items == 0 then return end
+
+    self.selectedTab = "BGM"
+    self.selectedIndex = (self.selectedByTab.BGM or self.selectedIndex) + 1
+    if self.selectedIndex > #items then
+        self.selectedIndex = 1
+    end
+    self.selectedByTab.BGM = self.selectedIndex
+    MenuSelectionController.reset(self.menuSelectionController)
+    self:playBgmItem(items[self.selectedIndex])
 end
 
 function SoundTestScene:getBgmDbStatus()

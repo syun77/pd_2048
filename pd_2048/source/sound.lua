@@ -326,12 +326,16 @@ function Sound:getSeNames()
 	return copySoundNames(seTable)
 end
 
-function Sound:playBgmByName(soundName)
+function Sound:playBgmByName(soundName, finishCallback, callbackContext)
 	for index, bgmName in ipairs(bgmTable) do
 		if bgmName == soundName then
 			self:play_bgm(index, true)
 			if self.player ~= nil then
-				self.player:setFinishCallback(nil)
+				if finishCallback ~= nil then
+					self.player:setFinishCallback(finishCallback, callbackContext)
+				else
+					self.player:setFinishCallback(nil)
+				end
 			end
 			return
 		end
