@@ -134,11 +134,14 @@ function SoundTestScene:getBgmDbStatus()
     if self.playingBgmName == nil then return nil end
 
     local offset = self.context.sound:getBgmOffset()
+    local duration = self.context.sound:getBgmLength()
+        or (self.bgmDb ~= nil and self.bgmDb.duration or nil)
     local target = self:getBgmDbTarget(offset)
     if target == nil then
         return {
             name = self.playingBgmName,
             offset = offset,
+            duration = duration,
             bands = nil,
         }
     end
@@ -146,6 +149,7 @@ function SoundTestScene:getBgmDbStatus()
     return {
         name = self.playingBgmName,
         offset = offset,
+        duration = duration,
         bands = self.displayBands or target.bands,
     }
 end

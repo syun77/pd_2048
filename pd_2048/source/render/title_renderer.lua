@@ -114,38 +114,45 @@ function TitleRenderer:drawSoundTest(selectedTab, selectedIndex, menuItems, bgmD
 
     if bgmDbStatus == nil then return end
 
-	-- 再生時間の描画.
-    local x = 310
-    local y = 96
-	gfx.setColor(gfx.kColorWhite)
-	gfx.fillRoundRect(x - 4, y, 80, 40, 4)
-
-    gfx.drawText("TIME", x, y)
+    local graphX = 320
+    local graphY = 216
+    local graphWidth = 60
+    local graphHeight = 20
+	-- 白で塗る.
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillRoundRect(graphX - 10, graphY - 24, graphWidth + 20, graphHeight + 34, 4)
+	-- 時間の描画.
+    local timeText = "--:--.-s"
     if bgmDbStatus.offset ~= nil then
 		local minutes = math.floor(bgmDbStatus.offset / 60)
 		local seconds = math.floor(bgmDbStatus.offset - minutes * 60)
 		local milliseconds = math.floor((bgmDbStatus.offset - minutes * 60 - seconds) * 10)
-		gfx.drawText(string.format("%02d:%02d.%01d", minutes, seconds, milliseconds), x, y + 18)
-    else
-        gfx.drawText("--.-s", x, y + 18)
+		timeText = string.format("%02d:%02d.%01d", minutes, seconds, milliseconds)
     end
 
-    local graphX = 306
-    local graphY = 146
-    local graphWidth = 60
-    local graphHeight = 70
-    gfx.setColor(gfx.kColorWhite)
-    gfx.fillRoundRect(graphX - 10, graphY - 18, graphWidth + 20, graphHeight + 34, 4)
+    local timeX = graphX + 8
+    local timeY = graphY - 20
+    gfx.drawText(timeText, timeX, timeY)
+	-- 全体の時間の描画.
+    local progressX = graphX - 8
+    local progressY = graphY - 22
+    local progressWidth = graphWidth + 16
+    local timeHeight = 16
+    local progressHeight = timeHeight + 4
+    if bgmDbStatus.offset ~= nil
+        and bgmDbStatus.duration ~= nil
+        and bgmDbStatus.duration > 0 then
+        local progress = math.max(0, math.min(1,
+            bgmDbStatus.offset / bgmDbStatus.duration))
+        local previousColor = gfx.getColor()
+        gfx.setColor(gfx.kColorXOR)
+        gfx.fillRect(progressX, progressY,
+            math.floor(progressWidth * progress), progressHeight)
+        gfx.setColor(previousColor)
+    end
+	-- 擬似3バンドイコライザーの描画.
+	-- イコライザーを描画.
     gfx.setColor(gfx.kColorBlack)
-    gfx.drawTextAligned("DB", graphX + graphWidth * 0.5, graphY - 16,
-        kTextAlignment.center)
-    gfx.drawRect(graphX, graphY, graphWidth, graphHeight)
-    for i = 1, 3 do
-        local markY = graphY + math.floor(graphHeight * i / 4)
-        gfx.drawLine(graphX - 4, markY, graphX, markY)
-        gfx.drawLine(graphX + graphWidth, markY, graphX + graphWidth + 4, markY)
-    end
-
     local bandLabels = {
         { key = "low", label = "L" },
         { key = "mid", label = "M" },
@@ -166,8 +173,6 @@ function TitleRenderer:drawSoundTest(selectedTab, selectedIndex, menuItems, bgmD
                     barWidth, barHeight)
             end
         end
-        gfx.drawTextAligned(band.label, barX + barWidth * 0.5,
-            graphY + graphHeight + 4, kTextAlignment.center)
     end
 end
 

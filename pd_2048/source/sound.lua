@@ -344,6 +344,11 @@ function Sound:getBgmOffset()
 	return self.player:getOffset()
 end
 
+function Sound:getBgmLength()
+	if self.player == nil or self.player.getLength == nil then return nil end
+	return self.player:getLength()
+end
+
 -- SEを再生する.
 function Sound:play_se(soundName)
 	if self.pool ~= nil and self.pool[soundName] ~= nil then
