@@ -226,23 +226,36 @@ end
 ---@param selectedIndex integer 選択中の項目のインデックス.
 ---@param backgroundColor integer? メニューの背景色 (playdate.graphics.kColor). nilの場合は黒.
 ---@param maxVisibleItems integer? 最大表示項目数. nilの場合は全て表示.
-function OverlayRenderer:drawMenu(centerX, centerY, items, selectedIndex, backgroundColor, maxVisibleItems)
+---@param itemOptions table[]? メニュー項目ごとの描画オプション.
+function OverlayRenderer:drawMenu(centerX, centerY, items, selectedIndex, backgroundColor, maxVisibleItems, itemOptions)
     if items == nil or #items == 0 then return end
     backgroundColor = backgroundColor or gfx.kColorBlack
 
 	-- 最大の幅と高さの合計を計算する.
     local maxTextWidth = 0
     local textHeight = 0
-    for _, item in ipairs(items) do
+    local maxIconHeight = 0
+    local iconGap = 4
+    for index, item in ipairs(items) do
         local textWidth, height = gfx.getTextSize(item)
-        maxTextWidth = math.max(maxTextWidth, textWidth)
         textHeight = math.max(textHeight, height)
+        local icon = itemOptions ~= nil
+            and itemOptions[index] ~= nil
+            and itemOptions[index].icon or nil
+        local iconWidth = 0
+        if icon ~= nil then
+            local width, height = icon:getSize()
+            iconWidth = width + iconGap
+            maxIconHeight = math.max(maxIconHeight, height)
+        end
+        maxTextWidth = math.max(maxTextWidth, textWidth + iconWidth)
     end
 
 	local mergin = 32 -- 左右の余白を32pxに設定.
     local horizontalPadding = 16
     local verticalPadding = 8
-    local itemHeight = textHeight + 8
+    local rowHeight = math.max(textHeight, maxIconHeight)
+    local itemHeight = rowHeight + 8
     local menuWidth = maxTextWidth + horizontalPadding * 2
     local contentHeight = #items * itemHeight
     local scrollable = maxVisibleItems ~= nil and #items > maxVisibleItems
@@ -294,8 +307,27 @@ function OverlayRenderer:drawMenu(centerX, centerY, items, selectedIndex, backgr
     end
     for index, item in ipairs(items) do
         local itemY = contentTop + (index - 1) * itemHeight - scrollOffset
-        if itemY >= contentTop and itemY + textHeight <= contentBottom then
-            self:drawCenteredText(item, itemY)
+        if itemY >= contentTop and itemY + rowHeight <= contentBottom then
+            local icon = itemOptions ~= nil
+                and itemOptions[index] ~= nil
+                and itemOptions[index].icon or nil
+            local textWidth = gfx.getTextSize(item)
+            local contentWidth = textWidth
+            local iconWidth = 0
+            local iconHeight = 0
+            if icon ~= nil then
+                iconWidth, iconHeight = icon:getSize()
+                contentWidth += iconWidth + iconGap
+            end
+
+            local contentX = math.floor(centerX - contentWidth * 0.5)
+            if icon ~= nil then
+                icon:draw(contentX, math.floor(itemY + (rowHeight - iconHeight) * 0.5))
+                contentX += iconWidth + iconGap
+            end
+            gfx.drawTextAligned(item, contentX + textWidth * 0.5,
+                itemY + math.floor((rowHeight - textHeight) * 0.5),
+                kTextAlignment.center)
         end
     end
     if scrollable then
@@ -340,9 +372,9 @@ function OverlayRenderer:drawMenu(centerX, centerY, items, selectedIndex, backgr
 	-- カーソルを XORで描画.
 	gfx.setColor(gfx.kColorXOR)
 	if backgroundColor == gfx.kColorBlack then
-		gfx.drawRoundRect(menuX + 4, selectedY - 4, menuWidth - 8, textHeight + 6, 4)
+		gfx.drawRoundRect(menuX + 4, selectedY - 4, menuWidth - 8, rowHeight + 6, 4)
 	else
-	    gfx.fillRoundRect(menuX + 4, selectedY - 4, menuWidth - 8, textHeight + 6, 4)
+	    gfx.fillRoundRect(menuX + 4, selectedY - 4, menuWidth - 8, rowHeight + 6, 4)
 	end
 	gfx.setColor(gfx.kColorBlack)
     gfx.setColor(previousColor)

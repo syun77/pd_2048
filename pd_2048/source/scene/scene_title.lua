@@ -70,8 +70,10 @@ function TitleScene:enter(params)
     self.context.sound:playMenuBgm()
     self.practiceItems = {}
     for _, stage in ipairs(PracticeStageLoader.loadAll()) do
+        local cleared = self.context.game:isPracticeStageCleared(stage)
         table.insert(self.practiceItems, {
             label = stage.label,
+            cleared = cleared,
             description = PracticeStageLoader.descriptionForLanguage(stage, "en"),
             scene = GameConfig.SCENE.GAME,
             mode = GameConfig.GAME_MODE.PRACTICE,

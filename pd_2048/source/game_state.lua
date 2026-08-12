@@ -24,6 +24,7 @@ function GameState.new()
         coreRushVictoryPending = false,
         timeAttackVictoryPending = false,
         mode = Config.GAME_MODE.NORMAL,
+        practiceClearedStages = {},
         practiceScenarioId = nil,
         practiceNextValues = {},
         practiceNextIndex = 1,

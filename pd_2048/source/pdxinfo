@@ -4,4 +4,4 @@ description=KuruKuru512
 bundleID=jp.2dgames.kurukuru512
 version=1.0.0
 buildNumber=1
-imagePath=launcher
+imagePath=assets/launcher

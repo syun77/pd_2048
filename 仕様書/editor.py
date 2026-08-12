@@ -204,6 +204,7 @@ class StageEditor(tk.Tk):
         self.redo_history: list[dict] = []
         self.stage = new_stage()
         self.selected_value = tk.IntVar(value=DEFAULT_BLOCK_VALUE)
+        self.id_var = tk.StringVar(value=DEFAULT_STAGE_ID)
         self.label_var = tk.StringVar()
         self.description_ja_var = tk.StringVar(value=DEFAULT_DESCRIPTION_JA)
         self.description_en_var = tk.StringVar(value=DEFAULT_DESCRIPTION_EN)
@@ -313,48 +314,51 @@ class StageEditor(tk.Tk):
 
         form = ttk.Frame(root)
         form.grid(row=0, column=2, sticky="nw")
-        ttk.Label(form, text="Label").grid(row=0, column=0, sticky="w")
-        ttk.Entry(form, textvariable=self.label_var, width=FORM_ENTRY_WIDTH).grid(
+        ttk.Label(form, text="Stage ID").grid(row=0, column=0, sticky="w")
+        ttk.Entry(form, textvariable=self.id_var, width=FORM_ENTRY_WIDTH).grid(
             row=0, column=1, columnspan=3, sticky="ew", pady=FORM_ROW_PAD_Y)
-        ttk.Label(form, text="Description JA").grid(row=1, column=0, sticky="w")
+        ttk.Label(form, text="Label").grid(row=1, column=0, sticky="w")
+        ttk.Entry(form, textvariable=self.label_var, width=FORM_ENTRY_WIDTH).grid(
+            row=1, column=1, columnspan=3, sticky="ew", pady=FORM_ROW_PAD_Y)
+        ttk.Label(form, text="Description JA").grid(row=2, column=0, sticky="w")
         ttk.Entry(form, textvariable=self.description_ja_var,
-                  width=DESCRIPTION_ENTRY_WIDTH).grid(
-                      row=1, column=1, columnspan=3, sticky="ew",
-                      pady=FORM_ROW_PAD_Y)
-        ttk.Label(form, text="Description EN").grid(row=2, column=0, sticky="w")
-        ttk.Entry(form, textvariable=self.description_en_var,
                   width=DESCRIPTION_ENTRY_WIDTH).grid(
                       row=2, column=1, columnspan=3, sticky="ew",
                       pady=FORM_ROW_PAD_Y)
-        ttk.Label(form, text="NEXT mode").grid(row=3, column=0, sticky="w")
+        ttk.Label(form, text="Description EN").grid(row=3, column=0, sticky="w")
+        ttk.Entry(form, textvariable=self.description_en_var,
+                  width=DESCRIPTION_ENTRY_WIDTH).grid(
+                      row=3, column=1, columnspan=3, sticky="ew",
+                      pady=FORM_ROW_PAD_Y)
+        ttk.Label(form, text="NEXT mode").grid(row=4, column=0, sticky="w")
         policy = ttk.Combobox(form, textvariable=self.policy_var,
                               values=NEXT_POLICY_OPTIONS, state="readonly",
                               width=POLICY_COMBOBOX_WIDTH)
-        policy.grid(row=3, column=1, sticky="w", pady=FORM_ROW_PAD_Y)
+        policy.grid(row=4, column=1, sticky="w", pady=FORM_ROW_PAD_Y)
         policy.bind("<<ComboboxSelected>>", self._select_next_policy)
         random_values_label = ttk.Label(form, text="Random values")
-        random_values_label.grid(row=4, column=0, sticky="w")
+        random_values_label.grid(row=5, column=0, sticky="w")
         random_values_entry = ttk.Entry(form, textvariable=self.random_values_var, width=20)
-        random_values_entry.grid(row=4, column=1, columnspan=3, sticky="w")
+        random_values_entry.grid(row=5, column=1, columnspan=3, sticky="w")
         random_weights_label = ttk.Label(form, text="Random weights")
-        random_weights_label.grid(row=5, column=0, sticky="w")
+        random_weights_label.grid(row=6, column=0, sticky="w")
         random_weights_entry = ttk.Entry(form, textvariable=self.random_weights_var, width=20)
-        random_weights_entry.grid(row=5, column=1, columnspan=3, sticky="w")
+        random_weights_entry.grid(row=6, column=1, columnspan=3, sticky="w")
         self.random_field_widgets = [
             random_values_label, random_values_entry,
             random_weights_label, random_weights_entry,
         ]
 
         ttk.Label(form, text="Move Limit (0 = unlimited)").grid(
-            row=6, column=0, sticky="w")
+            row=7, column=0, sticky="w")
         ttk.Spinbox(form, from_=DEFAULT_TURN_LIMIT, to=MAX_TURN_LIMIT,
                     increment=1, textvariable=self.turn_limit_var,
                     width=OBJECTIVE_VALUE_ENTRY_WIDTH).grid(
-                        row=6, column=1, sticky="w")
+                        row=7, column=1, sticky="w")
 
         objective = ttk.LabelFrame(form, text="Clear Objective",
                                    padding=OBJECTIVE_FRAME_PADDING)
-        objective.grid(row=7, column=0, columnspan=4, sticky="ew",
+        objective.grid(row=8, column=0, columnspan=4, sticky="ew",
                        pady=(OBJECTIVE_FRAME_TOP_PAD, 0))
         ttk.Label(objective, text="Mode").grid(row=0, column=0, sticky="w")
         ttk.Combobox(objective, textvariable=self.objective_mode_var,
@@ -574,6 +578,7 @@ class StageEditor(tk.Tk):
         for block in self.stage.get("initialBoard", []):
             if LOGICAL_COORDINATE_OFFSET <= block.get("x", INVALID_COORDINATE) <= BOARD_SIZE and LOGICAL_COORDINATE_OFFSET <= block.get("y", INVALID_COORDINATE) <= BOARD_SIZE:
                 self.board[block["y"] - 1][block["x"] - 1] = block.get("value", EMPTY_CELL)
+        self.id_var.set(str(self.stage.get("id", DEFAULT_STAGE_ID)))
         self.label_var.set(self.stage.get("label", ""))
         description = self.stage.get("description", {})
         if isinstance(description, str):
@@ -606,6 +611,7 @@ class StageEditor(tk.Tk):
     def _snapshot(self) -> dict:
         return {
             "board": copy.deepcopy(self.board),
+            "id": self.id_var.get(),
             "label": self.label_var.get(),
             "description_ja": self.description_ja_var.get(),
             "description_en": self.description_en_var.get(),
@@ -621,6 +627,7 @@ class StageEditor(tk.Tk):
 
     def _restore_snapshot(self, snapshot: dict) -> None:
         self.board = copy.deepcopy(snapshot["board"])
+        self.id_var.set(snapshot["id"])
         self.label_var.set(snapshot["label"])
         self.description_ja_var.set(snapshot["description_ja"])
         self.description_en_var.set(snapshot["description_en"])
@@ -704,7 +711,7 @@ class StageEditor(tk.Tk):
                   for y in range(BOARD_SIZE) for x in range(BOARD_SIZE)
                   if self.board[y][x]]
         return {
-            "id": self.stage.get("id", DEFAULT_STAGE_ID),
+            "id": self.id_var.get().strip(),
             "label": self.label_var.get().strip(),
             "description": {
                 "ja": self.description_ja_var.get().strip(),
@@ -721,6 +728,8 @@ class StageEditor(tk.Tk):
 
     def _validate(self, stage: dict) -> list[str]:
         errors = []
+        if not stage["id"]:
+            errors.append("Stage ID is required")
         if not stage["label"]:
             errors.append("Label is required")
         description = stage.get("description", {})
@@ -801,6 +810,7 @@ class StageEditor(tk.Tk):
             stage = json.loads(path.read_text(encoding="utf-8"))
             if not isinstance(stage, dict):
                 raise ValueError("The stage JSON root must be an object")
+            stage.setdefault("id", DEFAULT_STAGE_ID)
             stage.setdefault("label", path.stem)
             stage.setdefault("description", {"ja": DEFAULT_DESCRIPTION_JA,
                                              "en": DEFAULT_DESCRIPTION_EN})

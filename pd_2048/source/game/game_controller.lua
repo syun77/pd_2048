@@ -86,7 +86,35 @@ function GameController:loadHighScore()
     if okCoreRush and type(coreRushValue) == "number" then
         self.state.coreRushBestTimeMs = coreRushValue
     end
+    local okPractice, practiceValue = pcall(pd.datastore.read, "practiceClearedStages")
+    if okPractice and type(practiceValue) == "table" then
+        self.state.practiceClearedStages = practiceValue
+    end
     self.state.highScore = self.state.normalHighScore
+end
+
+function GameController:getPracticeStageId(stage)
+    if stage ~= nil and stage.id ~= nil then return tostring(stage.id) end
+    if stage ~= nil and stage.fileName ~= nil then return tostring(stage.fileName) end
+    return self.state.practiceScenarioId
+end
+
+function GameController:isPracticeStageCleared(stage)
+    local stageId = self:getPracticeStageId(stage)
+    return stageId ~= nil and self.state.practiceClearedStages[stageId] == true
+end
+
+function GameController:savePracticeClearedStages()
+    pd.datastore.write(self.state.practiceClearedStages, "practiceClearedStages")
+end
+
+function GameController:markPracticeStageCleared()
+    local stageId = self:getPracticeStageId(self.practiceStage)
+    if stageId == nil or self.state.practiceClearedStages[stageId] == true then
+        return
+    end
+    self.state.practiceClearedStages[stageId] = true
+    self:savePracticeClearedStages()
 end
 
 function GameController:saveCurrentModeHighScore()
@@ -363,6 +391,7 @@ end
 
 function GameController:beginPracticeVictory()
     local state = self.state
+    self:markPracticeStageCleared()
     state.practiceCompleteUntil = pd.getCurrentTimeMilliseconds()
         + Config.CORE_RUSH_COMPLETE_DISPLAY_MS
     state.timerStartedAt = nil

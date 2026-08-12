@@ -11,6 +11,7 @@ function TitleRenderer.new(dependencies)
     return setmetatable({
         state = dependencies.state,
         menuRenderer = dependencies.menuRenderer,
+        practiceClearedImage = gfx.image.new("assets/images/check"),
     }, TitleRenderer)
 end
 
@@ -38,8 +39,12 @@ end
 ---@param title string|nil
 function TitleRenderer:drawTitle(selectedIndex, menuItems, title)
     local labels = {}
+    local itemOptions = {}
     for _, item in ipairs(menuItems) do
         table.insert(labels, item.label)
+        table.insert(itemOptions, {
+            icon = item.cleared and self.practiceClearedImage or nil,
+        })
     end
     if title ~= nil then self:drawCenteredText(title, 42) end
     local menuCenterY = Config.TITLE_MENU_CENTER_Y
@@ -49,7 +54,8 @@ function TitleRenderer:drawTitle(selectedIndex, menuItems, title)
         menuCenterY = Config.TITLE_SUBMENU_CENTER_Y
     end
     self.menuRenderer:drawMenu(Config.SCREEN_CENTER_X, menuCenterY,
-        labels, selectedIndex, gfx.kColorWhite, title == nil and nil or 5)
+        labels, selectedIndex, gfx.kColorWhite, title == nil and nil or 5,
+        itemOptions)
     if title == "PRACTICE" then
         self:drawPracticeDescription(menuItems, selectedIndex)
     end
