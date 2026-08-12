@@ -123,22 +123,51 @@ function TitleRenderer:drawSoundTest(selectedTab, selectedIndex, menuItems, bgmD
     gfx.drawText("TIME", x, y)
     if bgmDbStatus.offset ~= nil then
 		local minutes = math.floor(bgmDbStatus.offset / 60)
-		local seconds = bgmDbStatus.offset - minutes * 60
-		gfx.drawText(string.format("%02d:%02.1f", minutes, seconds), x, y + 18)
+		local seconds = math.floor(bgmDbStatus.offset - minutes * 60)
+		local milliseconds = math.floor((bgmDbStatus.offset - minutes * 60 - seconds) * 10)
+		gfx.drawText(string.format("%02d:%02d.%01d", minutes, seconds, milliseconds), x, y + 18)
     else
         gfx.drawText("--.-s", x, y + 18)
     end
 
-	-- dBの描画.
-	gfx.setColor(gfx.kColorWhite)
-	gfx.fillRoundRect(x - 4, y + 60, 48, 20, 4)
+    local graphX = 306
+    local graphY = 146
+    local graphWidth = 60
+    local graphHeight = 70
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillRoundRect(graphX - 10, graphY - 18, graphWidth + 20, graphHeight + 34, 4)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawTextAligned("DB", graphX + graphWidth * 0.5, graphY - 16,
+        kTextAlignment.center)
+    gfx.drawRect(graphX, graphY, graphWidth, graphHeight)
+    for i = 1, 3 do
+        local markY = graphY + math.floor(graphHeight * i / 4)
+        gfx.drawLine(graphX - 4, markY, graphX, markY)
+        gfx.drawLine(graphX + graphWidth, markY, graphX + graphWidth + 4, markY)
+    end
 
-	gfx.drawText("DB", x, y + 44)
-    if bgmDbStatus.db ~= nil then
-        gfx.drawText(string.format("%+04.0f", bgmDbStatus.db), x, y + 62)
-        gfx.drawText(string.format("LV %03d", bgmDbStatus.level), x, y + 80)
-    else
-        gfx.drawText("--", x, y + 62)
+    local bandLabels = {
+        { key = "low", label = "L" },
+        { key = "mid", label = "M" },
+        { key = "high", label = "H" },
+    }
+    local barWidth = 12
+    local barGap = 6
+    local firstBarX = graphX + 6
+    local hasBands = bgmDbStatus.bands ~= nil
+    for index, band in ipairs(bandLabels) do
+        local barX = firstBarX + (index - 1) * (barWidth + barGap)
+        local bandStatus = hasBands and bgmDbStatus.bands[band.key] or nil
+        if bandStatus ~= nil and bandStatus.level ~= nil then
+            local level = math.max(0, math.min(100, bandStatus.level))
+            local barHeight = math.floor(graphHeight * level / 100)
+            if barHeight > 0 then
+                gfx.fillRect(barX, graphY + graphHeight - barHeight,
+                    barWidth, barHeight)
+            end
+        end
+        gfx.drawTextAligned(band.label, barX + barWidth * 0.5,
+            graphY + graphHeight + 4, kTextAlignment.center)
     end
 end
 

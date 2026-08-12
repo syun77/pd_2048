@@ -6,6 +6,7 @@ import "menu_selection_controller"
 
 local pd <const> = playdate
 local BGM_DB_DIRECTORY <const> = "assets/bgm_db"
+local DB_DISPLAY_LERP <const> = 0.25
 
 local SoundTestScene = {}
 SoundTestScene.__index = SoundTestScene
@@ -25,6 +26,7 @@ function SoundTestScene.new(context)
         seItems = {},
         playingBgmName = nil,
         bgmDb = nil,
+        displayBands = nil,
     }, SoundTestScene)
 end
 
@@ -64,6 +66,7 @@ end
 function SoundTestScene:loadBgmDb(bgmName)
     self.playingBgmName = bgmName
     self.bgmDb = nil
+    self.displayBands = nil
 
     local path = BGM_DB_DIRECTORY .. "/" .. bgmName .. ".json"
     local ok, data = pcall(json.decodeFile, path)
@@ -72,6 +75,12 @@ function SoundTestScene:loadBgmDb(bgmName)
     else
         print("SoundTestScene:loadBgmDb() - failed to load " .. path)
     end
+end
+
+local function lerpValue(current, target, rate)
+    if target == nil then return current end
+    if current == nil then return target end
+    return current + (target - current) * rate
 end
 
 function SoundTestScene:returnToTitle()
@@ -125,34 +134,86 @@ function SoundTestScene:getBgmDbStatus()
     if self.playingBgmName == nil then return nil end
 
     local offset = self.context.sound:getBgmOffset()
-    local db = self.bgmDb
-    if offset == nil or db == nil then
+    local target = self:getBgmDbTarget(offset)
+    if target == nil then
         return {
             name = self.playingBgmName,
             offset = offset,
-            level = nil,
-            db = nil,
+            bands = nil,
         }
     end
-
-    local interval = db.interval or 0.2
-    local levels = db.levels
-    local index = math.floor(offset / interval) + 1
-    index = math.max(1, math.min(#levels, index))
-    local level = levels[index]
-    if type(level) ~= "number" then level = 0 end
-    local minDb = db.minDb or -60
-    local dbValue = minDb + (level / 100) * (0 - minDb)
 
     return {
         name = self.playingBgmName,
         offset = offset,
-        level = level,
-        db = dbValue,
+        bands = self.displayBands or target.bands,
     }
 end
 
+local function levelToDb(level, minDb)
+    return minDb + (level / 100) * (0 - minDb)
+end
+
+function SoundTestScene:getBgmDbTarget(offset)
+    local db = self.bgmDb
+    if offset == nil or db == nil then return nil end
+
+    local interval = db.interval or 0.2
+    local minDb = db.minDb or -60
+    local bands = {}
+    local sourceBands = db.bands
+    if type(sourceBands) == "table" then
+        for _, bandName in ipairs({ "low", "mid", "high" }) do
+            local bandLevels = sourceBands[bandName]
+            local level = 0
+            if type(bandLevels) == "table" then
+                local index = math.floor(offset / interval) + 1
+                index = math.max(1, math.min(#bandLevels, index))
+                level = bandLevels[index]
+            end
+            if type(level) ~= "number" then level = 0 end
+            bands[bandName] = {
+                level = level,
+                db = levelToDb(level, minDb),
+            }
+        end
+        return { bands = bands }
+    end
+
+    local levels = db.levels
+    if type(levels) ~= "table" then return nil end
+    local index = math.floor(offset / interval) + 1
+    index = math.max(1, math.min(#levels, index))
+    local level = levels[index]
+    if type(level) ~= "number" then level = 0 end
+    return {
+        bands = {
+            mid = {
+                level = level,
+                db = levelToDb(level, minDb),
+            },
+        },
+    }
+end
+
+function SoundTestScene:updateBgmDbDisplay()
+    if self.playingBgmName == nil then return end
+
+    local target = self:getBgmDbTarget(self.context.sound:getBgmOffset())
+    if target == nil then return end
+
+    self.displayBands = self.displayBands or {}
+    for bandName, targetBand in pairs(target.bands) do
+        local displayBand = self.displayBands[bandName] or {}
+        displayBand.level = lerpValue(displayBand.level, targetBand.level, DB_DISPLAY_LERP)
+        displayBand.db = lerpValue(displayBand.db, targetBand.db, DB_DISPLAY_LERP)
+        self.displayBands[bandName] = displayBand
+    end
+end
+
 function SoundTestScene:update()
+    self:updateBgmDbDisplay()
+
     local items = self:getCurrentItems()
     if pd.buttonJustPressed(pd.kButtonB) then
         self:returnToTitle()

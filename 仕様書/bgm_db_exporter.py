@@ -3,7 +3,9 @@
 
 The project's BGM files are Playdate-friendly IMA ADPCM WAV files. This tool
 decodes them to 16-bit PCM, measures the peak dBFS for each interval, maps the
-result to 0-100, and writes one JSON file per WAV.
+result to 0-100, and writes one JSON file per WAV. It also exports low/mid/high
+frequency-band levels for simple equalizer-style displays using lightweight
+one-pole crossover filters.
 
 Run from the repository root:
 
@@ -25,6 +27,8 @@ WAVE_FORMAT_IMA_ADPCM = 0x0011
 MAX_16BIT_SAMPLE = 32767
 DEFAULT_INTERVAL_SECONDS = 0.2
 DEFAULT_MIN_DB = -60.0
+DEFAULT_LOW_MAX_HZ = 250.0
+DEFAULT_MID_MAX_HZ = 4000.0
 
 IMA_INDEX_TABLE = (
     -1, -1, -1, -1, 2, 4, 6, 8,
@@ -195,10 +199,71 @@ def build_levels(samples: list[int], sample_rate: int, interval: float, min_db: 
     return levels
 
 
-def export_file(wav_path: Path, output_dir: Path, interval: float, min_db: float) -> Path:
+def lowpass_alpha(cutoff_hz: float, sample_rate: int) -> float:
+    dt = 1.0 / sample_rate
+    rc = 1.0 / (2.0 * math.pi * cutoff_hz)
+    return dt / (rc + dt)
+
+
+def build_band_levels(
+    samples: list[int],
+    sample_rate: int,
+    interval: float,
+    min_db: float,
+    low_max_hz: float,
+    mid_max_hz: float,
+) -> dict[str, list[int]]:
+    window_size = max(1, int(round(sample_rate * interval)))
+    bands = {
+        "low": [],
+        "mid": [],
+        "high": [],
+    }
+    low_alpha = lowpass_alpha(low_max_hz, sample_rate)
+    mid_alpha = lowpass_alpha(mid_max_hz, sample_rate)
+    low_state = 0.0
+    mid_lowpass_state = 0.0
+
+    for start in range(0, len(samples), window_size):
+        window = samples[start:start + window_size]
+        peaks = {
+            "low": 0.0,
+            "mid": 0.0,
+            "high": 0.0,
+        }
+
+        for sample in window:
+            value = sample / MAX_16BIT_SAMPLE
+            low_state += low_alpha * (value - low_state)
+            mid_lowpass_state += mid_alpha * (value - mid_lowpass_state)
+            low = low_state
+            mid = mid_lowpass_state - low_state
+            high = value - mid_lowpass_state
+            peaks["low"] = max(peaks["low"], abs(low))
+            peaks["mid"] = max(peaks["mid"], abs(mid))
+            peaks["high"] = max(peaks["high"], abs(high))
+
+        for band_name, peak in peaks.items():
+            db = float("-inf") if peak <= 0 else 20.0 * math.log10(min(1.0, peak))
+            bands[band_name].append(db_to_level(db, min_db))
+
+    return bands
+
+
+def export_file(
+    wav_path: Path,
+    output_dir: Path,
+    interval: float,
+    min_db: float,
+    low_max_hz: float,
+    mid_max_hz: float,
+) -> Path:
     wav, samples = decode_wav_samples(wav_path)
     levels = build_levels(samples, wav.sample_rate, interval, min_db)
+    bands = build_band_levels(samples, wav.sample_rate, interval, min_db,
+                              low_max_hz, mid_max_hz)
     duration = len(samples) / wav.sample_rate
+    nyquist = wav.sample_rate * 0.5
     payload = {
         "source": wav_path.name,
         "interval": interval,
@@ -206,6 +271,12 @@ def export_file(wav_path: Path, output_dir: Path, interval: float, min_db: float
         "sampleRate": wav.sample_rate,
         "duration": round(duration, 3),
         "levels": levels,
+        "bandRangesHz": {
+            "low": [20, low_max_hz],
+            "mid": [low_max_hz, mid_max_hz],
+            "high": [mid_max_hz, nyquist],
+        },
+        "bands": bands,
     }
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -249,6 +320,18 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_MIN_DB,
         help="dBFS value mapped to level 0. 0 dBFS maps to level 100.",
     )
+    parser.add_argument(
+        "--low-max-hz",
+        type=float,
+        default=DEFAULT_LOW_MAX_HZ,
+        help="Upper frequency for the low band. Mid starts at this value.",
+    )
+    parser.add_argument(
+        "--mid-max-hz",
+        type=float,
+        default=DEFAULT_MID_MAX_HZ,
+        help="Upper frequency for the mid band. High starts at this value.",
+    )
     return parser.parse_args()
 
 
@@ -257,9 +340,12 @@ def main() -> int:
     wav_paths = sorted(args.input.glob("*.wav"))
     if not wav_paths:
         raise SystemExit(f"No wav files found: {args.input}")
+    if args.low_max_hz <= 20 or args.mid_max_hz <= args.low_max_hz:
+        raise SystemExit("--low-max-hz and --mid-max-hz must define ordered bands")
 
     for wav_path in wav_paths:
-        output_path = export_file(wav_path, args.output, args.interval, args.min_db)
+        output_path = export_file(wav_path, args.output, args.interval, args.min_db,
+                                  args.low_max_hz, args.mid_max_hz)
         print(f"{wav_path.name} -> {output_path}")
     return 0
 
