@@ -255,6 +255,87 @@
       },
       "hidden": false,
       "progressVisible": false
+    },
+    {
+      "no": 7,
+      "id": "combo4",
+      "category": "SYSTEM",
+      "name": {
+        "ja": "4コンボ",
+        "en": "4-COMBO"
+      },
+      "description": {
+        "ja": "4コンボを達成する",
+        "en": "Achieve a 4-combo"
+      },
+      "condition": {
+        "type": "COMBO",
+        "scope": "RUN",
+        "operator": ">=",
+        "params": {
+          "value": 4
+        }
+      },
+      "reward": {
+        "type": "NONE",
+        "id": ""
+      },
+      "hidden": false,
+      "progressVisible": false
+    },
+    {
+      "no": 8,
+      "id": "combo5",
+      "category": "SYSTEM",
+      "name": {
+        "ja": "5コンボ",
+        "en": "5-COMBO"
+      },
+      "description": {
+        "ja": "5コンボを達成する",
+        "en": "Achieve a 5-combo"
+      },
+      "condition": {
+        "type": "COMBO",
+        "scope": "RUN",
+        "operator": ">=",
+        "params": {
+          "value": 5
+        }
+      },
+      "reward": {
+        "type": "NONE",
+        "id": ""
+      },
+      "hidden": false,
+      "progressVisible": false
+    },
+    {
+      "no": 9,
+      "id": "combo6",
+      "category": "SYSTEM",
+      "name": {
+        "ja": "6コンボ",
+        "en": "6-COMBO"
+      },
+      "description": {
+        "ja": "6コンボを達成する",
+        "en": "Achieve a 6-combo"
+      },
+      "condition": {
+        "type": "COMBO",
+        "scope": "RUN",
+        "operator": ">=",
+        "params": {
+          "value": 6
+        }
+      },
+      "reward": {
+        "type": "NONE",
+        "id": ""
+      },
+      "hidden": false,
+      "progressVisible": false
     }
   ]
 }
