@@ -3,23 +3,23 @@
     "categories": [
       {
         "id": "SYSTEM",
-        "label": "System"
+        "label": "システム"
       },
       {
         "id": "NORMAL",
-        "label": "Normal"
+        "label": "ノーマルモード"
       },
       {
         "id": "TIME_ATTACK",
-        "label": "Time Attack"
+        "label": "タイムアタックモード"
       },
       {
         "id": "CORE_RUSH",
-        "label": "Core Rush"
+        "label": "コアクラッシュモード"
       },
       {
         "id": "PRACTICE",
-        "label": "Practice"
+        "label": "練習モード"
       }
     ],
     "conditionTypes": [
@@ -80,27 +80,23 @@
         "label": "None"
       },
       {
-        "id": "BGM_UNLOCK",
-        "label": "BGM Unlock"
+        "id": "SOUND_UNLOCK",
+        "label": "サウンドテストの開放"
       },
       {
-        "id": "THEME_UNLOCK",
-        "label": "Theme Unlock"
+        "id": "TIMEATTACK_UNLOCK",
+        "label": "タイムアタックの開放"
       },
       {
         "id": "TITLE_BADGE",
         "label": "Title Badge"
-      },
-      {
-        "id": "SOUND_UNLOCK",
-        "label": "Sound Unlock"
       }
     ]
   },
   "achievements": [
     {
       "no": 1,
-      "id": "id001",
+      "id": "practice_all_clear",
       "category": "PRACTICE",
       "name": {
         "ja": "PRACTICE完了",
@@ -113,9 +109,9 @@
       "condition": {
         "type": "PRACTICE_CLEAR_COUNT",
         "scope": "LIFETIME",
-        "operator": ">=",
+        "operator": "==",
         "params": {
-          "count": 1
+          "all": true
         }
       },
       "reward": {
@@ -127,7 +123,7 @@
     },
     {
       "no": 2,
-      "id": "id002",
+      "id": "tile64",
       "category": "SYSTEM",
       "name": {
         "ja": "64タイルの作成",
@@ -139,7 +135,7 @@
       },
       "condition": {
         "type": "TILE_VALUE",
-        "scope": "LIFETIME",
+        "scope": "RUN",
         "operator": ">=",
         "params": {
           "value": 64
@@ -150,7 +146,115 @@
         "id": ""
       },
       "hidden": false,
-      "progressVisible": true
+      "progressVisible": false
+    },
+    {
+      "no": 3,
+      "id": "tile128",
+      "category": "SYSTEM",
+      "name": {
+        "ja": "128タイルの作成",
+        "en": "128 TILE"
+      },
+      "description": {
+        "ja": "128タイルを作成した",
+        "en": "Create a 128 tile"
+      },
+      "condition": {
+        "type": "TILE_VALUE",
+        "scope": "RUN",
+        "operator": ">=",
+        "params": {
+          "value": 128
+        }
+      },
+      "reward": {
+        "type": "NONE",
+        "id": ""
+      },
+      "hidden": false,
+      "progressVisible": false
+    },
+    {
+      "no": 4,
+      "id": "tile256",
+      "category": "SYSTEM",
+      "name": {
+        "ja": "256タイルの作成",
+        "en": "256 TILE"
+      },
+      "description": {
+        "ja": "256タイルを作成した",
+        "en": "Create a 256 tile"
+      },
+      "condition": {
+        "type": "TILE_VALUE",
+        "scope": "RUN",
+        "operator": ">=",
+        "params": {
+          "value": 256
+        }
+      },
+      "reward": {
+        "type": "NONE",
+        "id": ""
+      },
+      "hidden": false,
+      "progressVisible": false
+    },
+    {
+      "no": 5,
+      "id": "tile512",
+      "category": "SYSTEM",
+      "name": {
+        "ja": "512タイルの作成",
+        "en": "512 TILE"
+      },
+      "description": {
+        "ja": "512タイルを作成した",
+        "en": "Create a 512 tile"
+      },
+      "condition": {
+        "type": "TILE_VALUE",
+        "scope": "RUN",
+        "operator": ">=",
+        "params": {
+          "value": 512
+        }
+      },
+      "reward": {
+        "type": "NONE",
+        "id": ""
+      },
+      "hidden": false,
+      "progressVisible": false
+    },
+    {
+      "no": 6,
+      "id": "tile2048",
+      "category": "SYSTEM",
+      "name": {
+        "ja": "2048タイルの作成",
+        "en": "2048 TILE"
+      },
+      "description": {
+        "ja": "2048タイルを作成した",
+        "en": "Create a 2048 tile"
+      },
+      "condition": {
+        "type": "TILE_VALUE",
+        "scope": "RUN",
+        "operator": ">=",
+        "params": {
+          "value": 2048
+        }
+      },
+      "reward": {
+        "type": "NONE",
+        "id": ""
+      },
+      "hidden": false,
+      "progressVisible": false
     }
   ]
 }
