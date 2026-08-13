@@ -100,11 +100,11 @@
       "category": "PRACTICE",
       "name": {
         "ja": "PRACTICE完了",
-        "en": "PRACTICE COMPLTE"
+        "en": "PRACTICE Complete"
       },
       "description": {
         "ja": "PRACTICE をすべてクリアした",
-        "en": "Completed all PRACTICE stages"
+        "en": "Complete all PRACTICE stages."
       },
       "condition": {
         "type": "PRACTICE_CLEAR_COUNT",
@@ -158,7 +158,7 @@
       },
       "description": {
         "ja": "128タイルを作成した",
-        "en": "Create a 128 tile"
+        "en": "Create a 128 tile."
       },
       "condition": {
         "type": "TILE_VALUE",
@@ -185,7 +185,7 @@
       },
       "description": {
         "ja": "256タイルを作成した",
-        "en": "Create a 256 tile"
+        "en": "Create a 256 tile."
       },
       "condition": {
         "type": "TILE_VALUE",
@@ -212,7 +212,7 @@
       },
       "description": {
         "ja": "512タイルを作成した",
-        "en": "Create a 512 tile"
+        "en": "Create a 512 tile."
       },
       "condition": {
         "type": "TILE_VALUE",
@@ -239,7 +239,7 @@
       },
       "description": {
         "ja": "2048タイルを作成した",
-        "en": "Create a 2048 tile"
+        "en": "Create a 2048 tile."
       },
       "condition": {
         "type": "TILE_VALUE",
@@ -262,11 +262,11 @@
       "category": "SYSTEM",
       "name": {
         "ja": "4コンボ",
-        "en": "4-COMBO"
+        "en": "4-combo"
       },
       "description": {
         "ja": "4コンボを達成する",
-        "en": "Achieve a 4-combo"
+        "en": "Achieve a 4-combo."
       },
       "condition": {
         "type": "COMBO",
@@ -289,11 +289,11 @@
       "category": "SYSTEM",
       "name": {
         "ja": "5コンボ",
-        "en": "5-COMBO"
+        "en": "5-combo"
       },
       "description": {
         "ja": "5コンボを達成する",
-        "en": "Achieve a 5-combo"
+        "en": "Achieve a 5-combo."
       },
       "condition": {
         "type": "COMBO",
@@ -316,11 +316,11 @@
       "category": "SYSTEM",
       "name": {
         "ja": "6コンボ",
-        "en": "6-COMBO"
+        "en": "6-combo"
       },
       "description": {
         "ja": "6コンボを達成する",
-        "en": "Achieve a 6-combo"
+        "en": "Achieve a 6-combo."
       },
       "condition": {
         "type": "COMBO",
