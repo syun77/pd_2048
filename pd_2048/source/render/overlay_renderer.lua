@@ -101,6 +101,7 @@ function OverlayRenderer:drawDangerIcon(x, y, size, blinking)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
+-- 危険アイコンの描画.
 function OverlayRenderer:drawDangerIcons()
     local bottomDanger, bottomCritical,
         leftDanger, leftCritical,

@@ -66,6 +66,10 @@
       {
         "id": "BEST_TIME_MS",
         "label": "ベストタイム"
+      },
+      {
+        "id": "LEVEL",
+        "label": "到達レベル"
       }
     ],
     "scopes": [
@@ -343,22 +347,22 @@
     },
     {
       "no": 10,
-      "id": "achievement_010",
-      "category": "SYSTEM",
+      "id": "level5",
+      "category": "NORMAL",
       "name": {
-        "ja": "NEW ACHIEVEMENT",
-        "en": "NEW ACHIEVEMENT"
+        "ja": "LEVEL 5",
+        "en": "LEVEL 5"
       },
       "description": {
-        "ja": "",
-        "en": ""
+        "ja": "ノーマルモードでLEVEL 5 に到達した",
+        "en": "Reach Level 5 in Normal Mode."
       },
       "condition": {
-        "type": "MERGE_COUNT",
+        "type": "LEVEL",
         "scope": "RUN",
         "operator": ">=",
         "params": {
-          "count": 1
+          "valuet": 5
         }
       },
       "reward": {
@@ -366,7 +370,61 @@
         "id": ""
       },
       "hidden": false,
-      "progressVisible": true
+      "progressVisible": false
+    },
+    {
+      "no": 11,
+      "id": "level10",
+      "category": "NORMAL",
+      "name": {
+        "ja": "LEVEL 10",
+        "en": "LEVEL 10"
+      },
+      "description": {
+        "ja": "ノーマルモードでLEVEL 10 に到達した",
+        "en": "Reach Level 10 in Normal Mode."
+      },
+      "condition": {
+        "type": "LEVEL",
+        "scope": "RUN",
+        "operator": ">=",
+        "params": {
+          "valuet": 10
+        }
+      },
+      "reward": {
+        "type": "NONE",
+        "id": ""
+      },
+      "hidden": false,
+      "progressVisible": false
+    },
+    {
+      "no": 12,
+      "id": "level15",
+      "category": "NORMAL",
+      "name": {
+        "ja": "LEVEL 15",
+        "en": "LEVEL 15"
+      },
+      "description": {
+        "ja": "ノーマルモードでLEVEL 15 に到達した",
+        "en": "Reach Level 15 in Normal Mode."
+      },
+      "condition": {
+        "type": "LEVEL",
+        "scope": "RUN",
+        "operator": ">=",
+        "params": {
+          "valuet": 15
+        }
+      },
+      "reward": {
+        "type": "NONE",
+        "id": ""
+      },
+      "hidden": false,
+      "progressVisible": false
     }
   ]
 }
