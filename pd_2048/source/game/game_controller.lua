@@ -144,21 +144,32 @@ function GameController:saveCurrentModeHighScore()
     end
 end
 
+-- レベルアップの進行を適用する.
+---@param levelUp boolean レベルアップしたかどうか.
+---@param previousLevel integer 前のレベル.
 function GameController:applyLevelProgress(levelUp, previousLevel)
-    if not levelUp then return end
+    if not levelUp then
+		return -- レベルアップしていないので何もしない.
+	end
     local state = self.state
     if state.levelUpDisplayFrame >= Config.LEVEL_UP_DISPLAY_FRAMES then
         state.levelUpFrom = previousLevel or math.max(1, state.level - 1)
     end
     state.levelUpTo = state.level
-    state.levelUpDisplayFrame = 0
+    state.levelUpDisplayFrame = 0 -- レベルアップ演出の表示開始.
+
+	-- レベルアップSEを再生.
+	self.sound:play_se("levelup")
+
     if state.levelRecordEligible and state.level > state.normalBestLevel then
+		-- 最高レベルの記録更新.
         state.normalBestLevel = state.level
         state.levelNewBest = true
         pd.datastore.write(state.normalBestLevel, "normalBestLevel")
     end
 end
 
+-- タイムアタックでの最短クリア時間を保存する.
 function GameController:saveTimeAttackBestTime()
     local state = self.state
     if not self:isTimeAttack() or state.result ~= GameResult.VICTORY then return end
@@ -262,6 +273,7 @@ function GameController:isRewindAvailable()
     return self.undoController:isAvailable()
 end
 
+-- 重力の適用.
 function GameController:applyGravity()
     self.state.board:set(Config.CENTER, Config.CENTER, 0)
 end

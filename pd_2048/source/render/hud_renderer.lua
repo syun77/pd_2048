@@ -21,7 +21,7 @@ function HudRenderer.level(level, totalXp)
     local currentXp = math.floor(totalXp - LevelProgress.xpForLevel(level))
     local requiredXp = math.floor(LevelProgress.xpForNextLevel(level))
 	-- レベルの値の描画.
-    gfx.drawText("LV " .. tostring(level), 8, 60)
+    gfx.drawText("LV " .. tostring(level), 12, 60)
 
 	-- 外枠の描画.
 	gfx.setLineWidth(1)
@@ -32,7 +32,7 @@ function HudRenderer.level(level, totalXp)
 
 	-- 経験値の表示
     gfx.drawTextAligned(tostring(currentXp) .. "/" .. tostring(requiredXp),
-        12, 92, kTextAlignment.left)
+        20, 92, kTextAlignment.left)
 end
 
 function HudRenderer.timeAttack(elapsedTimeMs)

@@ -93,6 +93,7 @@ local seTable = {
 	"decide",
 	"error",
 	"start",
+	"levelup",
 	"complete",
 	"gameover",
 	"combo1",
