@@ -127,6 +127,8 @@ function OverlayRenderer:drawDangerIcons()
     if rightDanger then self:drawDangerIcon(rightX, leftY, size, rightCritical) end
 end
 
+-- ボードの端に危険なブロックがあるかどうかを判定する.
+---@return false, boolean, false, boolean, false, boolean
 function OverlayRenderer:getDangerEdges()
     local board = self.state.board
     local bottomCount = 0
@@ -148,6 +150,7 @@ function OverlayRenderer:getDangerEdges()
         rightCount >= 4, rightCount == Config.BOARD_SIZE
 end
 
+-- UNDOのヒントの描画.
 function OverlayRenderer:drawRewindHint()
     local state = self.state
     if state.phase ~= GamePhase.INPUT or not self.isRewindAvailable() then return end
@@ -186,6 +189,7 @@ function OverlayRenderer:drawMessage()
     end
 end
 
+-- 開始メッセージ "READY" を表示する.
 function OverlayRenderer:drawStartReady()
     local state = self.state
     if state.startReadyUntil == 0

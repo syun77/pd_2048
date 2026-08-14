@@ -40,6 +40,8 @@ function UndoController:save(action)
     }, action)
 end
 
+-- UNDOが可能かどうかを判定する.
+---@return boolean UNDOが可能かどうか
 function UndoController:isAvailable()
     local state = self.state
     return UndoHistory.canRestore(state.undoStates, state.rewindUsesRemaining)

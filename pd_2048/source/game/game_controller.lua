@@ -256,18 +256,34 @@ function GameController:updateRewindHold()
     end
 end
 
+-- ドロップ可能なセルを見つける.
+-- 指定された列にブロックをドロップできるかどうかを判定する.
+---@param column integer ドロップする列のインデックス (1始まり)
+---@return integer?, integer? ドロップ可能なセルの座標 (column, row) または nil
 function GameController:findDropCell(column)
     return BoardRules.findDropCell(self.state.board, column, self.state.mode)
 end
 
+-- ドロップ可能かどうかを判定する.
+---@return false|true ドロップ可能かどうか
 function GameController:isDropAvailable()
     return self:findDropCell(self.state.cursorX) ~= nil
 end
 
+-- 指定された座標にブロックをドロップできるかどうかを判定する.
+---@param sourceX integer マージ対象のブロックのX座標
+---@param sourceY integer マージ対象のブロックのY座標
+---@param activeValue integer マージ対象のブロックの値
+---@return integer? sourceX マージ元のブロックのX座標（マージ可能なブロックが見つからない場合はnil）
+---@return integer? sourceY マージ元のブロックのY座標（マージ可能なブロックが見つからない場合はnil）
+---@return integer? targetX マージ先のブロックのX座標（マージ可能なブロックが見つからない場合はnil）
+---@return integer? targetY マージ先のブロックのY座標（マージ可能なブロックが見つからない場合はnil）
 function GameController:findMergeForBlock(sourceX, sourceY, activeValue)
     return MergeResolver.find(self.state.board, sourceX, sourceY, activeValue, self.state.mode)
 end
 
+-- UNDOが利用可能かどうかを判定する.
+---@return boolean UNDOが利用可能かどうか
 function GameController:isRewindAvailable()
     if self:isTimeAttack() then return false end
     return self.undoController:isAvailable()

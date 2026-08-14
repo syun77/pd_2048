@@ -33,8 +33,8 @@ local Config <const> = GameConfig
 ---@field messageUntil integer メッセージの表示終了時刻 (ミリ秒)
 ---■ブロック制御.
 ---@field pendingDropValue integer ドロップ中のブロックの値
----@field pendingDropX integer ドロップ中のブロックのX座標
----@field pendingDropY integer ドロップ中のブロックのY座標
+---@field pendingDropX integer? ドロップ中のブロックのX座標
+---@field pendingDropY integer? ドロップ中のブロックのY座標
 ---@field animationProgress number アニメーションの進行度 (0.0 - 1.0)
 ---@field animationDuration number アニメーションの総時間 (ミリ秒)
 ---@field rotationEvaluation number 回転評価値
