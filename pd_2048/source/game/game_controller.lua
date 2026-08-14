@@ -379,6 +379,8 @@ function GameController:finishTurn()
     end
 end
 
+-- Practiceモードでの最大タイル値を取得する.
+---@return integer 最大タイル値
 function GameController:getPracticeMaxTileValue()
     local maxValue = 0
     self.state.board:foreach(function(_, _, value)
@@ -468,6 +470,7 @@ function GameController:beginTimeUp()
     self.sound:stop_bgm(1.0)
 end
 
+-- CORE RUSHモードでのクリア処理を開始する.
 function GameController:beginVictory()
     local state = self.state
     state.coreRushCompleteUntil = pd.getCurrentTimeMilliseconds()
@@ -479,6 +482,7 @@ function GameController:beginVictory()
     self.sound:stop_bgm(1.0)
 end
 
+-- CORE RUSHモードでのスコア加算.
 function GameController:addCoreRushValue(mergeValue)
     if not self:isCoreRush() then return false end
     local state = self.state
@@ -549,6 +553,7 @@ function GameController:finishNextAnimation()
     end
 end
 
+-- 回転の開始.
 function GameController:startRotation()
     local state = self.state
     if state.rotationEvaluation == 0 then
@@ -582,20 +587,27 @@ function GameController:startRotation()
     state.phase = GamePhase.ROTATING
 end
 
+-- コンボ音の再生.
 function GameController:playComboSoundIfNeeded()
     local state = self.state
-    if state.combo < 2 or state.comboSoundPlayed then return end
+    if state.combo < 2 or state.comboSoundPlayed then
+		return -- 再生不要.
+	end
     state.comboSoundPlayed = true
     state.comboDisplayFrame = 0
     if state.combo < 3 then
+		-- 2 COMBO.
         self.sound:play_se("combo1")
     elseif state.combo < 5 then
+		-- 3～4 COMBO.
         self.sound:play_se("combo2")
     else
+		-- 5 COMBO以上.
         self.sound:play_se("combo3")
     end
 end
 
+-- マージの解決を開始する.
 function GameController:startResolve(nextAction)
     local state = self.state
     self:applyGravity()
@@ -618,6 +630,7 @@ function GameController:startResolve(nextAction)
     state.phase = GamePhase.MERGING
 end
 
+-- マージの完了処理.
 function GameController:finishMerge()
     local state = self.state
     local evaluation = MergeResolver.getEvaluation(
@@ -689,6 +702,7 @@ function GameController:advanceAnimation()
     end
 end
 
+-- ゲーム開始時に初期ブロックを生成する.
 function GameController:spawnInitialBlocks()
     local state = self.state
     if not self:isCoreRush() then
@@ -703,6 +717,7 @@ function GameController:spawnInitialBlocks()
     end
 end
 
+-- Practiceモードのシナリオを適用する.
 function GameController:applyPracticeScenario(scenario)
     local state = self.state
     state.practiceScenarioId = scenario.id
@@ -741,6 +756,7 @@ function GameController:applyPracticeScenario(scenario)
     end
 end
 
+-- ゲームの開始.
 function GameController:start(mode, practiceStage)
     local state = self.state
     state.mode = mode or Config.GAME_MODE.NORMAL
@@ -921,12 +937,14 @@ function GameController:moveCursor(delta)
     if previous ~= state.cursorX then self.sound:play_se("pi") end
 end
 
+-- カーソルキーのリピート状態をリセットする.
 function GameController:resetCursorKeyRepeat()
     CursorController.reset(self.cursorController)
-    self.state.cursorRepeatDirection = 0
+    self.state.cursorRepeatDirection = Config.DIRECTION.NONE
     self.state.cursorRepeatNextAt = nil
 end
 
+-- カーソルキーのリピート状態を更新する.
 function GameController:updateCursorKeyRepeat()
     local state = self.state
     CursorController.update(self.cursorController, pd,

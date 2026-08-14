@@ -93,7 +93,7 @@ local Config = {
     ROTATION_EVALUATION_MERGE_DIRECTION_RIGHT = 5,
     ROTATION_EVALUATION_VERTICAL_DIRECTION_WEIGHT = 10,
 	---@enum DIRECTION 方向.
-    DIRECTION = { DOWN = 1, LEFT = 2, RIGHT = 3, UP = 4 },
+    DIRECTION = { NONE = 0, DOWN = 1, LEFT = 2, RIGHT = 3, UP = 4 },
 	---@enum SCENE シーンID.
     SCENE = {
         TITLE = "TITLE",

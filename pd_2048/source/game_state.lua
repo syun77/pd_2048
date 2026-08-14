@@ -8,8 +8,11 @@ local Config <const> = GameConfig
 ---@field result GAME_RESULT 現在のゲーム結果.
 ---@field mode GAME_MODE 現在のゲームモード
 ---@field board Array2D ゲーム盤面.
+---■カーソル関連.
 ---@field cursorX integer カーソルのX座標 (1始まり)
 ---@field cursorY integer カーソルのY座標 (1始まり)
+---@field cursorRepeatDirection DIRECTION カーソルの連続移動方向 (0:なし, 1:上, 2:右, 3:下, 4:左)
+---@field cursorRepeatNextAt integer? カーソルの次の連続移動が発生する時刻 (ミリ秒)
 ---■NEXT/HOLD関連.
 ---@field nextValues table<integer, integer> 次に出現する値のキュー
 ---@field lastRandomBlockValue integer 直前に出現したランダムブロックの値
@@ -41,6 +44,13 @@ local Config <const> = GameConfig
 ---@field mergeTargetY integer マージ先のY座標
 ---@field mergeValue integer マージするブロックの値
 ---@field mergeNextAction string マージ後の次のアクション ("FINISH" または "ROTATE")
+---@field activeMergeX integer 現在マージ中のブロックのX座標
+---@field activeMergeY integer 現在マージ中のブロックのY座標
+---■回転アニメーション関連
+---@field rotationClockwise boolean 回転方向が時計回りかどうか
+---@field rotationStartBoard Array2D 回転開始時の盤面
+---@field rotationEndBoard Array2D 回転終了時の盤面
+---@field hasRotation boolean 回転アニメーションがあるかどうか
 ---■UNDO関連.
 ---@field undoStates table<integer, GameState> UNDO用のゲーム状態の履歴.
 ---@field rewindUsesRemaining integer リワインドの残り使用回数.
@@ -90,6 +100,7 @@ local Config <const> = GameConfig
 ---@field practiceMergeCount integer PRACTICEモードでのマージ回数
 ---@field practiceVictoryPending boolean PRACTICEモードでのクリア演出が保留中かどうか
 ---@field practiceCompleteUntil integer PRACTICEモードでのクリア演出の終了時刻
+---@field practiceDescriptionText string PRACTICEモードでのシナリオの説明テキスト
 ---■実績関連.
 ---@field timeAttackBestTimeMs integer タイムアタックモードでの最短クリア時間（ミリ秒）
 ---@field coreRushBestTimeMs integer コアラッシュモードでの最短クリア時間（ミリ秒）

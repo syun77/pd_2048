@@ -8,6 +8,14 @@ import "CoreLibs/object"
 ---@field height integer 高さ
 ---@field data table<integer, integer> データ配列
 ---@field outOfBoundsValue integer 境界外の値として返す値（必要に応じて変更可能）
+---@field _get_index fun(self: Array2D, x: integer, y: integer): integer インデックス計算の共通メソッド
+---@field _getindex fun(self: Array2D, x: integer, y: integer): integer インデックス計算の共通メソッド（エイリアス）
+---@field get fun(self: Array2D, x: integer, y: integer): integer 値の取得 (get)
+---@field set fun(self: Array2D, x: integer, y: integer, v
+---@field swap fun(self: Array2D, x1: integer, y1: integer, x2: integer, y2: integer, bLoopX: boolean, bLoopY: boolean) 値の交換
+---@field foreach fun(self: Array2D, func: fun(x: integer, y: integer, v: integer), bReverse: boolean?) 2次元配列の各要素に対して関数を適用する
+---@field slideY fun(self: Array2D, dy: integer): integer Y方向にスライドする
+---@field slideColumnY fun(self: Array2D, column: integer, dy: integer): integer 特定の列のみをY方向にスライドする
 class("Array2D").extends()
 -- コンストラクタ
 function Array2D:init(width, height, default_value)
@@ -94,7 +102,11 @@ function Array2D:swap(x1, y1, x2, y2, bLoopX, bLoopY)
 	self.data[index1], self.data[index2] = self.data[index2], self.data[index1]
 end
 
+-- 2次元配列の各要素に対して関数を適用する
+---@param func fun(x: integer, y: integer, v: integer) 適用する関数
+---@param bReverse boolean? 逆順で処理するかどうか
 function Array2D:foreach(func, bReverse)
+	bReverse = bReverse or false
 	if bReverse then
 		-- 逆順foreach.
 		for y = self.height, 1, -1 do

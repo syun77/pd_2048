@@ -150,6 +150,8 @@ function Sound:init()
 end
 
 -- BGMを再生する.
+---@param bgmIndex integer? 再生するBGMのインデックス (nilまたは負の値でランダム再生).
+---@param isStop boolean? 再生中のBGMを停止して新しく再
 function Sound:play_bgm(bgmIndex, isStop)
 	-- print("Sound:play_bgm() - requested BGM index: " .. tostring(bgmIndex) .. ", isStop: " .. tostring(isStop))
 	-- 再生中のBGMを停止して新しく再生するかどうか.
@@ -210,10 +212,10 @@ function Sound:play_bgm(bgmIndex, isStop)
 end
 
 -- BGMを停止する.
--- fadeSecondsに正の値を指定すると、その秒数でフェードアウトしてから停止する.
+---@param fadeSeconds number? フェードアウトする秒数 (省略時は即停止).
 function Sound:stop_bgm(fadeSeconds)
 	if self.player == nil then
-		return
+		return -- 再生していない.
 	end
 
 	local player = self.player
@@ -222,6 +224,7 @@ function Sound:stop_bgm(fadeSeconds)
 	player:setFinishCallback(nil)
 
 	if seconds > 0 and player:isPlaying() then
+		-- フェードアウト実行.
 		player:setVolume(0, 0, seconds, function(finishedPlayer, sound)
 			if finishedPlayer ~= sound.player then
 				return
@@ -232,6 +235,7 @@ function Sound:stop_bgm(fadeSeconds)
 			sound.isChangingBgm = false
 		end, self)
 	else
+		-- 即座に停止.
 		player:stop()
 		if player == self.player then
 			self.player = nil
@@ -252,16 +256,20 @@ function Sound:setBgmRandomMode(mode)
 	self.bgmRandomCount = 0 -- ランダム再生回数をリセット.
 end
 
+-- メニューBGMを再生する.
 function Sound:playMenuBgm()
 	self:setBgmRandomMode(BGMRandomMode.MENU)
 	self:play_bgm(-1, false)
 end
 
+-- 通常BGMを再生する.
 function Sound:playGameBgm()
 	self:setBgmRandomMode(BGMRandomMode.NOMAL)
 	self:play_bgm(-1, false)
 end
 
+-- BGM再生終了時のコールバック.
+---@param player playdate.sound.fileplayer? 現在再生中のBGMプレイヤー.
 function Sound:onBgmFinished(player)
 	if self.isChangingBgm or player ~= self.player then
 		return
@@ -270,8 +278,8 @@ function Sound:onBgmFinished(player)
 	self:play_bgm(-1, true)
 end
 
+-- ランダム再生モードに応じてBGMの抽選対象を決定する.
 function Sound:randomBgmIndexFromMode()
-	-- ランダム再生モードに応じてBGMの抽選対象を決定する.
 	local targetTable = bgmTable
 	if self.bgmRandomMode == BGMRandomMode.NOMAL then
 		targetTable = bgmNormalTable -- 通常BGMのみを対象とする.
@@ -295,6 +303,7 @@ function Sound:randomBgmIndexFromMode()
 	return index
 end
 
+-- BGMのインデックスをランダムで抽選する.
 function Sound:randomBgmIndex()
 	if #bgmTable <= 1 then
 		return 1
@@ -327,6 +336,7 @@ function Sound:isPlaying()
 	return false
 end
 
+-- SEの名前をコピーする.
 local function copySoundNames(source)
 	local names = {}
 	for _, name in ipairs(source) do
