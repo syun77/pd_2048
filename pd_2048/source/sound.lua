@@ -104,9 +104,24 @@ local seTable = {
 	"voice_complete",
 }
 
+---@class Sound サウンド管理クラス.
+---@field player pd.sound.fileplayer? 現在再生中のBGMプレイヤー.
+---@field currentBgmIndex integer? 現在再生中のBGMのインデックス.
+---@field bgmRandomMode BGMRandomMode BGMランダム再生モード.
+---@field bgmRandomCount integer ランダム再生回数.
+---@field isChangingBgm boolean BGMを切り替え中かどうか.
+---@field pool table<string, pd.sound.sampleplayer> SEのプール.
+---@field setBgmRandomMode fun(self: Sound, mode: BGMRandomMode) BGMランダム再生モードを設定する.
+---@field playMenuBgm fun(self: Sound) メニューBGMを再生する.
+---@field playGameBgm fun(self: Sound) ゲームBGMを再生する.
+---@field play_bgm fun(self: Sound, bgmIndex: integer?, isStop: boolean?) BGMを再生する.
+---@field stop_bgm fun(self: Sound, fadeSeconds: number?) BGMを停止する.
+---@field play_se fun(self: Sound, soundName: string) SEを再生する.
+---@field stop_se fun(self: Sound, soundName: string) SEを停止する.
+---@field isPlaying fun(self: Sound): boolean BGMが再生中かどうか.
 class('Sound').extends()
 
--- BGMランダム再生モード (グローバル定義).
+---@enum BGMRandomMode BGMランダム再生モード (グローバル定義).
 BGMRandomMode = {
 	ALL = 0, -- 全曲ランダム.
 	NOMAL = 1, -- 通常BGMのみランダム.
@@ -225,6 +240,7 @@ function Sound:stop_bgm(fadeSeconds)
 end
 
 -- BGMランダム再生モードを設定する.
+---@param mode BGMRandomMode BGMランダム再生モード.
 function Sound:setBgmRandomMode(mode)
 	if self.bgmRandomMode == mode then
 		-- すでに同じモードを設定していたら変更しない.

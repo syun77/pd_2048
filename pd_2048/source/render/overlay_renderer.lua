@@ -8,9 +8,22 @@ local gfx <const> = pd.graphics
 local Config <const> = GameConfig
 local GamePhase <const> = Config.GAME_PHASE
 
+---@class OverlayRendererDependencies オーバーレイ描画クラスの依存関係.
+---@field state GameState ゲーム状態.
+---@field sound Sound サウンド管理.
+---@field isRewindAvailable fun(): boolean リワインドが可能かどうかを返す関数.
+---@field menuScrollLastOffset integer? 前回のスクロールオフセット.
+
+---@class OverlayRenderer オーバーレイ描画クラス.
+---@field state GameState
+---@field sound Sound サウンド管理.
+---@field isRewindAvailable fun(): boolean リワインドが可能かどうかを返す関数.
 local OverlayRenderer = {}
 OverlayRenderer.__index = OverlayRenderer
 
+-- 生成.
+---@param dependencies OverlayRendererDependencies 依存関係.
+---@return OverlayRenderer オーバーレイ描画クラス.
 function OverlayRenderer.new(dependencies)
     return setmetatable({
         state = dependencies.state,
@@ -41,6 +54,11 @@ function OverlayRenderer:drawLevelUp()
     gfx.drawText(text, x, y)
 end
 
+-- 危険アイコンの描画.
+---@param x integer アイコンの左上X座標.
+---@param y integer アイコンの左上Y座標.
+---@param size integer アイコンのサイズ.
+---@param blinking boolean 点滅するかどうか.
 function OverlayRenderer:drawDangerIcon(x, y, size, blinking)
     if blinking then
         local blinkProgress = pd.getCurrentTimeMilliseconds() % Config.DANGER_ICON_BLINK_PERIOD

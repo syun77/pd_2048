@@ -91,9 +91,9 @@ local Config = {
     ROTATION_EVALUATION_MERGE_DIRECTION_LEFT = -5,
     ROTATION_EVALUATION_MERGE_DIRECTION_RIGHT = 5,
     ROTATION_EVALUATION_VERTICAL_DIRECTION_WEIGHT = 10,
-	-- 方向.
+	---@enum DIRECTION 方向.
     DIRECTION = { DOWN = 1, LEFT = 2, RIGHT = 3, UP = 4 },
-	-- シーンID.
+	---@enum SCENE シーンID.
     SCENE = {
         TITLE = "TITLE",
         GAME = "GAME",
@@ -102,6 +102,7 @@ local Config = {
         STATISTICS = "STATISTICS",
         SOUND_TEST = "SOUND_TEST",
     },
+	---@enum GAME_MODE ゲームモード.
     GAME_MODE = {
         NORMAL = "NORMAL",
         TIME_ATTACK = "TIME_ATTACK",
@@ -110,6 +111,7 @@ local Config = {
         CORE_RUSH = "CORE_RUSH",
         PRACTICE = "PRACTICE",
     },
+	---@enum GAME_PHASE ゲームの進行フェーズ.
     GAME_PHASE = {
         INPUT = "INPUT",
         DROPPING = "DROPPING",
@@ -120,6 +122,7 @@ local Config = {
         HOLD_ANIM = "HOLD_ANIM",
         PAUSED = "PAUSED",
     },
+	---@enum GAME_RESULT ゲームの結果.
     GAME_RESULT = {
         GAME_OVER = "GAME_OVER",
         TIME_UP = "TIME_UP",

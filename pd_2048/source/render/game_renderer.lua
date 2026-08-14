@@ -9,6 +9,11 @@ local gfx <const> = pd.graphics
 local Config <const> = GameConfig
 local GamePhase <const> = Config.GAME_PHASE
 
+---@class GameRenderer ゲーム描画クラス.
+---@field state GameState ゲーム状態.
+---@field findDropCell fun(column: integer): (integer, integer) ドロップ先のセルを取得する関数.
+---@field findMergeForBlock fun(x: integer, y: integer, value: integer): (integer, integer, integer, integer) マージ先のセルを取得する関数.
+---@field overlay OverlayRenderer オーバーレイ描画クラス.
 local GameRenderer = {}
 GameRenderer.__index = GameRenderer
 

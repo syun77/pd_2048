@@ -3,6 +3,11 @@ import "undo_history"
 
 local Config <const> = GameConfig
 local GamePhase <const> = Config.GAME_PHASE
+---@class UndoController ゲームのUNDO管理クラス.
+---@field state GameState ゲーム状態.
+---@field session GameSession ゲームセッション.
+---@field sound Sound サウンド管理.
+---@field setMessage fun(message: string, durationMs: integer) メッセージを表示する関数.
 local UndoController = {}
 UndoController.__index = UndoController
 

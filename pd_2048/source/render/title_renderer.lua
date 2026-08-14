@@ -4,9 +4,23 @@ import "game_config"
 local gfx <const> = playdate.graphics
 local Config <const> = GameConfig
 
+---@class TitleRendererDependencies タイトル描画クラスの依存関係.
+---@field state GameState ゲーム状態.
+---@field menuRenderer OverlayRenderer メニュー描画クラス.
+---@field background MenuBackgroundRenderer メニューバックグラウンド描画クラス.
+
+---@class TitleRenderer タイトル描画クラス.
+---@field state GameState ゲーム状態.
+---@field menuRenderer OverlayRenderer メニュー描画クラス.
+---@field background MenuBackgroundRenderer メニューバックグラウンド描画クラス.
+---@field titleImage playdate.graphics.image|nil タイトル背景画像.
+---@field practiceClearedImage playdate.graphics.image|nil PRACTICEモードのクリア済みアイコン.
 local TitleRenderer = {}
 TitleRenderer.__index = TitleRenderer
 
+-- 生成.
+---@param dependencies TitleRendererDependencies 依存関係.
+---@return TitleRenderer
 function TitleRenderer.new(dependencies)
     return setmetatable({
         state = dependencies.state,

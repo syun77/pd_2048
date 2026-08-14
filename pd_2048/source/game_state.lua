@@ -3,6 +3,104 @@ import "game_config"
 
 local Config <const> = GameConfig
 
+---@class GameState ゲーム状態クラス.
+---@field phase GAME_PHASE 現在のゲームフェーズ.
+---@field result GAME_RESULT 現在のゲーム結果.
+---@field mode GAME_MODE 現在のゲームモード
+---@field board Array2D ゲーム盤面.
+---@field cursorX integer カーソルのX座標 (1始まり)
+---@field cursorY integer カーソルのY座標 (1始まり)
+---■NEXT/HOLD関連.
+---@field nextValues table<integer, integer> 次に出現する値のキュー
+---@field lastRandomBlockValue integer 直前に出現したランダムブロックの値
+---@field holdValue integer HOLD中の値
+---@field holdAvailable boolean HOLDが可能かどうか.
+---@field consecutiveRandomBlockCount integer 連続して出現したランダムブロックの数
+---@field holdAnimationSourceValue integer HOLDアニメーションの元の値
+---@field holdAnimationReturnValue integer HOLDアニメーションの戻る値
+---@field holdAnimationNextValue integer HOLDアニメーションの次の値
+---■タイマー関連.
+---@field elapsedTimeMs integer 経過時間 (ミリ秒)
+---@field remainingTimeMs integer? 残り時間 (ミリ秒)
+---@field timerStartedAt integer? タイマーが開始された時刻 (ミリ秒)
+---@field timerLastUpdateAt integer? タイマーが最後に更新された時刻 (ミリ秒)
+---@field timeoutPending boolean タイムアウトが保留中かどうか
+---■メッセージ関連.
+---@field message string 現在表示中のメッセージ
+---@field messageUntil integer メッセージの表示終了時刻 (ミリ秒)
+---■ブロック制御.
+---@field pendingDropValue integer ドロップ中のブロックの値
+---@field pendingDropX integer ドロップ中のブロックのX座標
+---@field pendingDropY integer ドロップ中のブロックのY座標
+---@field animationProgress number アニメーションの進行度 (0.0 - 1.0)
+---@field animationDuration number アニメーションの総時間 (ミリ秒)
+---@field rotationEvaluation number 回転評価値
+---@field mergeSourceX integer マージ元のX座標
+---@field mergeSourceY integer マージ元のY座標
+---@field mergeTargetX integer マージ先のX座標
+---@field mergeTargetY integer マージ先のY座標
+---@field mergeValue integer マージするブロックの値
+---@field mergeNextAction string マージ後の次のアクション ("FINISH" または "ROTATE")
+---■UNDO関連.
+---@field undoStates table<integer, GameState> UNDO用のゲーム状態の履歴.
+---@field rewindUsesRemaining integer リワインドの残り使用回数.
+---@field rewindHoldStartedAt integer? HOLD巻き戻しが開始された時刻 (ミリ秒)
+---@field rewindHoldTriggered boolean HOLD巻き戻しがトリガーされたかどう
+---■スコア関連.
+---@field score integer 現在のスコア
+---@field highScore integer ハイスコア
+---@field normalHighScore integer ノーマルモードのハイスコア
+---■レベル関連.
+---@field level integer 現在のレベル
+---@field levelXp integer 現在のレベルでの経験値
+---@field levelDropCount integer 現在のレベルでのドロップ数
+---@field levelCreatedMilestones table<integer, boolean> 現在のレベルで作成されたマイルストーンの記録
+---@field levelXpBySource table<"drop" | "merge" | "firstTile" | "combo", integer> 経験値のソースごとの累計
+---@field levelUpFrom integer レベルアップ前のレベル.
+---@field levelUpTo integer レベルアップ後のレベル
+---@field levelUpUntil integer レベルアップアニメーションの終了時刻
+---@field normalBestLevel integer ノーマルモードの最高レベル
+---@field levelNewBest boolean レベルアップ時に新記録かどうか
+---@field levelRecordEligible boolean レベルアップ時に記録対象かどうか
+---■コンボ関連.
+---@field combo integer 現在のコンボ数
+---@field comboBonusScore integer 現在のコンボボーナススコア
+---@field comboDisplayFrame integer コンボ表示のフレーム数
+---@field comboSoundPlayed boolean コンボサウンドが再生済みかどうか
+---@field rewindHoldAnimationActive boolean HOLD巻き戻しアニメーションがアクティブかどうか
+---■演出制御.
+---@field startReadyUntil integer ゲーム開始前の準備演出の終了時刻
+---@field nextAnimationGameOver boolean 次のアニメーションでゲームオーバーになるかどうか
+---@field previewImpulseRotationDegrees number プレビューのインパルス回転角度
+---■BGM制御.
+---@field crisisBgmActive boolean 危機BGMがアクティブかどうか
+---■PRACTICEモード関連.
+---@field practiceObjectiveText string PRACTICEモードでのクリア目標のテキスト
+---@field practiceClearedStages table<integer, boolean> PRACTICEモードでクリア済みのステージの記録
+---@field practiceScenarioId integer PRACTICEモードでのシナリオID
+---@field practiceNextValues table<integer, integer> PRACTICEモードでの次に出現する値のキュー
+---@field practiceNextIndex integer PRACTICEモードでの次に出現する値のインデックス
+---@field practiceSpawnCount integer PRACTICEモードでの出現済みのブロック数
+---@field practiceNextPolicy string PRACTICEモードでの次に出現する値のポリシー
+---@field practiceNextExhausted boolean PRACTICEモードでの次に出現する値のキューが尽きたかどうか
+---@field practiceTurnLimit integer PRACTICEモードでのターン制限
+---@field practiceTurnCount integer PRACTICEモードでの現在のターン数
+---@field practiceObjectives table<integer, any> PRACTICEモードでのクリア目標のリスト
+---@field practiceObjectiveMode string PRACTICEモードでのクリア目標の達成条件 ("ANY" または "ALL")
+---@field practiceMergeCount integer PRACTICEモードでのマージ回数
+---@field practiceVictoryPending boolean PRACTICEモードでのクリア演出が保留中かどうか
+---@field practiceCompleteUntil integer PRACTICEモードでのクリア演出の終了時刻
+---■実績関連.
+---@field timeAttackBestTimeMs integer タイムアタックモードでの最短クリア時間（ミリ秒）
+---@field coreRushBestTimeMs integer コアラッシュモードでの最短クリア時間（ミリ秒）
+---@field coreRushValue integer コアラッシュモードでの現在の値
+---@field coreRushGainCombo integer コアラッシュモードでのコンボによる獲得値
+---@field coreRushGainMergeValue integer コアラッシュモードでのマージによる獲得値
+---@field coreRushGainTotal integer コアラッシュモードでの合計�獲得値
+---@field coreRushGainUntil integer コアラッシュモードでの獲得値表示の終了時刻
+---@field coreRushCompleteUntil integer コアラッシュモードでのクリア演出の終了時刻
+---@field coreRushVictoryPending boolean コアラッシュモードでのクリア演出が保留中かどうか
+---@field timeAttackVictoryPending boolean タイムアタックモードでのクリア演出が保留中かどうか
 local GameState = {}
 
 function GameState.new()

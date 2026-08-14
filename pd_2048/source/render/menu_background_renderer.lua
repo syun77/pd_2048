@@ -5,6 +5,10 @@ local pd <const> = playdate
 local gfx <const> = pd.graphics
 local Config <const> = GameConfig
 
+---@class MenuBackgroundRenderer メニューバックグラウンド描画クラス.
+---@field load string 現在の負荷設定.
+---@field image playdate.graphics.image|nil 幾何学模様の描画結果
+---@field lastFrame integer|nil 最後に描画したフレーム番号.
 local MenuBackgroundRenderer = {}
 MenuBackgroundRenderer.__index = MenuBackgroundRenderer
 

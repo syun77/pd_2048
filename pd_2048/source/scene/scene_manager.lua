@@ -1,5 +1,9 @@
 import "game_config"
-
+---@class SceneManager シーン管理.
+---@field context SceneContext シーン間で共有する依存関係をまとめるコンテキスト。
+---@field scenes table<SCENE, any> 登録済みシーンのテーブル.
+---@field current any 現在のシーン.
+---@field currentName string 現在のシーン名.
 local SceneManager = {}
 SceneManager.__index = SceneManager
 
@@ -8,11 +12,17 @@ function SceneManager.new(context, scenes)
     return self
 end
 
+-- シーンの登録
+---@param name SCENE 登録するシーン名.
+---@param scene any 登録するシーン.
 function SceneManager:register(name, scene)
     self.scenes[name] = scene
     scene.manager = self
 end
 
+-- シーンの切り替え
+---@param name SCENE 切り替えるシーン名.
+---@param params any|nil シーン切り替え時に渡すパラメータ.
 function SceneManager:change(name, params)
     if self.current ~= nil and self.current.exit ~= nil then self.current:exit() end
     local nextScene = self.scenes[name]

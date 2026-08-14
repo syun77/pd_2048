@@ -20,10 +20,20 @@ local pd <const> = playdate
 local gfx <const> = pd.graphics
 local Config <const> = GameConfig
 
+---@class App アプリケーションクラス.
+---@field sound Sound サウンド管理.
+---@field game GameController ゲームコントローラー.
+---@field overlayRenderer OverlayRenderer オーバーレイ描画クラス.
+---@field menuBackgroundRenderer MenuBackgroundRenderer メニューバックグラウンド描画クラス.
+---@field titleRenderer TitleRenderer タイトルメニューの描画.
+---@field renderer GameRenderer ゲーム描画クラス.
+---@field sceneContext SceneContext シーンコンテキスト.
+---@field sceneManager SceneManager シーンマネージャ.
 local App = {}
 App.__index = App
 
 -- 生成.
+---@return App
 function App.new()
     local self = setmetatable({}, App)
     local gameContext = GameContext.getInstance()
@@ -55,6 +65,7 @@ function App.new()
         overlay = self.overlayRenderer,
     })
 
+	-- シーンコンテキストを生成.
     self.sceneContext = SceneContext.new({
         game = self.game,
         renderer = self.renderer,
@@ -63,6 +74,8 @@ function App.new()
         sound = sound,
         systemMenu = SystemMenuController.new(pd.getSystemMenu()),
     })
+	
+	-- 各種シーンを登録.
     self.sceneManager = SceneManager.new(self.sceneContext)
     self.sceneManager:register(Config.SCENE.TITLE, TitleScene.new(self.sceneContext))
     self.sceneManager:register(Config.SCENE.GAME, NormalGameScene.new(self.sceneContext))

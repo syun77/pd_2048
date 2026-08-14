@@ -1,7 +1,7 @@
 import "input/input_command"
 
--- 自動テスト用の論理入力生成器。
--- 盤面判定は context.getCandidates(value) に委譲し、ここでは選択順と入力列だけを管理する。
+---@class AutoPlayer 自動テスト用の論理入力生成器。
+---@note 盤面判定は context.getCandidates(value) に委譲し、ここでは選択順と入力列だけを管理する。
 local AutoPlayer = {}
 AutoPlayer.__index = AutoPlayer
 

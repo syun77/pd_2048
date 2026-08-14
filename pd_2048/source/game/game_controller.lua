@@ -18,6 +18,15 @@ local Config <const> = GameConfig
 local GamePhase <const> = Config.GAME_PHASE
 local GameResult <const> = Config.GAME_RESULT
 
+---@class GameController ゲームコントローラー.
+---@field state GameState ゲーム状態.
+---@field sound Sound サウンド管理.
+---@field cursorController CursorController
+---@field autoPlayer AutoPlayer 自動プレイ.
+---@field autoPlayEnabled boolean 自動プレイが有効か.
+---@field practiceStage any
+---@field session GameSession ゲームセッション.
+---@field undoController UndoController UNDO管理.
 local GameController = {}
 GameController.__index = GameController
 
@@ -54,6 +63,8 @@ function GameController:isAutoPlayEnabled()
     return self.autoPlayEnabled
 end
 
+-- ゲーム状態の取得.
+---@return GameState ゲーム状態.
 function GameController:getState()
     return self.state
 end

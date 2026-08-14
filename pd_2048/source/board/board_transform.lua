@@ -2,6 +2,7 @@ import "array2d"
 import "game_config"
 
 local Config <const> = GameConfig
+---@class BoardTransform ボード変換クラス.
 local BoardTransform = {}
 
 function BoardTransform.copy(source)
