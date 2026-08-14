@@ -20,6 +20,10 @@
       {
         "id": "PRACTICE",
         "label": "練習モード"
+      },
+      {
+        "id": "MAIN_GAME",
+        "label": "通常モード(PRACTICE以外)"
       }
     ],
     "conditionTypes": [
@@ -124,7 +128,7 @@
     {
       "no": 2,
       "id": "tile64",
-      "category": "SYSTEM",
+      "category": "MAIN_GAME",
       "name": {
         "ja": "64タイルの作成",
         "en": "64 TILE"
@@ -151,7 +155,7 @@
     {
       "no": 3,
       "id": "tile128",
-      "category": "SYSTEM",
+      "category": "MAIN_GAME",
       "name": {
         "ja": "128タイルの作成",
         "en": "128 TILE"
@@ -178,7 +182,7 @@
     {
       "no": 4,
       "id": "tile256",
-      "category": "SYSTEM",
+      "category": "MAIN_GAME",
       "name": {
         "ja": "256タイルの作成",
         "en": "256 TILE"
@@ -205,7 +209,7 @@
     {
       "no": 5,
       "id": "tile512",
-      "category": "SYSTEM",
+      "category": "MAIN_GAME",
       "name": {
         "ja": "512タイルの作成",
         "en": "512 TILE"
@@ -232,7 +236,7 @@
     {
       "no": 6,
       "id": "tile2048",
-      "category": "SYSTEM",
+      "category": "MAIN_GAME",
       "name": {
         "ja": "2048タイルの作成",
         "en": "2048 TILE"
@@ -259,7 +263,7 @@
     {
       "no": 7,
       "id": "combo4",
-      "category": "SYSTEM",
+      "category": "MAIN_GAME",
       "name": {
         "ja": "4コンボ",
         "en": "4-combo"
@@ -286,7 +290,7 @@
     {
       "no": 8,
       "id": "combo5",
-      "category": "SYSTEM",
+      "category": "MAIN_GAME",
       "name": {
         "ja": "5コンボ",
         "en": "5-combo"
@@ -313,7 +317,7 @@
     {
       "no": 9,
       "id": "combo6",
-      "category": "SYSTEM",
+      "category": "MAIN_GAME",
       "name": {
         "ja": "6コンボ",
         "en": "6-combo"
@@ -336,6 +340,33 @@
       },
       "hidden": false,
       "progressVisible": false
+    },
+    {
+      "no": 10,
+      "id": "achievement_010",
+      "category": "SYSTEM",
+      "name": {
+        "ja": "NEW ACHIEVEMENT",
+        "en": "NEW ACHIEVEMENT"
+      },
+      "description": {
+        "ja": "",
+        "en": ""
+      },
+      "condition": {
+        "type": "MERGE_COUNT",
+        "scope": "RUN",
+        "operator": ">=",
+        "params": {
+          "count": 1
+        }
+      },
+      "reward": {
+        "type": "NONE",
+        "id": ""
+      },
+      "hidden": false,
+      "progressVisible": true
     }
   ]
 }
