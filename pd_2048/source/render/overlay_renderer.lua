@@ -26,6 +26,21 @@ function OverlayRenderer:drawCenteredText(text, y)
     gfx.drawTextAligned(text, 200, y, kTextAlignment.center)
 end
 
+function OverlayRenderer:drawLevelUp()
+    local state = self.state
+    if state.mode ~= Config.GAME_MODE.NORMAL
+        or state.levelUpUntil <= pd.getCurrentTimeMilliseconds() then return end
+    local text = "LEVEL UP  " .. tostring(state.levelUpTo)
+    local width, height = gfx.getTextSize(text)
+    local x = (Config.SCREEN_WIDTH - width) * 0.5
+    local y = 28
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillRoundRect(x - 10, y - 5, width + 20, height + 10, 4)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawRoundRect(x - 10, y - 5, width + 20, height + 10, 4)
+    gfx.drawText(text, x, y)
+end
+
 function OverlayRenderer:drawDangerIcon(x, y, size, blinking)
     if blinking then
         local blinkProgress = pd.getCurrentTimeMilliseconds() % Config.DANGER_ICON_BLINK_PERIOD
@@ -394,6 +409,9 @@ function OverlayRenderer:drawGameOver(selectedIndex)
             and "COMPLETE" or "VICTORY"
     end
     local resultDetail = "SCORE " .. tostring(self.state.score)
+    if self.state.mode == Config.GAME_MODE.NORMAL then
+        resultDetail = resultDetail .. "  LEVEL " .. tostring(self.state.level)
+    end
     if self.state.result == Config.GAME_RESULT.VICTORY then
         if self.state.mode == Config.GAME_MODE.PRACTICE then
             resultDetail = "CLEAR " .. (self.state.practiceObjectiveText or "PRACTICE")
@@ -414,12 +432,15 @@ function OverlayRenderer:drawGameOver(selectedIndex)
         or self.state.mode == Config.GAME_MODE.CORE_RUSH then
         returnLabel = "MODE SELECT"
     end
-    self:drawMenu(200, 130, {
-        resultTitle,
-        resultDetail,
-        "RETRY",
-        returnLabel,
-    }, selectedIndex + 2)
+    local items = { resultTitle, resultDetail }
+    local selectionOffset = 2
+    if self.state.mode == Config.GAME_MODE.NORMAL and self.state.levelNewBest then
+        table.insert(items, "NEW BEST LEVEL " .. tostring(self.state.normalBestLevel))
+        selectionOffset += 1
+    end
+    table.insert(items, "RETRY")
+    table.insert(items, returnLabel)
+    self:drawMenu(200, 130, items, selectedIndex + selectionOffset)
 end
 
 _G.OverlayRenderer = OverlayRenderer

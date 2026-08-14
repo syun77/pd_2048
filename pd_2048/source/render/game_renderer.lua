@@ -12,6 +12,7 @@ local GamePhase <const> = Config.GAME_PHASE
 local GameRenderer = {}
 GameRenderer.__index = GameRenderer
 
+-- 生成.
 function GameRenderer.new(dependencies)
     return setmetatable({
         state = dependencies.state,
@@ -36,6 +37,7 @@ function GameRenderer:drawFallingBlock(rotationAngle)
     BoardRenderer.tile(state.pendingDropValue, px, py)
 end
 
+-- 設置プレビューの描画.
 function GameRenderer:drawLandingPreview()
     local state = self.state
     if state.nextValues[1] == 0 then return end
@@ -232,6 +234,7 @@ function GameRenderer:getHoldTilePosition()
         Config.HOLD_BOX_Y + (Config.NEXT_BOX_HEIGHT - Config.CELL_SIZE) * 0.5
 end
 
+-- HOLDアニメーションの描画.
 function GameRenderer:drawHoldAnimation()
     local state = self.state
     local progress = self:easeInOut(state.animationProgress)
@@ -293,10 +296,13 @@ function GameRenderer:drawBoard()
     end
 end
 
+-- ヘッダーの描画.
 function GameRenderer:drawHeader()
     local state = self.state
+	-- ヘッダの描画.
     HudRenderer.header({
         score = state.score, combo = state.combo,
+        level = state.level, levelXp = state.levelXp,
         comboDisplayFrame = state.comboDisplayFrame,
         comboBonusScore = state.comboBonusScore, holdValue = state.holdValue,
         nextValues = state.nextValues, phase = state.phase,
@@ -321,6 +327,7 @@ function GameRenderer:drawNormalFrame()
     self.overlay:drawPracticeComplete()
     self.overlay:drawRewindHint()
     self.overlay:drawStartReady()
+    self.overlay:drawLevelUp()
     if state.phase == GamePhase.PAUSED then
         self.overlay:drawPause()
     else

@@ -3,6 +3,7 @@ import "game_config"
 import "game_state"
 import "game/merge_resolver"
 import "game/game_session"
+import "game/level_progress"
 import "game/undo_controller"
 import "board/board_transform"
 import "board/board_rules"
@@ -44,6 +45,9 @@ end
 function GameController:setAutoPlayEnabled(value)
     self.autoPlayEnabled = value
     self.autoPlayer:reset()
+    if value and self.state.mode == Config.GAME_MODE.NORMAL then
+        self.state.levelRecordEligible = false
+    end
 end
 
 function GameController:isAutoPlayEnabled()
@@ -77,6 +81,10 @@ function GameController:loadHighScore()
     local ok, value = pcall(pd.datastore.read, "highScore")
     if ok and type(value) == "number" then
         self.state.normalHighScore = value
+    end
+    local okLevel, levelValue = pcall(pd.datastore.read, "normalBestLevel")
+    if okLevel and type(levelValue) == "number" then
+        self.state.normalBestLevel = math.max(1, math.floor(levelValue))
     end
     local okTimeAttack, timeAttackValue = pcall(pd.datastore.read, "timeAttackBestTimeMs")
     if okTimeAttack and type(timeAttackValue) == "number" then
@@ -122,6 +130,22 @@ function GameController:saveCurrentModeHighScore()
     if state.mode == Config.GAME_MODE.NORMAL and state.score > state.normalHighScore then
         state.normalHighScore = state.score
         pd.datastore.write(state.normalHighScore, "highScore")
+    end
+end
+
+function GameController:applyLevelProgress(levelUp, previousLevel)
+    if not levelUp then return end
+    local state = self.state
+    local now = pd.getCurrentTimeMilliseconds()
+    if state.levelUpUntil <= now then
+        state.levelUpFrom = previousLevel or math.max(1, state.level - 1)
+    end
+    state.levelUpTo = state.level
+    state.levelUpUntil = now + Config.LEVEL_UP_DISPLAY_MS
+    if state.levelRecordEligible and state.level > state.normalBestLevel then
+        state.normalBestLevel = state.level
+        state.levelNewBest = true
+        pd.datastore.write(state.normalBestLevel, "normalBestLevel")
     end
 end
 
@@ -298,6 +322,7 @@ end
 
 function GameController:finishTurn()
     local state = self.state
+    self:applyLevelProgress(LevelProgress.recordCombo(state))
     if state.timeAttackVictoryPending then
         self:beginVictory()
         return
@@ -593,6 +618,7 @@ function GameController:finishMerge()
         state.timeAttackVictoryPending = true
     end
     self.session:recordMerge(state.mergeValue)
+    self:applyLevelProgress(LevelProgress.recordMerge(state, state.mergeValue))
     state.practiceMergeCount += 1
     state.activeMergeX, state.activeMergeY = state.mergeTargetX, state.mergeTargetY
     self:addCoreRushValue(state.mergeValue)
@@ -603,6 +629,7 @@ end
 function GameController:finishDrop()
     local state = self.state
     state.board:set(state.pendingDropX, state.pendingDropY, state.pendingDropValue)
+    self:applyLevelProgress(LevelProgress.recordDrop(state))
     state.pendingDropValue = 0
     state.activeMergeX, state.activeMergeY = state.pendingDropX, state.pendingDropY
     self:addRotationEvaluation(Config.ROTATION_EVALUATION_DROP_POSITION_WEIGHT
@@ -699,6 +726,7 @@ function GameController:start(mode, practiceStage)
     self:clearBoard()
     state.result = nil
     state.score = 0
+    LevelProgress.reset(state, not self.autoPlayEnabled)
     state.coreRushValue = 0
     state.coreRushGainCombo = 0
     state.coreRushGainMergeValue = 0

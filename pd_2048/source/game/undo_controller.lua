@@ -26,6 +26,11 @@ function UndoController:save(action)
         practiceSpawnCount = state.practiceSpawnCount,
         practiceTurnCount = state.practiceTurnCount,
         practiceMergeCount = state.practiceMergeCount,
+        level = state.level,
+        levelXp = state.levelXp,
+        levelDropCount = state.levelDropCount,
+        levelCreatedMilestones = state.levelCreatedMilestones,
+        levelXpBySource = state.levelXpBySource,
         nextValues = state.nextValues,
     }, action)
 end
@@ -73,6 +78,15 @@ function UndoController:restore()
     state.practiceTurnCount = restored.practiceTurnCount or 0
     state.practiceNextExhausted = restored.practiceNextExhausted or false
     state.practiceMergeCount = restored.practiceMergeCount or 0
+    state.level = restored.level or 1
+    state.levelXp = restored.levelXp or 0
+    state.levelDropCount = restored.levelDropCount or 0
+    state.levelCreatedMilestones = restored.levelCreatedMilestones or {}
+    state.levelXpBySource = restored.levelXpBySource
+        or { drop = 0, merge = 0, firstTile = 0, combo = 0 }
+    state.levelUpFrom = 0
+    state.levelUpTo = 0
+    state.levelUpUntil = 0
     state.practiceVictoryPending = false
     state.nextValues = restored.nextValues
     state.holdAnimationNextValue = 0

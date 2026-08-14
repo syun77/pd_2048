@@ -1,5 +1,6 @@
 import "CoreLibs/graphics"
 import "game_config"
+import "game/level_progress"
 
 local gfx <const> = playdate.graphics
 local pd <const> = playdate
@@ -11,6 +12,20 @@ function HudRenderer.score(score)
         Config.PANEL_OFFSET_Y, kTextAlignment.left)
     gfx.drawTextAligned(tostring(score), 80 + Config.PANEL_OFFSET_X,
         24 + Config.PANEL_OFFSET_Y, kTextAlignment.right)
+end
+
+-- LEVELの描画.
+---@param level integer 現在のレベル.
+---@param totalXp integer トータル経験値.
+function HudRenderer.level(level, totalXp)
+    local currentXp = math.floor(totalXp - LevelProgress.xpForLevel(level))
+    local requiredXp = math.floor(LevelProgress.xpForNextLevel(level))
+    gfx.drawText("LV " .. tostring(level), 8, 80)
+    gfx.drawTextAligned(tostring(currentXp) .. "/" .. tostring(requiredXp),
+        120, 80, kTextAlignment.right)
+    gfx.drawRect(8, 102, 84, 8)
+    local fillWidth = math.floor(82 * math.min(1, currentXp / requiredXp))
+    if fillWidth > 0 then gfx.fillRect(9, 103, fillWidth, 6) end
 end
 
 function HudRenderer.timeAttack(elapsedTimeMs)
@@ -109,6 +124,7 @@ function HudRenderer.hold(value, phase)
         Config.NEXT_BOX_WIDTH, Config.NEXT_BOX_HEIGHT)
 end
 
+--- ヘッダーの描画.
 function HudRenderer.header(ctx)
     if ctx.mode == Config.GAME_MODE.PRACTICE then
 		if ctx.practiceTurnLimit > 0 then
@@ -135,6 +151,8 @@ function HudRenderer.header(ctx)
         HudRenderer.timeAttack(ctx.elapsedTimeMs)
     elseif ctx.mode == Config.GAME_MODE.CORE_RUSH then
         HudRenderer.coreRush(ctx.elapsedTimeMs)
+    elseif ctx.mode == Config.GAME_MODE.NORMAL then
+        HudRenderer.level(ctx.level, ctx.levelXp)
     end
     HudRenderer.score(ctx.score)
     ctx.comboDisplayFrame += 1

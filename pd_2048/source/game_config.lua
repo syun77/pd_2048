@@ -25,6 +25,21 @@ local Config = {
     REWIND_HOLD_DURATION_MS = 800,
     REWIND_GAUGE_WIDTH = 116,
     SCORE_MULTIPLIER = 100,
+	-- NORMALモードのレベル関連.
+    LEVEL_DROP_XP = 1,
+    LEVEL_BASE_NEXT_XP = 20,
+    LEVEL_NEXT_XP_INCREMENT = 5,
+    LEVEL_UP_DISPLAY_MS = 1200,
+    LEVEL_FIRST_TILE_XP = {
+        [16] = 5,
+        [32] = 10,
+        [64] = 20,
+        [128] = 35,
+        [256] = 55,
+        [512] = 80,
+        [1024] = 110,
+        [2048] = 150,
+    },
 	-- メニューの基準Y座標.
     TITLE_MENU_CENTER_Y = 132,
     TITLE_SUBMENU_CENTER_Y = 132,
