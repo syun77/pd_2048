@@ -58,7 +58,7 @@ local Config <const> = GameConfig
 ---@field levelXpBySource table<"drop" | "merge" | "firstTile" | "combo", integer> 経験値のソースごとの累計
 ---@field levelUpFrom integer レベルアップ前のレベル.
 ---@field levelUpTo integer レベルアップ後のレベル
----@field levelUpUntil integer レベルアップアニメーションの終了時刻
+---@field levelUpDisplayFrame integer レベルアップ表示の経過フレーム数
 ---@field normalBestLevel integer ノーマルモードの最高レベル
 ---@field levelNewBest boolean レベルアップ時に新記録かどうか
 ---@field levelRecordEligible boolean レベルアップ時に記録対象かどうか
@@ -118,7 +118,7 @@ function GameState.new()
         levelXpBySource = { drop = 0, merge = 0, firstTile = 0, combo = 0 },
         levelUpFrom = 0,
         levelUpTo = 0,
-        levelUpUntil = 0,
+        levelUpDisplayFrame = Config.LEVEL_UP_DISPLAY_FRAMES,
         normalBestLevel = 1,
         levelNewBest = false,
         levelRecordEligible = true,

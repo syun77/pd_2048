@@ -15,7 +15,7 @@ function LevelProgress.reset(state, recordEligible)
     state.levelXpBySource = emptyXpBySource()
     state.levelUpFrom = 0
     state.levelUpTo = 0
-    state.levelUpUntil = 0
+    state.levelUpDisplayFrame = Config.LEVEL_UP_DISPLAY_FRAMES
     state.levelNewBest = false
     state.levelRecordEligible = recordEligible ~= false
 end

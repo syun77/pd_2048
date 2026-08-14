@@ -91,7 +91,7 @@ function UndoController:restore()
         or { drop = 0, merge = 0, firstTile = 0, combo = 0 }
     state.levelUpFrom = 0
     state.levelUpTo = 0
-    state.levelUpUntil = 0
+    state.levelUpDisplayFrame = Config.LEVEL_UP_DISPLAY_FRAMES
     state.practiceVictoryPending = false
     state.nextValues = restored.nextValues
     state.holdAnimationNextValue = 0

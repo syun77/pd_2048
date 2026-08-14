@@ -39,18 +39,37 @@ function OverlayRenderer:drawCenteredText(text, y)
     gfx.drawTextAligned(text, 200, y, kTextAlignment.center)
 end
 
+-- "LEVEL UP"の描画.
 function OverlayRenderer:drawLevelUp()
     local state = self.state
-    if state.mode ~= Config.GAME_MODE.NORMAL
-        or state.levelUpUntil <= pd.getCurrentTimeMilliseconds() then return end
+    if state.mode ~= Config.GAME_MODE.NORMAL then
+        return -- NORMALモード以外では描画しない.
+    end
+    local levelUpFrame = state.levelUpDisplayFrame
+    if levelUpFrame >= Config.LEVEL_UP_DISPLAY_FRAMES then
+        return -- 描画不要.
+    end
     local text = "LEVEL UP  " .. tostring(state.levelUpTo)
     local width, height = gfx.getTextSize(text)
-    local x = (Config.SCREEN_WIDTH - width) * 0.5
-    local y = 28
+    local x = 16
+    local y = 96
+    -- 背景を白で塗りつぶし、黒の枠線を描画してから文字を描画する。
+	gfx.setLineWidth(1)
     gfx.setColor(gfx.kColorWhite)
-    gfx.fillRoundRect(x - 10, y - 5, width + 20, height + 10, 4)
+    gfx.fillRoundRect(x - 10, y - 3, width + 20, height + 2, 4)
     gfx.setColor(gfx.kColorBlack)
-    gfx.drawRoundRect(x - 10, y - 5, width + 20, height + 10, 4)
+    -- 点滅判定.
+	local isDrawOutline = true
+	if levelUpFrame < Config.LEVEL_UP_BLINK_PERIOD_FRAMES then
+		-- 開始から一定フレーム数は点滅判定をする.
+		if levelUpFrame % 2 == 0 then
+			-- 点滅処理.
+			isDrawOutline = false
+		end
+	end
+	if isDrawOutline then
+        gfx.drawRoundRect(x - 10, y - 3, width + 20, height + 2, 4)
+    end
     gfx.drawText(text, x, y)
 end
 

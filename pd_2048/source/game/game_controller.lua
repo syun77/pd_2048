@@ -147,12 +147,11 @@ end
 function GameController:applyLevelProgress(levelUp, previousLevel)
     if not levelUp then return end
     local state = self.state
-    local now = pd.getCurrentTimeMilliseconds()
-    if state.levelUpUntil <= now then
+    if state.levelUpDisplayFrame >= Config.LEVEL_UP_DISPLAY_FRAMES then
         state.levelUpFrom = previousLevel or math.max(1, state.level - 1)
     end
     state.levelUpTo = state.level
-    state.levelUpUntil = now + Config.LEVEL_UP_DISPLAY_MS
+    state.levelUpDisplayFrame = 0
     if state.levelRecordEligible and state.level > state.normalBestLevel then
         state.normalBestLevel = state.level
         state.levelNewBest = true
@@ -927,6 +926,9 @@ end
 -- 更新.
 function GameController:update()
     local state = self.state
+    if state.levelUpDisplayFrame < Config.LEVEL_UP_DISPLAY_FRAMES then
+        state.levelUpDisplayFrame += 1
+    end
     if state.startReadyUntil ~= 0 then
         local now = pd.getCurrentTimeMilliseconds()
         if now < state.startReadyUntil then return nil end
