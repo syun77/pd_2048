@@ -12,6 +12,8 @@ import "practice_stage_loader"
 import "cursor_controller"
 import "input/input_command"
 import "input/auto_player"
+import "input/replay_controller"
+import "game/game_random"
 
 local pd <const> = playdate
 local Config <const> = GameConfig
@@ -37,6 +39,15 @@ function GameController.new(dependencies)
     self.cursorController = CursorController.new()
     self.autoPlayer = AutoPlayer.new()
     self.autoPlayEnabled = false
+    self.randomGenerator = GameRandom.new(1)
+    self.replayController = ReplayController.new(pd)
+    self.replayMode = false
+    self.replayData = nil
+    self.replayIndex = 1
+    self.replayEventStartedAt = nil
+    self.replayExecuting = false
+    self.replayRemainingHolds = 0
+    self.replaySaved = false
     self.practiceStage = nil
     self.session = GameSession.new(self.state)
     self.undoController = UndoController.new({
@@ -46,9 +57,34 @@ function GameController.new(dependencies)
         setMessage = function(text, duration)
             self:setMessage(text, duration)
         end,
+        randomGenerator = self.randomGenerator,
     })
     self:loadHighScore()
     return self
+end
+
+function GameController:createReplaySeed()
+    local seconds = 0
+    local ok, value = pcall(pd.getSecondsSinceEpoch)
+    if ok and type(value) == "number" then seconds = value end
+    local now = pd.getCurrentTimeMilliseconds()
+    return (seconds * 1000 + now) % 2147483646 + 1
+end
+
+function GameController:isReplayMode()
+    return self.replayMode
+end
+
+function GameController:hasLastReplay()
+    return ReplayController.hasSavedReplay(pd)
+end
+
+function GameController:startLastReplay()
+    local data = ReplayController.load(pd)
+    if data == nil or data.mode ~= Config.GAME_MODE.NORMAL then return false end
+    self:start(Config.GAME_MODE.NORMAL, nil,
+        { replayData = data, seed = data.seed })
+    return true
 end
 
 function GameController:setAutoPlayEnabled(value)
@@ -124,10 +160,12 @@ function GameController:isPracticeStageCleared(stage)
 end
 
 function GameController:savePracticeClearedStages()
+    if self.replayMode then return end
     pd.datastore.write(self.state.practiceClearedStages, "practiceClearedStages")
 end
 
 function GameController:markPracticeStageCleared()
+    if self.replayMode then return end
     local stageId = self:getPracticeStageId(self.practiceStage)
     if stageId == nil or self.state.practiceClearedStages[stageId] == true then
         return
@@ -137,6 +175,7 @@ function GameController:markPracticeStageCleared()
 end
 
 function GameController:saveCurrentModeHighScore()
+    if self.replayMode then return end
     local state = self.state
     if state.mode == Config.GAME_MODE.NORMAL and state.score > state.normalHighScore then
         state.normalHighScore = state.score
@@ -171,6 +210,7 @@ end
 
 -- タイムアタックでの最短クリア時間を保存する.
 function GameController:saveTimeAttackBestTime()
+    if self.replayMode then return end
     local state = self.state
     if not self:isTimeAttack() or state.result ~= GameResult.VICTORY then return end
     if state.timeAttackBestTimeMs == nil
@@ -181,6 +221,7 @@ function GameController:saveTimeAttackBestTime()
 end
 
 function GameController:saveCoreRushBestTime()
+    if self.replayMode then return end
     local state = self.state
     if not self:isCoreRush() or state.result ~= GameResult.VICTORY then return end
     if state.coreRushBestTimeMs == nil or state.elapsedTimeMs < state.coreRushBestTimeMs then
@@ -247,7 +288,7 @@ function GameController:updateRewindHold()
         and pd.getCurrentTimeMilliseconds() - state.rewindHoldStartedAt
             >= Config.REWIND_HOLD_DURATION_MS then
         state.rewindHoldTriggered = true
-        self.undoController:restore()
+        self:executeCommand(InputCommand.REWIND)
     end
 end
 
@@ -300,8 +341,8 @@ function GameController:advanceNextQueue()
     if state.mode == Config.GAME_MODE.PRACTICE then
         state.nextValues[Config.NEXT_QUEUE_COUNT] = self:getPracticeNextValue()
     else
-        state.nextValues[Config.NEXT_QUEUE_COUNT] =
-            TileGenerator.nextForState(state.board, state)
+        state.nextValues[Config.NEXT_QUEUE_COUNT] = TileGenerator.nextForState(
+            state.board, state, self.randomGenerator)
     end
 end
 
@@ -767,14 +808,25 @@ function GameController:applyPracticeScenario(scenario)
 end
 
 -- ゲームの開始.
-function GameController:start(mode, practiceStage)
+function GameController:start(mode, practiceStage, options)
+    options = options or {}
     local state = self.state
+    self.replayMode = options.replayData ~= nil
+    self.replayData = options.replayData
+    self.replayIndex = 1
+    self.replayEventStartedAt = nil
+    self.replayExecuting = false
+    self.replayRemainingHolds = 0
+    self.replaySaved = false
+    state.replayActive = self.replayMode
+    local seed = options.seed or self:createReplaySeed()
+    self.randomGenerator:setSeed(seed)
     state.mode = mode or Config.GAME_MODE.NORMAL
     if practiceStage ~= nil then self.practiceStage = practiceStage end
     self:clearBoard()
     state.result = nil
     state.score = 0
-    LevelProgress.reset(state, not self.autoPlayEnabled)
+    LevelProgress.reset(state, not self.autoPlayEnabled and not self.replayMode)
     state.coreRushValue = 0
     state.coreRushGainCombo = 0
     state.coreRushGainMergeValue = 0
@@ -844,8 +896,14 @@ function GameController:start(mode, practiceStage)
     else
         self:spawnInitialBlocks()
         for i = 1, Config.NEXT_QUEUE_COUNT do
-            state.nextValues[i] = TileGenerator.nextForState(state.board, state)
+            state.nextValues[i] = TileGenerator.nextForState(
+                state.board, state, self.randomGenerator)
         end
+    end
+    if not self.replayMode and state.mode == Config.GAME_MODE.NORMAL then
+        self.replayController:start(state.mode, nil, seed)
+    elseif not self.replayMode then
+        self.replayController:cancelRecording()
     end
     self:updateHoldAvailability()
     if state.mode == Config.GAME_MODE.PRACTICE
@@ -869,13 +927,13 @@ function GameController:holdCurrentBlock()
     local currentValue = state.nextValues[1]
     if currentValue == 0 then
         self:beginGameOver()
-        return
+        return false
     end
     if not state.holdAvailable then
 		-- HOLDできない.
 		self:setMessage("CAN'T HOLD", 700)
 		self.sound:play_se("error")
-        return
+        return false
     end
     state.holdAnimationSourceValue = currentValue
     state.holdAnimationReturnValue = state.holdValue
@@ -899,6 +957,11 @@ function GameController:holdCurrentBlock()
     state.animationProgress = 0
     state.animationDuration = 0.30
     state.phase = GamePhase.HOLD_ANIM
+    if not self.replayMode then
+        self.replayController:noteHold()
+        self.replayController:pauseDecision(pd.getCurrentTimeMilliseconds())
+    end
+    return true
 end
 
 function GameController:finishHoldAnimation()
@@ -909,8 +972,17 @@ function GameController:finishHoldAnimation()
     state.holdAnimationNextValue = 0
     state.rewindHoldAnimationActive = false
     if state.practiceVictoryPending then
+        if not self.replayMode then
+            self.replayController:recordTurn(
+                pd.getCurrentTimeMilliseconds(), state.cursorX, false)
+        end
         self:beginPracticeVictory()
-    elseif state.nextValues[1] == 0 or not self:canDropInAnyColumn() then self:beginGameOver()
+    elseif state.nextValues[1] == 0 or not self:canDropInAnyColumn() then
+        if not self.replayMode then
+            self.replayController:recordTurn(
+                pd.getCurrentTimeMilliseconds(), state.cursorX, false)
+        end
+        self:beginGameOver()
     else state.phase = GamePhase.INPUT end
 end
 
@@ -918,14 +990,18 @@ function GameController:beginDrop()
     local state = self.state
     if state.nextValues[1] == 0 then
         self:beginGameOver()
-        return
+        return false
     end
     if not self:isDropAvailable() then
         self:setMessage("NO SPACE", 700)
         self.sound:play_se("error")
-        return
+        return false
     end
     local x, y = self:findDropCell(state.cursorX)
+    if not self.replayMode then
+        self.replayController:recordTurn(
+            pd.getCurrentTimeMilliseconds(), state.cursorX, true)
+    end
     self.undoController:save("DROP")
     if state.mode == Config.GAME_MODE.PRACTICE then
         state.practiceTurnCount += 1
@@ -938,6 +1014,7 @@ function GameController:beginDrop()
     state.animationDuration = math.max(0.18, (y + 1) * 0.07)
     self.sound:play_se("fall")
     state.phase = GamePhase.DROPPING
+    return true
 end
 
 function GameController:moveCursor(delta)
@@ -945,6 +1022,25 @@ function GameController:moveCursor(delta)
     local previous = state.cursorX
     state.cursorX = math.max(1, math.min(Config.BOARD_SIZE, state.cursorX + delta))
     if previous ~= state.cursorX then self.sound:play_se("pi") end
+end
+
+function GameController:executeCommand(command)
+    if command == InputCommand.HOLD then return self:holdCurrentBlock()
+    elseif command == InputCommand.MOVE_LEFT then
+        self:moveCursor(-1)
+        return true
+    elseif command == InputCommand.MOVE_RIGHT then
+        self:moveCursor(1)
+        return true
+    elseif command == InputCommand.DROP then return self:beginDrop()
+    elseif command == InputCommand.REWIND then
+        local restored = self.undoController:restore()
+        if restored and not self.replayMode then
+            self.replayController:recordRewind(pd.getCurrentTimeMilliseconds())
+        end
+        return restored
+    end
+    return false
 end
 
 -- カーソルキーのリピート状態をリセットする.
@@ -958,9 +1054,103 @@ end
 function GameController:updateCursorKeyRepeat()
     local state = self.state
     CursorController.update(self.cursorController, pd,
-        pd.getCurrentTimeMilliseconds(), function(delta) self:moveCursor(delta) end)
+        pd.getCurrentTimeMilliseconds(), function(delta)
+            self:executeCommand(delta < 0
+                and InputCommand.MOVE_LEFT or InputCommand.MOVE_RIGHT)
+        end)
     state.cursorRepeatDirection = self.cursorController.direction
     state.cursorRepeatNextAt = self.cursorController.nextAt
+end
+
+function GameController:completeReplayEvent()
+    self.replayIndex += 1
+    self.replayEventStartedAt = nil
+    self.replayExecuting = false
+    self.replayRemainingHolds = 0
+end
+
+function GameController:stopReplayWithError()
+    self.replayIndex = #(self.replayData.events or {}) + 1
+    self.replayEventStartedAt = nil
+    self.replayExecuting = false
+    self:setMessage("REPLAY DESYNC", 3000)
+end
+
+function GameController:updateReplayPlayback(now)
+    local state = self.state
+    local events = self.replayData ~= nil and self.replayData.events or {}
+    local event = events[self.replayIndex]
+    if event == nil then return end
+
+    if self.replayEventStartedAt == nil then
+        self.replayEventStartedAt = now
+    end
+    if not self.replayExecuting then
+        if now - self.replayEventStartedAt < (event.waitMs or 0) then return end
+        self.replayExecuting = true
+        self.replayRemainingHolds = event.holdApplications or 0
+    end
+
+    if event.type == "REWIND" then
+        if not self:executeCommand(InputCommand.REWIND) then
+            self:stopReplayWithError()
+            return
+        end
+        self:completeReplayEvent()
+        return
+    end
+    if event.type ~= "TURN" then
+        self:stopReplayWithError()
+        return
+    end
+
+    local targetColumn = math.max(1, math.min(Config.BOARD_SIZE,
+        event.targetColumn or state.cursorX))
+    if state.cursorX < targetColumn then
+        self:executeCommand(InputCommand.MOVE_RIGHT)
+        return
+    elseif state.cursorX > targetColumn then
+        self:executeCommand(InputCommand.MOVE_LEFT)
+        return
+    end
+
+    if self.replayRemainingHolds > 0 then
+        if not self:executeCommand(InputCommand.HOLD) then
+            self:stopReplayWithError()
+            return
+        end
+        self.replayRemainingHolds -= 1
+        if self.replayRemainingHolds == 0 and event.drop == false then
+            self:completeReplayEvent()
+        end
+        return
+    end
+
+    if event.drop == false then
+        self:completeReplayEvent()
+        return
+    end
+    if not self:executeCommand(InputCommand.DROP) then
+        self:stopReplayWithError()
+        return
+    end
+    self:completeReplayEvent()
+end
+
+function GameController:finishReplayRecordingIfNeeded()
+    if self.replaySaved or self.state.result == nil then return end
+    self.replaySaved = true
+    if self.replayMode then
+        local checksum = ReplayController.checksum(
+            self.state, self.randomGenerator:getState())
+        if self.replayData.finalChecksum ~= nil
+            and checksum ~= self.replayData.finalChecksum then
+            self:setMessage("REPLAY DESYNC", 3000)
+        end
+        return
+    end
+    self.replayController:finish(
+        self.state, self.randomGenerator:getState())
 end
 
 -- 更新.
@@ -987,6 +1177,7 @@ function GameController:update()
             state.result = GameResult.VICTORY
             if self:isCoreRush() then self:saveCoreRushBestTime()
             elseif self:isTimeAttack() then self:saveTimeAttackBestTime() end
+            self:finishReplayRecordingIfNeeded()
             return { scene = Config.SCENE.GAME_OVER }
         end
         return nil
@@ -996,6 +1187,7 @@ function GameController:update()
         if pd.getCurrentTimeMilliseconds() >= state.practiceCompleteUntil then
             state.practiceCompleteUntil = 0
             state.result = GameResult.VICTORY
+            self:finishReplayRecordingIfNeeded()
             return { scene = Config.SCENE.GAME_OVER }
         end
         return nil
@@ -1003,8 +1195,15 @@ function GameController:update()
 
     if state.phase ~= GamePhase.INPUT then self:resetCursorKeyRepeat() end
 
+    if state.phase == GamePhase.INPUT and state.result == nil and not self.replayMode then
+        self.replayController:beginDecision(
+            pd.getCurrentTimeMilliseconds(), state.holdValue == 0)
+    end
+
     if state.phase == GamePhase.INPUT then
-        if self.autoPlayEnabled then
+        if self.replayMode then
+            self:updateReplayPlayback(pd.getCurrentTimeMilliseconds())
+        elseif self.autoPlayEnabled then
             local command = self.autoPlayer:poll(nil, {
                 phase = state.phase,
                 cursorX = state.cursorX,
@@ -1017,17 +1216,16 @@ function GameController:update()
                         state.board, activeValue, state.mode)
                 end,
             })
-            if command == InputCommand.HOLD then self:holdCurrentBlock()
-            elseif command == InputCommand.MOVE_LEFT then self:moveCursor(-1)
-            elseif command == InputCommand.MOVE_RIGHT then self:moveCursor(1)
-            elseif command == InputCommand.DROP then self:beginDrop() end
+            self:executeCommand(command)
         else
             self:updateRewindHold()
-            if pd.buttonJustPressed(pd.kButtonA) then self:holdCurrentBlock()
+            if pd.buttonJustPressed(pd.kButtonA) then
+                self:executeCommand(InputCommand.HOLD)
             elseif pd.buttonJustPressed(pd.kButtonLeft)
                 or pd.buttonJustPressed(pd.kButtonRight) then
                 self:updateCursorKeyRepeat()
-            elseif pd.buttonJustPressed(pd.kButtonDown) then self:beginDrop()
+            elseif pd.buttonJustPressed(pd.kButtonDown) then
+                self:executeCommand(InputCommand.DROP)
             elseif pd.buttonJustPressed(pd.kButtonB) then self:beginRewindHold()
             elseif state.cursorRepeatDirection ~= 0 then
                 self:updateCursorKeyRepeat()
@@ -1046,7 +1244,10 @@ function GameController:update()
         self:advanceAnimation()
     end
 
-    if state.result ~= nil then return { scene = Config.SCENE.GAME_OVER } end
+    if state.result ~= nil then
+        self:finishReplayRecordingIfNeeded()
+        return { scene = Config.SCENE.GAME_OVER }
+    end
     return nil
 end
 

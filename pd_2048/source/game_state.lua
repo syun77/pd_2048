@@ -6,6 +6,7 @@ local Config <const> = GameConfig
 ---@class GameState ゲーム状態クラス.
 ---@field phase GAME_PHASE 現在のゲームフェーズ.
 ---@field result GAME_RESULT 現在のゲーム結果.
+---@field replayActive boolean リプレイ再生中かどうか.
 ---@field mode GAME_MODE 現在のゲームモード
 ---@field board Array2D ゲーム盤面.
 ---■カーソル関連.
@@ -178,6 +179,7 @@ function GameState.new()
         comboSoundPlayed = false,
         phase = Config.GAME_PHASE.INPUT,
         result = nil,
+        replayActive = false,
         message = "",
         messageUntil = 0,
         animationProgress = 0,

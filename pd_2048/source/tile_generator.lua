@@ -11,7 +11,7 @@ local function getMaxTileValue(board)
     return maxValue
 end
 
-function TileGenerator.next(board, randomState)
+function TileGenerator.next(board, randomState, randomGenerator)
     local maxValue = getMaxTileValue(board)
     local maxQuarter = math.floor(maxValue / 4)
     local suppressedValue = nil
@@ -26,7 +26,7 @@ function TileGenerator.next(board, randomState)
             if value ~= suppressedValue then totalWeight += weight end
             value *= 2
         end
-        local roll, cumulativeWeight = math.random() * totalWeight, 0
+        local roll, cumulativeWeight = randomGenerator:nextFloat() * totalWeight, 0
         value = 2
         while value <= maxQuarter do
             local weight = value == maxQuarter and 0.5 / value or 1 / value
@@ -44,7 +44,7 @@ function TileGenerator.next(board, randomState)
             end
         end
     else
-        selectedValue = math.random(1, 10) == 10 and 4 or 2
+        selectedValue = randomGenerator:nextInt(1, 10) == 10 and 4 or 2
         if selectedValue == suppressedValue then selectedValue = selectedValue == 2 and 4 or 2 end
     end
 
@@ -57,12 +57,12 @@ function TileGenerator.next(board, randomState)
     return selectedValue
 end
 
-function TileGenerator.nextForState(board, state)
+function TileGenerator.nextForState(board, state, randomGenerator)
     local randomState = {
         lastValue = state.lastRandomBlockValue,
         consecutiveCount = state.consecutiveRandomBlockCount,
     }
-    local value = TileGenerator.next(board, randomState)
+    local value = TileGenerator.next(board, randomState, randomGenerator)
     state.lastRandomBlockValue = randomState.lastValue
     state.consecutiveRandomBlockCount = randomState.consecutiveCount
     return value

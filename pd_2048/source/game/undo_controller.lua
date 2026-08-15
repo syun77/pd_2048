@@ -17,6 +17,7 @@ function UndoController.new(dependencies)
         session = dependencies.session,
         sound = dependencies.sound,
         setMessage = dependencies.setMessage,
+        randomGenerator = dependencies.randomGenerator,
     }, UndoController)
 end
 
@@ -37,6 +38,7 @@ function UndoController:save(action)
         levelCreatedMilestones = state.levelCreatedMilestones,
         levelXpBySource = state.levelXpBySource,
         nextValues = state.nextValues,
+        randomGeneratorState = self.randomGenerator:getState(),
     }, action)
 end
 
@@ -96,6 +98,9 @@ function UndoController:restore()
     state.levelUpDisplayFrame = Config.LEVEL_UP_DISPLAY_FRAMES
     state.practiceVictoryPending = false
     state.nextValues = restored.nextValues
+    if restored.randomGeneratorState ~= nil then
+        self.randomGenerator:setState(restored.randomGeneratorState)
+    end
     state.holdAnimationNextValue = 0
 
     self.session:resetCombo()

@@ -154,7 +154,8 @@ end
 -- UNDOのヒントの描画.
 function OverlayRenderer:drawRewindHint()
     local state = self.state
-    if state.phase ~= GamePhase.INPUT or not self.isRewindAvailable() then return end
+    if state.replayActive or state.phase ~= GamePhase.INPUT
+        or not self.isRewindAvailable() then return end
 
     local isHolding = state.rewindHoldStartedAt ~= nil
     local rewindText = "B: REWIND [" .. tostring(state.rewindUsesRemaining) .. "]"
@@ -170,6 +171,14 @@ function OverlayRenderer:drawRewindHint()
     gfx.fillRoundRect(270, 216,
         math.floor(Config.REWIND_GAUGE_WIDTH * progress), 20, 4)
     gfx.setColor(previousColor)
+end
+
+function OverlayRenderer:drawReplayStatus()
+    if not self.state.replayActive then return end
+    gfx.fillRoundRect(8, 216, 72, 20, 4)
+    gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    gfx.drawTextAligned("REPLAY", 44, 218, kTextAlignment.center)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
 -- ポーズメニューの描画.

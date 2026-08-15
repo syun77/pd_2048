@@ -69,6 +69,12 @@ end
 function TitleScene:enter(params)
 	-- メニュー用BGMを再生.
     self.context.sound:playMenuBgm()
+    for index = #self.menuItems, 1, -1 do
+        if self.menuItems[index].replay then table.remove(self.menuItems, index) end
+    end
+    if self.context.game:hasLastReplay() then
+        table.insert(self.menuItems, 2, { label = "LAST REPLAY", replay = true })
+    end
     self.practiceItems = {}
     for _, stage in ipairs(PracticeStageLoader.loadAll()) do
         local cleared = self.context.game:isPracticeStageCleared(stage)
@@ -134,6 +140,14 @@ function TitleScene:update()
         self.context.sound:play_se("decide")
         local item = items[self.selectedIndex]
         self.selectedByPage[self.page] = self.selectedIndex
+        if item.replay then
+            if self.context.game:startLastReplay() then
+                self.manager:change(GameConfig.SCENE.GAME)
+            else
+                self.context.sound:play_se("error")
+            end
+            return
+        end
         if item.submenu then
             self.page = item.submenuPage
             self.selectedIndex = 1

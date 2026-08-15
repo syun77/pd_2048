@@ -24,6 +24,10 @@ local Config = {
     MAX_REWIND_USES = 3, -- UNDOの使用回数の最大.
     REWIND_HOLD_DURATION_MS = 800,
     REWIND_GAUGE_WIDTH = 116,
+    REPLAY_MAX_WAIT_MS = 3000,
+    REPLAY_FORMAT_VERSION = 1,
+    REPLAY_RULES_VERSION = 1,
+    REPLAY_RNG_VERSION = "park-miller-v1",
     SCORE_MULTIPLIER = 100,
 	-- NORMALモードのレベル関連.
     LEVEL_DROP_XP = 1,

@@ -331,6 +331,7 @@ function GameRenderer:drawNormalFrame()
     self.overlay:drawCoreRushComplete()
     self.overlay:drawPracticeComplete()
     self.overlay:drawRewindHint()
+    self.overlay:drawReplayStatus()
     self.overlay:drawStartReady()
     self.overlay:drawLevelUp()
     if state.phase == GamePhase.PAUSED then
@@ -346,6 +347,7 @@ function GameRenderer:drawGameOverFrame(selectedIndex)
     self:drawBoard()
     self.overlay:drawCoreRushGain()
     self.overlay:drawGameOver(selectedIndex)
+    self.overlay:drawMessage()
 end
 
 _G.GameRenderer = GameRenderer

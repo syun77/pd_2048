@@ -103,6 +103,32 @@
   },
   "achievements": [
     {
+      "id": "achievement_5",
+      "category": "SYSTEM",
+      "name": {
+        "ja": "実績を5つ達成した",
+        "en": "NEW ACHIEVEMENT"
+      },
+      "description": {
+        "ja": "",
+        "en": ""
+      },
+      "condition": {
+        "type": "MERGE_COUNT",
+        "scope": "RUN",
+        "operator": ">=",
+        "params": {
+          "count": 1
+        }
+      },
+      "reward": {
+        "type": "NONE",
+        "id": ""
+      },
+      "hidden": false,
+      "progressVisible": true
+    },
+    {
       "id": "practice_all_clear",
       "category": "PRACTICE",
       "name": {
