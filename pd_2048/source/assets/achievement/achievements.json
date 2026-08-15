@@ -93,7 +93,7 @@
       },
       {
         "id": "TIMEATTACK_UNLOCK",
-        "label": "タイムアタックの開放"
+        "label": "タイムアタックモードの開放"
       },
       {
         "id": "TITLE_BADGE",
@@ -103,7 +103,6 @@
   },
   "achievements": [
     {
-      "no": 1,
       "id": "practice_all_clear",
       "category": "PRACTICE",
       "name": {
@@ -130,7 +129,6 @@
       "progressVisible": true
     },
     {
-      "no": 2,
       "id": "tile64",
       "category": "NORMAL",
       "name": {
@@ -150,41 +148,13 @@
         }
       },
       "reward": {
-        "type": "NONE",
-        "id": ""
+        "type": "TIMEATTACK_UNLOCK",
+        "id": "sprint64"
       },
       "hidden": false,
       "progressVisible": false
     },
     {
-      "no": 3,
-      "id": "tile128",
-      "category": "NORMAL",
-      "name": {
-        "ja": "128タイルの作成",
-        "en": "Created a 128 Tile"
-      },
-      "description": {
-        "ja": "ノーマルモードで128タイルを作成した",
-        "en": "Created a 128 tile in Normal Mode."
-      },
-      "condition": {
-        "type": "TILE_VALUE",
-        "scope": "RUN",
-        "operator": ">=",
-        "params": {
-          "value": 128
-        }
-      },
-      "reward": {
-        "type": "NONE",
-        "id": ""
-      },
-      "hidden": false,
-      "progressVisible": false
-    },
-    {
-      "no": 4,
       "id": "tile256",
       "category": "NORMAL",
       "name": {
@@ -211,7 +181,6 @@
       "progressVisible": false
     },
     {
-      "no": 5,
       "id": "tile512",
       "category": "NORMAL",
       "name": {
@@ -238,7 +207,6 @@
       "progressVisible": false
     },
     {
-      "no": 6,
       "id": "combo4",
       "category": "MAIN_GAME",
       "name": {
@@ -265,7 +233,6 @@
       "progressVisible": false
     },
     {
-      "no": 7,
       "id": "combo5",
       "category": "MAIN_GAME",
       "name": {
@@ -292,7 +259,6 @@
       "progressVisible": false
     },
     {
-      "no": 8,
       "id": "combo6",
       "category": "MAIN_GAME",
       "name": {
@@ -319,7 +285,6 @@
       "progressVisible": false
     },
     {
-      "no": 9,
       "id": "combo7",
       "category": "MAIN_GAME",
       "name": {
@@ -346,7 +311,6 @@
       "progressVisible": false
     },
     {
-      "no": 10,
       "id": "level5",
       "category": "NORMAL",
       "name": {
@@ -373,7 +337,6 @@
       "progressVisible": false
     },
     {
-      "no": 11,
       "id": "level10",
       "category": "NORMAL",
       "name": {
@@ -400,7 +363,6 @@
       "progressVisible": false
     },
     {
-      "no": 12,
       "id": "level15",
       "category": "NORMAL",
       "name": {
@@ -427,7 +389,6 @@
       "progressVisible": false
     },
     {
-      "no": 13,
       "id": "time64",
       "category": "TIME_ATTACK",
       "name": {
@@ -454,7 +415,6 @@
       "progressVisible": false
     },
     {
-      "no": 14,
       "id": "time256",
       "category": "TIME_ATTACK",
       "name": {
@@ -481,7 +441,6 @@
       "progressVisible": false
     },
     {
-      "no": 15,
       "id": "time512",
       "category": "TIME_ATTACK",
       "name": {

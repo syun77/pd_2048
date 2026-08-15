@@ -164,10 +164,9 @@ def localized(ja: str = "", en: str = "") -> dict:
     return {"ja": ja, "en": en}
 
 
-def default_achievement(no: int = 1) -> dict:
+def default_achievement(sequence: int = 1) -> dict:
     return {
-        "no": no,
-        "id": f"achievement_{no:03d}",
+        "id": f"achievement_{sequence:03d}",
         "category": "SYSTEM",
         "name": localized("NEW ACHIEVEMENT", "NEW ACHIEVEMENT"),
         "description": localized("", ""),
@@ -246,11 +245,10 @@ def format_params(params: object) -> str:
     return ",".join(parts)
 
 
-def normalize_achievement(raw: object, fallback_no: int) -> dict:
+def normalize_achievement(raw: object, fallback_sequence: int) -> dict:
     if not isinstance(raw, dict):
         raw = {}
-    item = default_achievement(fallback_no)
-    item["no"] = int(raw.get("no", fallback_no)) if str(raw.get("no", "")).strip() else fallback_no
+    item = default_achievement(fallback_sequence)
     item["id"] = str(raw.get("id", item["id"]))
     item["category"] = str(raw.get("category", item["category"]))
     item["name"] = normalize_localized(raw.get("name", item["name"]))
@@ -465,7 +463,6 @@ class AchievementEditor(tk.Tk):
         self._loading_form = False
         self.option_combos: dict[str, ttk.Combobox] = {}
 
-        self.no_var = tk.StringVar()
         self.id_var = tk.StringVar()
         self.category_var = tk.StringVar()
         self.name_ja_var = tk.StringVar()
@@ -526,8 +523,9 @@ class AchievementEditor(tk.Tk):
 
         ttk.Button(left, text="Add", command=self.add_achievement).grid(row=1, column=0, sticky="ew", pady=(6, 0))
         ttk.Button(left, text="Duplicate", command=self.duplicate_achievement).grid(row=1, column=1, sticky="ew", pady=(6, 0), padx=(4, 0))
-        ttk.Button(left, text="Delete", command=self.delete_achievement).grid(row=2, column=0, sticky="ew", pady=(4, 0))
-        ttk.Button(left, text="Renumber", command=self.renumber).grid(row=2, column=1, sticky="ew", pady=(4, 0), padx=(4, 0))
+        ttk.Button(left, text="Delete", command=self.delete_achievement).grid(
+            row=2, column=0, columnspan=2, sticky="ew", pady=(4, 0)
+        )
         ttk.Button(left, text="Up", command=lambda: self.move_selected(-1)).grid(row=3, column=0, sticky="ew", pady=(4, 0))
         ttk.Button(left, text="Down", command=lambda: self.move_selected(1)).grid(row=3, column=1, sticky="ew", pady=(4, 0), padx=(4, 0))
 
@@ -536,7 +534,6 @@ class AchievementEditor(tk.Tk):
         form.columnconfigure(1, weight=1)
 
         row = 0
-        row = self._entry(form, row, "NO", self.no_var, width=10)
         row = self._entry(form, row, "ID", self.id_var)
         row = self._combo(
             form, row, "Category", self.category_var,
@@ -592,7 +589,6 @@ class AchievementEditor(tk.Tk):
         status.pack(fill="x", side="bottom")
 
         for variable in (
-            self.no_var,
             self.id_var,
             self.category_var,
             self.name_ja_var,
@@ -673,7 +669,6 @@ class AchievementEditor(tk.Tk):
             item = self.achievements[index]
         condition = item["condition"]
         reward = item["reward"]
-        self.no_var.set(str(item["no"]))
         self.id_var.set(item["id"])
         self.category_var.set(definition_display_value(self.definitions, "categories", item["category"]))
         self.name_ja_var.set(item["name"]["ja"])
@@ -693,15 +688,7 @@ class AchievementEditor(tk.Tk):
         self._refresh_selection()
 
     def _form_to_achievement(self) -> dict:
-        no_text = self.no_var.get().strip()
-        if no_text == "":
-            raise ValueError("NO is required.")
-        try:
-            no = int(no_text)
-        except ValueError as exc:
-            raise ValueError("NO must be an integer.") from exc
         item = {
-            "no": no,
             "id": self.id_var.get().strip(),
             "category": definition_id_from_display(self.definitions, "categories", self.category_var.get()),
             "name": localized(self.name_ja_var.get().strip(), self.name_en_var.get().strip()),
@@ -742,8 +729,8 @@ class AchievementEditor(tk.Tk):
     def _refresh_list(self, keep_selection: bool = False) -> None:
         selected = self.selected_index if keep_selection else None
         self.listbox.delete(0, tk.END)
-        for item in self.achievements:
-            self.listbox.insert(tk.END, self._list_label(item))
+        for index, item in enumerate(self.achievements, start=1):
+            self.listbox.insert(tk.END, self._list_label(index, item))
         if selected is None:
             selected = self.selected_index
         if selected is not None and 0 <= selected < len(self.achievements):
@@ -760,16 +747,16 @@ class AchievementEditor(tk.Tk):
     def _update_list_label_from_form(self) -> None:
         if self.selected_index is None or self.selected_index >= self.listbox.size():
             return
-        no = self.no_var.get().strip() or "?"
+        display_no = self.selected_index + 1
         ach_id = self.id_var.get().strip() or "(no id)"
         name = self.name_en_var.get().strip() or self.name_ja_var.get().strip() or "(no name)"
         self.listbox.delete(self.selected_index)
-        self.listbox.insert(self.selected_index, f"{no:>3}  {ach_id} - {name}")
+        self.listbox.insert(self.selected_index, f"{display_no:>3}  {ach_id} - {name}")
         self._refresh_selection()
 
-    def _list_label(self, item: dict) -> str:
+    def _list_label(self, display_no: int, item: dict) -> str:
         name = item["name"].get("en") or item["name"].get("ja") or "(no name)"
-        return f"{item['no']:>3}  {item['id']} - {name}"
+        return f"{display_no:>3}  {item['id']} - {name}"
 
     def _update_param_hint(self) -> None:
         condition_type = definition_id_from_display(
@@ -924,8 +911,7 @@ class AchievementEditor(tk.Tk):
     def add_achievement(self) -> None:
         if not self._apply_form_to_selected(show_error=True):
             return
-        next_no = max([item.get("no", 0) for item in self.achievements] + [0]) + 1
-        item = default_achievement(next_no)
+        item = default_achievement(len(self.achievements) + 1)
         item["category"] = definition_ids(self.definitions, "categories")[0]
         item["condition"]["type"] = definition_ids(self.definitions, "conditionTypes")[0]
         item["condition"]["scope"] = definition_ids(self.definitions, "scopes")[0]
@@ -944,7 +930,6 @@ class AchievementEditor(tk.Tk):
         if not self._apply_form_to_selected(show_error=True):
             return
         duplicate = copy.deepcopy(self.achievements[self.selected_index])
-        duplicate["no"] = max([item.get("no", 0) for item in self.achievements] + [0]) + 1
         duplicate["id"] = f"{duplicate['id']}_copy"
         self.achievements.insert(self.selected_index + 1, duplicate)
         self.selected_index += 1
@@ -981,15 +966,6 @@ class AchievementEditor(tk.Tk):
         )
         self.selected_index = new_index
         self._load_form(new_index)
-        self._refresh_list(keep_selection=True)
-        self._mark_changed()
-
-    def renumber(self) -> None:
-        if not self._apply_form_to_selected(show_error=True):
-            return
-        for index, item in enumerate(self.achievements, start=1):
-            item["no"] = index
-        self._load_form(self.selected_index)
         self._refresh_list(keep_selection=True)
         self._mark_changed()
 
@@ -1068,8 +1044,6 @@ def validate_definitions(definitions: dict) -> None:
 def validate_achievement(item: dict, definitions: dict | None = None) -> None:
     if definitions is None:
         definitions = default_definitions()
-    if item["no"] <= 0:
-        raise ValueError(f"{item['id']}: NO must be greater than 0.")
     if not ID_PATTERN.match(item["id"]):
         raise ValueError(f"{item['id'] or '(empty id)'}: ID must match {ID_PATTERN.pattern}.")
     category_ids = definition_ids(definitions, "categories")
@@ -1101,15 +1075,11 @@ def validate_achievements(achievements: list[dict], definitions: dict | None = N
     if not achievements:
         raise ValueError("At least one achievement is required.")
     ids: set[str] = set()
-    numbers: set[int] = set()
     for item in achievements:
         validate_achievement(item, definitions)
         if item["id"] in ids:
             raise ValueError(f"Duplicate ID: {item['id']}")
         ids.add(item["id"])
-        if item["no"] in numbers:
-            raise ValueError(f"Duplicate NO: {item['no']}")
-        numbers.add(item["no"])
 
 
 def main() -> None:
