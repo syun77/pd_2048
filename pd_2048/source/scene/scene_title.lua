@@ -75,7 +75,8 @@ function TitleScene:enter(params)
         table.insert(self.practiceItems, {
             label = stage.label,
             cleared = cleared,
-            description = PracticeStageLoader.descriptionForLanguage(stage, "en"),
+            description = PracticeStageLoader.descriptionForLanguage(
+                stage, GameConfig.LANGUAGE.ENGLISH),
             scene = GameConfig.SCENE.GAME,
             mode = GameConfig.GAME_MODE.PRACTICE,
             practiceStage = stage,

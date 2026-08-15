@@ -11,7 +11,7 @@ import "CoreLibs/object"
 ---@field _get_index fun(self: Array2D, x: integer, y: integer): integer インデックス計算の共通メソッド
 ---@field _getindex fun(self: Array2D, x: integer, y: integer): integer インデックス計算の共通メソッド（エイリアス）
 ---@field get fun(self: Array2D, x: integer, y: integer): integer 値の取得 (get)
----@field set fun(self: Array2D, x: integer, y: integer, v
+---@field set fun(self: Array2D, x: integer, y: integer, v: integer) 値の設定 (set)
 ---@field swap fun(self: Array2D, x1: integer, y1: integer, x2: integer, y2: integer, bLoopX: boolean, bLoopY: boolean) 値の交換
 ---@field foreach fun(self: Array2D, func: fun(x: integer, y: integer, v: integer), bReverse: boolean?) 2次元配列の各要素に対して関数を適用する
 ---@field slideY fun(self: Array2D, dy: integer): integer Y方向にスライドする

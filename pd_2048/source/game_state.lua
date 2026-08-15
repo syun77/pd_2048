@@ -39,9 +39,9 @@ local Config <const> = GameConfig
 ---@field animationDuration number アニメーションの総時間 (ミリ秒)
 ---@field rotationEvaluation number 回転評価値
 ---@field mergeSourceX integer マージ元のX座標
----@field mergeSourceY integer マージ元のY座標
----@field mergeTargetX integer マージ先のX座標
----@field mergeTargetY integer マージ先のY座標
+---@field mergeSourceY integer? マージ元のY座標
+---@field mergeTargetX integer? マージ先のX座標
+---@field mergeTargetY integer? マージ先のY座標
 ---@field mergeValue integer マージするブロックの値
 ---@field mergeNextAction string マージ後の次のアクション ("FINISH" または "ROTATE")
 ---@field activeMergeX integer 現在マージ中のブロックのX座標

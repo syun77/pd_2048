@@ -94,6 +94,11 @@ local Config = {
     ROTATION_EVALUATION_VERTICAL_DIRECTION_WEIGHT = 10,
 	---@enum DIRECTION 方向.
     DIRECTION = { NONE = 0, DOWN = 1, LEFT = 2, RIGHT = 3, UP = 4 },
+	---@enum LANGUAGE 言語.
+    LANGUAGE = {
+        JAPANESE = "ja",
+        ENGLISH = "en",
+    },
 	---@enum SCENE シーンID.
     SCENE = {
         TITLE = "TITLE",
