@@ -64,8 +64,8 @@
         "label": "トータルスコア"
       },
       {
-        "id": "BEST_TIME_MS",
-        "label": "ベストタイム"
+        "id": "CLEAR_TIME_MINUTE",
+        "label": "クリア時間"
       },
       {
         "id": "LEVEL",
@@ -347,6 +347,33 @@
     },
     {
       "no": 10,
+      "id": "combo7",
+      "category": "MAIN_GAME",
+      "name": {
+        "ja": "7コンボ",
+        "en": "7-combo"
+      },
+      "description": {
+        "ja": "7コンボを達成する",
+        "en": "Achieve a 7-combo."
+      },
+      "condition": {
+        "type": "COMBO",
+        "scope": "RUN",
+        "operator": ">=",
+        "params": {
+          "value": 7
+        }
+      },
+      "reward": {
+        "type": "NONE",
+        "id": ""
+      },
+      "hidden": false,
+      "progressVisible": false
+    },
+    {
+      "no": 11,
       "id": "level5",
       "category": "NORMAL",
       "name": {
@@ -373,7 +400,7 @@
       "progressVisible": false
     },
     {
-      "no": 11,
+      "no": 12,
       "id": "level10",
       "category": "NORMAL",
       "name": {
@@ -400,7 +427,7 @@
       "progressVisible": false
     },
     {
-      "no": 12,
+      "no": 13,
       "id": "level15",
       "category": "NORMAL",
       "name": {
@@ -417,6 +444,87 @@
         "operator": ">=",
         "params": {
           "valuet": 15
+        }
+      },
+      "reward": {
+        "type": "NONE",
+        "id": ""
+      },
+      "hidden": false,
+      "progressVisible": false
+    },
+    {
+      "no": 14,
+      "id": "time64",
+      "category": "TIME_ATTACK",
+      "name": {
+        "ja": "64 SPRINT",
+        "en": "64 SPRINT"
+      },
+      "description": {
+        "ja": "64 SPRINT を 2分以内でクリアした",
+        "en": "Cleared 64 SPRINT in under 2 minutes."
+      },
+      "condition": {
+        "type": "CLEAR_TIME_MINUTE",
+        "scope": "RUN",
+        "operator": ">=",
+        "params": {
+          "value": 2
+        }
+      },
+      "reward": {
+        "type": "NONE",
+        "id": ""
+      },
+      "hidden": false,
+      "progressVisible": false
+    },
+    {
+      "no": 15,
+      "id": "time256",
+      "category": "TIME_ATTACK",
+      "name": {
+        "ja": "256 SPRINT",
+        "en": "256 SPRINT"
+      },
+      "description": {
+        "ja": "256 SPRINT を 4分以内でクリアした",
+        "en": "Cleared 256 SPRINT in under 4 minutes."
+      },
+      "condition": {
+        "type": "CLEAR_TIME_MINUTE",
+        "scope": "RUN",
+        "operator": ">=",
+        "params": {
+          "value": 4
+        }
+      },
+      "reward": {
+        "type": "NONE",
+        "id": ""
+      },
+      "hidden": false,
+      "progressVisible": false
+    },
+    {
+      "no": 16,
+      "id": "time512",
+      "category": "TIME_ATTACK",
+      "name": {
+        "ja": "512 SPRINT",
+        "en": "512 SPRINT"
+      },
+      "description": {
+        "ja": "512 SPRINT を 8分以内でクリアした",
+        "en": "Cleared 512 SPRINT in under 8 minutes."
+      },
+      "condition": {
+        "type": "CLEAR_TIME_MINUTE",
+        "scope": "RUN",
+        "operator": ">=",
+        "params": {
+          "value": 8
         }
       },
       "reward": {
