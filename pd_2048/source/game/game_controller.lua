@@ -214,11 +214,6 @@ end
 
 function GameController:beginRewindHold()
     local state = self.state
-    if self:isTimeAttack() then
-        self:setMessage("REWIND UNAVAILABLE", 700)
-        self.sound:play_se("error")
-        return
-    end
     if not self.undoController:isAvailable() then
         if state.rewindUsesRemaining <= 0 then
             self:setMessage("NO REWINDS", 700)
@@ -285,7 +280,6 @@ end
 -- UNDOが利用可能かどうかを判定する.
 ---@return boolean UNDOが利用可能かどうか
 function GameController:isRewindAvailable()
-    if self:isTimeAttack() then return false end
     return self.undoController:isAvailable()
 end
 
