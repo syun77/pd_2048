@@ -174,8 +174,8 @@
         }
       },
       "reward": {
-        "type": "NONE",
-        "id": ""
+        "type": "TIMEATTACK_UNLOCK",
+        "id": "sprint256"
       },
       "hidden": false,
       "progressVisible": false
@@ -200,8 +200,8 @@
         }
       },
       "reward": {
-        "type": "NONE",
-        "id": ""
+        "type": "TIMEATTACK_UNLOCK",
+        "id": "sprint512"
       },
       "hidden": false,
       "progressVisible": false
