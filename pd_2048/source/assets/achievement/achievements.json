@@ -132,14 +132,14 @@
     {
       "no": 2,
       "id": "tile64",
-      "category": "MAIN_GAME",
+      "category": "NORMAL",
       "name": {
         "ja": "64タイルの作成",
-        "en": "64 TILE"
+        "en": "Created a 64 Tile"
       },
       "description": {
-        "ja": "64タイルを作成した",
-        "en": "Create a 64 tile"
+        "ja": "ノーマルモードで64タイルを作成した",
+        "en": "Created a 64 tile in Normal Mode."
       },
       "condition": {
         "type": "TILE_VALUE",
@@ -159,14 +159,14 @@
     {
       "no": 3,
       "id": "tile128",
-      "category": "MAIN_GAME",
+      "category": "NORMAL",
       "name": {
         "ja": "128タイルの作成",
-        "en": "128 TILE"
+        "en": "Created a 128 Tile"
       },
       "description": {
-        "ja": "128タイルを作成した",
-        "en": "Create a 128 tile."
+        "ja": "ノーマルモードで128タイルを作成した",
+        "en": "Created a 128 tile in Normal Mode."
       },
       "condition": {
         "type": "TILE_VALUE",
@@ -186,14 +186,14 @@
     {
       "no": 4,
       "id": "tile256",
-      "category": "MAIN_GAME",
+      "category": "NORMAL",
       "name": {
         "ja": "256タイルの作成",
-        "en": "256 TILE"
+        "en": "Created a 256 Tile"
       },
       "description": {
-        "ja": "256タイルを作成した",
-        "en": "Create a 256 tile."
+        "ja": "ノーマルモードで256タイルを作成した",
+        "en": "Created a 256 tile in Normal Mode."
       },
       "condition": {
         "type": "TILE_VALUE",
@@ -213,14 +213,14 @@
     {
       "no": 5,
       "id": "tile512",
-      "category": "MAIN_GAME",
+      "category": "NORMAL",
       "name": {
         "ja": "512タイルの作成",
-        "en": "512 TILE"
+        "en": "Created a 512 Tile"
       },
       "description": {
-        "ja": "512タイルを作成した",
-        "en": "Create a 512 tile."
+        "ja": "Created a 512 Tile",
+        "en": "Created a 512 tile in Normal Mode."
       },
       "condition": {
         "type": "TILE_VALUE",
@@ -239,33 +239,6 @@
     },
     {
       "no": 6,
-      "id": "tile2048",
-      "category": "MAIN_GAME",
-      "name": {
-        "ja": "2048タイルの作成",
-        "en": "2048 TILE"
-      },
-      "description": {
-        "ja": "2048タイルを作成した",
-        "en": "Create a 2048 tile."
-      },
-      "condition": {
-        "type": "TILE_VALUE",
-        "scope": "RUN",
-        "operator": ">=",
-        "params": {
-          "value": 2048
-        }
-      },
-      "reward": {
-        "type": "NONE",
-        "id": ""
-      },
-      "hidden": false,
-      "progressVisible": false
-    },
-    {
-      "no": 7,
       "id": "combo4",
       "category": "MAIN_GAME",
       "name": {
@@ -292,7 +265,7 @@
       "progressVisible": false
     },
     {
-      "no": 8,
+      "no": 7,
       "id": "combo5",
       "category": "MAIN_GAME",
       "name": {
@@ -319,7 +292,7 @@
       "progressVisible": false
     },
     {
-      "no": 9,
+      "no": 8,
       "id": "combo6",
       "category": "MAIN_GAME",
       "name": {
@@ -346,7 +319,7 @@
       "progressVisible": false
     },
     {
-      "no": 10,
+      "no": 9,
       "id": "combo7",
       "category": "MAIN_GAME",
       "name": {
@@ -373,7 +346,7 @@
       "progressVisible": false
     },
     {
-      "no": 11,
+      "no": 10,
       "id": "level5",
       "category": "NORMAL",
       "name": {
@@ -400,7 +373,7 @@
       "progressVisible": false
     },
     {
-      "no": 12,
+      "no": 11,
       "id": "level10",
       "category": "NORMAL",
       "name": {
@@ -427,7 +400,7 @@
       "progressVisible": false
     },
     {
-      "no": 13,
+      "no": 12,
       "id": "level15",
       "category": "NORMAL",
       "name": {
@@ -454,7 +427,7 @@
       "progressVisible": false
     },
     {
-      "no": 14,
+      "no": 13,
       "id": "time64",
       "category": "TIME_ATTACK",
       "name": {
@@ -481,7 +454,7 @@
       "progressVisible": false
     },
     {
-      "no": 15,
+      "no": 14,
       "id": "time256",
       "category": "TIME_ATTACK",
       "name": {
@@ -508,7 +481,7 @@
       "progressVisible": false
     },
     {
-      "no": 16,
+      "no": 15,
       "id": "time512",
       "category": "TIME_ATTACK",
       "name": {
