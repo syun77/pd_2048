@@ -154,7 +154,7 @@ function HudRenderer.header(ctx)
         end
     elseif ctx.mode == Config.GAME_MODE.TIME_ATTACK
         or ctx.mode == Config.GAME_MODE.TIME_ATTACK_256
-        or ctx.mode == Config.GAME_MODE.TIME_ATTACK_2048 then
+        or ctx.mode == Config.GAME_MODE.TIME_ATTACK_512 then
         HudRenderer.timeAttack(ctx.elapsedTimeMs)
     elseif ctx.mode == Config.GAME_MODE.CORE_RUSH then
         HudRenderer.coreRush(ctx.elapsedTimeMs)
