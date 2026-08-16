@@ -2,6 +2,32 @@ import "board/board_transform"
 import "game_config"
 
 local Config <const> = GameConfig
+
+---@class UndoSnapshot UNDO履歴のスナップショット.
+---@field board Array2D ボードの状態.
+---@field score integer スコア.
+---@field coreRushValue integer コアラッシュの値.
+---@field cursorX integer カーソルのX座標.
+---@field holdValue integer ホールド中のブロックの値.
+---@field holdAvailable boolean ホールドが可能かどうか.
+---@field lastRandomBlockValue integer 最後に生成されたランダムブロックの値.
+---@field consecutiveRandomBlockCount integer 連続して生成されたランダムブロックの数.
+---@field randomGeneratorState any ランダムジェネレーターの状態.
+---@field practiceNextIndex integer プラクティスモードの次のブロックのインデックス.
+---@field practiceSpawnCount integer プラクティスモードの生成回数
+---@field practiceTurnCount integer プラクティスモードのターン数
+---@field practiceNextExhausted boolean プラクティスモードの次のブロックが尽きているかどうか
+---@field practiceMergeCount integer プラクティスモードのマージ回数
+---@field level integer レベル
+---@field levelXp integer レベルの経験値
+---@field levelDropCount integer レベルのドロップ回数
+---@field levelCreatedMilestones table<integer, boolean> レベルの作成済みマイルストーン
+---@field levelXpBySource table<integer, integer> レベルの経験値のソースごとの値
+---@field hasRotation boolean 回転が発生したかどうか
+---@field rotationClockwise boolean 回転が時計回りかどうか
+---@field action string アクションの説明
+---@field nextValues table<integer, integer> 次のブロックの値の配列
+
 ---@class UndoHistory UNDO履歴管理クラス.
 ---@field push fun(history: table<integer, table>, state: table, action: string) UNDO履歴に新しい状態を追加する関数.
 ---@field canRestore fun(history: table<integer, table>, rewindUsesRemaining: integer): boolean UNDOが可能かどうかを判定する関数.
@@ -18,8 +44,8 @@ local function copyTable(source)
 end
 
 -- UNDO履歴に新しい状態を追加する.
----@param history table<integer, table> UNDO履歴のテーブル
----@param state table 現在のゲーム状態のスナップショット
+---@param history table<integer, UndoSnapshot> UNDO履歴のテーブル
+---@param state UndoControllerSnapshot 現在のゲーム状態のスナップショット
 ---@param action string UNDO履歴に追加するアクションの説明
 function UndoHistory.push(history, state, action)
     local snapshot = {
@@ -48,7 +74,7 @@ function UndoHistory.push(history, state, action)
 end
 
 -- UNDOが可能かどうかを判定する.
----@param history table<integer, table> UNDO履歴のテーブル
+---@param history table<integer, UndoSnapshot> UNDO履歴のテーブル
 ---@param rewindUsesRemaining integer 残りのリワインド使用回数
 ---@return boolean UNDOが可能かどうか
 function UndoHistory.canRestore(history, rewindUsesRemaining)
@@ -56,8 +82,8 @@ function UndoHistory.canRestore(history, rewindUsesRemaining)
 end
 
 -- UNDO履歴から最新の状態を取得する.
----@param history table<integer, table> UNDO履歴のテーブル
----@return table? 最新の状態のスナップショット、または nil
+---@param history table<integer, UndoSnapshot> UNDO履歴のテーブル
+---@return UndoSnapshot? 最新の状態のスナップショット、または nil
 function UndoHistory.pop(history)
     return table.remove(history)
 end

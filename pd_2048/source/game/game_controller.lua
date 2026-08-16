@@ -187,7 +187,7 @@ end
 
 -- レベルアップの進行を適用する.
 ---@param levelUp boolean レベルアップしたかどうか.
----@param previousLevel integer 前のレベル.
+---@param previousLevel integer? 前のレベル.
 function GameController:applyLevelProgress(levelUp, previousLevel)
     if not levelUp then
 		return -- レベルアップしていないので何もしない.

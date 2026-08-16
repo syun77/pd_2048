@@ -2,6 +2,28 @@ import "game_config"
 import "undo_history"
 
 local Config <const> = GameConfig
+---@class UndoControllerSnapshot UNDOコントローラーのスナップショット. (UndoHistoryに渡すための状態)
+---@field board Array2D ボードの状態.
+---@field coreRushValue integer コアラッシュの値.
+---@field score integer スコア.
+---@field cursorX integer カーソルのX座標.
+---@field holdValue integer ホールド中のブロックの値.
+---@field holdAvailable boolean ホールドが可能かどうか.
+---@field lastRandomBlockValue integer 最後に生成されたランダムブロックの値.
+---@field consecutiveRandomBlockCount integer 連続して生成されたランダムブロックの数.
+---@field practiceNextIndex integer プラクティスモードの次のブロックのインデックス.
+---@field practiceSpawnCount integer プラクティスモードの生成回数
+---@field practiceTurnCount integer プラクティスモードのターン数
+---@field practiceNextExhausted boolean プラクティスモードの次のブロックが尽きているかどうか
+---@field practiceMergeCount integer プラクティスモードのマージ回数
+---@field level integer レベル
+---@field levelXp integer レベルの経験値
+---@field levelDropCount integer レベルのドロップ回数
+---@field levelCreatedMilestones table<integer, boolean> レベルの作成済みマイルストーン
+---@field levelXpBySource table<integer, integer> レベルの経験値のソースごとの値
+---@field nextValues table<integer, integer> 次のブロックの値の配列
+---@field randomGeneratorState integer ランダムジェネレーターの状態.
+
 local GamePhase <const> = Config.GAME_PHASE
 ---@class UndoController ゲームのUNDO管理クラス.
 ---@field state GameState ゲーム状態.
@@ -12,6 +34,8 @@ local GamePhase <const> = Config.GAME_PHASE
 local UndoController = {}
 UndoController.__index = UndoController
 
+-- コンストラクタ.
+---@return UndoController
 function UndoController.new(dependencies)
     return setmetatable({
         state = dependencies.state,
@@ -24,6 +48,8 @@ end
 
 function UndoController:save(action)
     local state = self.state
+	-- UNDO履歴に現在の状態を保存する.
+	---@see UndoControllerSnapshot
     UndoHistory.push(state.undoStates, {
         board = state.board, score = state.score, cursorX = state.cursorX,
         holdValue = state.holdValue, holdAvailable = state.holdAvailable,
@@ -50,6 +76,8 @@ function UndoController:isAvailable()
     return UndoHistory.canRestore(state.undoStates, state.rewindUsesRemaining)
 end
 
+-- UNDOを実行する.
+---@return boolean UNDOが成功したかどうか
 function UndoController:restore()
     local state = self.state
     if not self:isAvailable() then
