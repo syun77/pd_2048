@@ -70,6 +70,10 @@
       {
         "id": "LEVEL",
         "label": "到達レベル"
+      },
+      {
+        "id": "UNLOCK_ACHIEVEMENT",
+        "label": "実勢達成数"
       }
     ],
     "scopes": [
@@ -98,6 +102,14 @@
       {
         "id": "TITLE_BADGE",
         "label": "Title Badge"
+      },
+      {
+        "id": "REPLAY_UNLOCK",
+        "label": "リプレイの開放"
+      },
+      {
+        "id": "EXTEND_PLAY",
+        "label": "リプレイデータの続きからプレイ"
       }
     ]
   },
@@ -106,24 +118,76 @@
       "id": "achievement_5",
       "category": "SYSTEM",
       "name": {
-        "ja": "実績を5つ達成した",
-        "en": "NEW ACHIEVEMENT"
+        "ja": "実績x5",
+        "en": "5 Achievements"
       },
       "description": {
-        "ja": "",
-        "en": ""
+        "ja": "実績を5つ達成した (この実績は含まない)",
+        "en": "Unlocked 5 achievements (excluding this one)"
       },
       "condition": {
-        "type": "MERGE_COUNT",
-        "scope": "RUN",
+        "type": "UNLOCK_ACHIEVEMENT",
+        "scope": "LIFETIME",
         "operator": ">=",
         "params": {
-          "count": 1
+          "value": 5
         }
       },
       "reward": {
-        "type": "NONE",
-        "id": ""
+        "type": "REPLAY_UNLOCK",
+        "id": "replay"
+      },
+      "hidden": false,
+      "progressVisible": true
+    },
+    {
+      "id": "achievement_10",
+      "category": "SYSTEM",
+      "name": {
+        "ja": "実績x10",
+        "en": "10 Achievements"
+      },
+      "description": {
+        "ja": "実績を10達成した (この実績は含まない)",
+        "en": "Unlocked 10 achievements (excluding this one)"
+      },
+      "condition": {
+        "type": "UNLOCK_ACHIEVEMENT",
+        "scope": "LIFETIME",
+        "operator": ">=",
+        "params": {
+          "value": 10
+        }
+      },
+      "reward": {
+        "type": "EXTEND_PLAY",
+        "id": "extend"
+      },
+      "hidden": false,
+      "progressVisible": true
+    },
+    {
+      "id": "achievement_15",
+      "category": "SYSTEM",
+      "name": {
+        "ja": "実績x15",
+        "en": "15 Achievements"
+      },
+      "description": {
+        "ja": "実績を15達成した (この実績は含まない)",
+        "en": "Unlocked 15 achievements (excluding this one)"
+      },
+      "condition": {
+        "type": "UNLOCK_ACHIEVEMENT",
+        "scope": "LIFETIME",
+        "operator": ">=",
+        "params": {
+          "value": 15
+        }
+      },
+      "reward": {
+        "type": "SOUND_UNLOCK",
+        "id": "soundtest"
       },
       "hidden": false,
       "progressVisible": true
@@ -148,8 +212,8 @@
         }
       },
       "reward": {
-        "type": "NONE",
-        "id": ""
+        "type": "TIMEATTACK_UNLOCK",
+        "id": "corerush2048"
       },
       "hidden": false,
       "progressVisible": true
@@ -428,7 +492,7 @@
       "condition": {
         "type": "CLEAR_TIME_MINUTE",
         "scope": "RUN",
-        "operator": ">=",
+        "operator": "<=",
         "params": {
           "value": 2
         }
@@ -454,7 +518,7 @@
       "condition": {
         "type": "CLEAR_TIME_MINUTE",
         "scope": "RUN",
-        "operator": ">=",
+        "operator": "<=",
         "params": {
           "value": 4
         }
@@ -480,9 +544,35 @@
       "condition": {
         "type": "CLEAR_TIME_MINUTE",
         "scope": "RUN",
-        "operator": ">=",
+        "operator": "<=",
         "params": {
           "value": 8
+        }
+      },
+      "reward": {
+        "type": "NONE",
+        "id": ""
+      },
+      "hidden": false,
+      "progressVisible": false
+    },
+    {
+      "id": "corerush",
+      "category": "CORE_RUSH",
+      "name": {
+        "ja": "CORE RUSH 2048",
+        "en": "CORE RUSH 2048"
+      },
+      "description": {
+        "ja": "CORE RUSH 2048 を 2分以内でクリアした",
+        "en": "Cleared CORE RUSH 2048 in under 2 minutes."
+      },
+      "condition": {
+        "type": "CLEAR_TIME_MINUTE",
+        "scope": "RUN",
+        "operator": "<=",
+        "params": {
+          "count": 2
         }
       },
       "reward": {
