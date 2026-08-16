@@ -615,11 +615,7 @@ function GameController:startRotation()
     end
 
     state.rotationClockwise = state.rotationEvaluation > 0
-    local latestUndoState = state.undoStates[#state.undoStates]
-    if latestUndoState ~= nil then
-        latestUndoState.hasRotation = true
-        latestUndoState.rotationClockwise = state.rotationClockwise
-    end
+    self.undoController:recordRotation(state.rotationClockwise)
     state.rotationStartBoard = state.board
     state.rotationEndBoard = BoardTransform.rotate(
         state.rotationStartBoard, state.rotationClockwise,
@@ -855,7 +851,6 @@ function GameController:start(mode, practiceStage, options)
     state.cursorX = Config.CENTER
     state.rewindHoldStartedAt = nil
     state.rewindHoldTriggered = false
-    state.rewindHoldAnimationActive = false
     state.animationProgress = 0
     state.animationDuration = 0
     state.pendingDropX, state.pendingDropY, state.pendingDropValue = 0, 0, 0
@@ -954,7 +949,6 @@ function GameController:holdCurrentBlock()
     -- HOLDはDROP前の待機中であれば何度でも使用できる。
     -- UNDOはDROP開始時のスナップショットへ戻すため、HOLD単体は履歴に残さない。
     self:updateHoldAvailability()
-    state.rewindHoldAnimationActive = false
     self.sound:play_se("hold")
     state.animationProgress = 0
     state.animationDuration = 0.30
@@ -972,7 +966,6 @@ function GameController:finishHoldAnimation()
     state.holdAnimationSourceValue = 0
     state.holdAnimationReturnValue = 0
     state.holdAnimationNextValue = 0
-    state.rewindHoldAnimationActive = false
     if state.practiceVictoryPending then
         if not self.replayMode then
             self.replayController:recordTurn(
@@ -1004,7 +997,7 @@ function GameController:beginDrop()
         self.replayController:recordTurn(
             pd.getCurrentTimeMilliseconds(), state.cursorX, true)
     end
-    self.undoController:save("DROP")
+    self.undoController:save()
     if state.mode == Config.GAME_MODE.PRACTICE then
         state.practiceTurnCount += 1
     end

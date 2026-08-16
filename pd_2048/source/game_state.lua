@@ -48,11 +48,10 @@ local Config <const> = GameConfig
 ---@field activeMergeY integer 現在マージ中のブロックのY座標
 ---■回転アニメーション関連
 ---@field rotationClockwise boolean 回転方向が時計回りかどうか
----@field rotationStartBoard Array2D 回転開始時の盤面
----@field rotationEndBoard Array2D 回転終了時の盤面
----@field hasRotation boolean 回転アニメーションがあるかどうか
+---@field rotationStartBoard Array2D? 回転開始時の盤面
+---@field rotationEndBoard Array2D? 回転終了時の盤面
 ---■UNDO関連.
----@field undoStates table<integer, GameState> UNDO用のゲーム状態の履歴.
+---@field undoStates table<integer, UndoSnapshot> UNDO用のゲーム状態の履歴.
 ---@field rewindUsesRemaining integer リワインドの残り使用回数.
 ---@field rewindHoldStartedAt integer? HOLD巻き戻しが開始された時刻 (ミリ秒)
 ---@field rewindHoldTriggered boolean HOLD巻き戻しがトリガーされたかどう
@@ -77,7 +76,6 @@ local Config <const> = GameConfig
 ---@field comboBonusScore integer 現在のコンボボーナススコア
 ---@field comboDisplayFrame integer コンボ表示のフレーム数
 ---@field comboSoundPlayed boolean コンボサウンドが再生済みかどうか
----@field rewindHoldAnimationActive boolean HOLD巻き戻しアニメーションがアクティブかどうか
 ---■演出制御.
 ---@field startReadyUntil integer ゲーム開始前の準備演出の終了時刻
 ---@field nextAnimationGameOver boolean 次のアニメーションでゲームオーバーになるかどうか
@@ -198,7 +196,6 @@ function GameState.new()
         nextAnimationGameOver = false,
         holdAnimationSourceValue = 0, holdAnimationReturnValue = 0,
         holdAnimationNextValue = 0,
-        rewindHoldAnimationActive = false,
         rotationEvaluation = 0,
         previewImpulseRotationDegrees = 0,
         crisisBgmActive = false,

@@ -1,29 +1,8 @@
 import "game_config"
+import "game/undo_snapshot"
 import "undo_history"
 
 local Config <const> = GameConfig
----@class UndoControllerSnapshot UNDOコントローラーのスナップショット. (UndoHistoryに渡すための状態)
----@field board Array2D ボードの状態.
----@field coreRushValue integer コアラッシュの値.
----@field score integer スコア.
----@field cursorX integer カーソルのX座標.
----@field holdValue integer ホールド中のブロックの値.
----@field holdAvailable boolean ホールドが可能かどうか.
----@field lastRandomBlockValue integer 最後に生成されたランダムブロックの値.
----@field consecutiveRandomBlockCount integer 連続して生成されたランダムブロックの数.
----@field practiceNextIndex integer プラクティスモードの次のブロックのインデックス.
----@field practiceSpawnCount integer プラクティスモードの生成回数
----@field practiceTurnCount integer プラクティスモードのターン数
----@field practiceNextExhausted boolean プラクティスモードの次のブロックが尽きているかどうか
----@field practiceMergeCount integer プラクティスモードのマージ回数
----@field level integer レベル
----@field levelXp integer レベルの経験値
----@field levelDropCount integer レベルのドロップ回数
----@field levelCreatedMilestones table<integer, boolean> レベルの作成済みマイルストーン
----@field levelXpBySource table<integer, integer> レベルの経験値のソースごとの値
----@field nextValues table<integer, integer> 次のブロックの値の配列
----@field randomGeneratorState integer ランダムジェネレーターの状態.
-
 local GamePhase <const> = Config.GAME_PHASE
 ---@class UndoController ゲームのUNDO管理クラス.
 ---@field state GameState ゲーム状態.
@@ -46,27 +25,17 @@ function UndoController.new(dependencies)
     }, UndoController)
 end
 
-function UndoController:save(action)
+function UndoController:save()
     local state = self.state
-	-- UNDO履歴に現在の状態を保存する.
-	---@see UndoControllerSnapshot
-    UndoHistory.push(state.undoStates, {
-        board = state.board, score = state.score, cursorX = state.cursorX,
-        holdValue = state.holdValue, holdAvailable = state.holdAvailable,
-        lastRandomBlockValue = state.lastRandomBlockValue,
-        consecutiveRandomBlockCount = state.consecutiveRandomBlockCount,
-        practiceNextIndex = state.practiceNextIndex,
-        practiceSpawnCount = state.practiceSpawnCount,
-        practiceTurnCount = state.practiceTurnCount,
-        practiceMergeCount = state.practiceMergeCount,
-        level = state.level,
-        levelXp = state.levelXp,
-        levelDropCount = state.levelDropCount,
-        levelCreatedMilestones = state.levelCreatedMilestones,
-        levelXpBySource = state.levelXpBySource,
-        nextValues = state.nextValues,
-        randomGeneratorState = self.randomGenerator:getState(),
-    }, action)
+    local snapshot = UndoSnapshot.capture(state, self.randomGenerator:getState())
+    UndoHistory.push(state.undoStates, snapshot)
+end
+
+-- 最新のUNDO履歴に回転情報を記録する.
+---@param clockwise boolean 回転方向が時計回りかどうか
+function UndoController:recordRotation(clockwise)
+    local snapshot = UndoHistory.peek(self.state.undoStates)
+    if snapshot ~= nil then snapshot.turn.rotationClockwise = clockwise end
 end
 
 -- UNDOが可能かどうかを判定する.
@@ -90,46 +59,18 @@ function UndoController:restore()
     end
 
     local restored = UndoHistory.pop(state.undoStates)
-    local rewindHoldAnimation = restored.action == "HOLD"
-    state.rewindHoldAnimationActive = rewindHoldAnimation
-    if rewindHoldAnimation then
-        state.holdAnimationSourceValue = state.nextValues[1]
-        state.holdAnimationReturnValue = state.holdValue
-    end
-
+    ---@cast restored UndoSnapshot
     state.rewindUsesRemaining -= 1
     local currentBoard = state.board
-    state.board = restored.board
-    state.score = restored.score
-    state.coreRushValue = restored.coreRushValue or 0
+    UndoSnapshot.apply(restored, state, self.randomGenerator)
     state.coreRushGainCombo = 0
     state.coreRushGainMergeValue = 0
     state.coreRushGainTotal = 0
     state.coreRushGainUntil = 0
-    state.cursorX = restored.cursorX
-    state.holdValue = restored.holdValue
-    state.holdAvailable = restored.holdAvailable
-    state.lastRandomBlockValue = restored.lastRandomBlockValue or 0
-    state.consecutiveRandomBlockCount = restored.consecutiveRandomBlockCount or 0
-    state.practiceNextIndex = restored.practiceNextIndex or 1
-    state.practiceSpawnCount = restored.practiceSpawnCount or 0
-    state.practiceTurnCount = restored.practiceTurnCount or 0
-    state.practiceNextExhausted = restored.practiceNextExhausted or false
-    state.practiceMergeCount = restored.practiceMergeCount or 0
-    state.level = restored.level or 1
-    state.levelXp = restored.levelXp or 0
-    state.levelDropCount = restored.levelDropCount or 0
-    state.levelCreatedMilestones = restored.levelCreatedMilestones or {}
-    state.levelXpBySource = restored.levelXpBySource
-        or { drop = 0, merge = 0, firstTile = 0, combo = 0 }
     state.levelUpFrom = 0
     state.levelUpTo = 0
     state.levelUpDisplayFrame = Config.LEVEL_UP_DISPLAY_FRAMES
     state.practiceVictoryPending = false
-    state.nextValues = restored.nextValues
-    if restored.randomGeneratorState ~= nil then
-        self.randomGenerator:setState(restored.randomGeneratorState)
-    end
     state.holdAnimationNextValue = 0
 
     self.session:resetCombo()
@@ -143,19 +84,16 @@ function UndoController:restore()
     state.crisisBgmActive = false
 
     self.sound:play_se("rewind")
-    if restored.hasRotation then
+    local rotationClockwise = restored.turn.rotationClockwise
+    if rotationClockwise ~= nil then
         state.board = currentBoard
         state.rotationStartBoard = currentBoard
-        state.rotationEndBoard = restored.board
-        state.rotationClockwise = not restored.rotationClockwise
+        state.rotationEndBoard = restored.state.board
+        state.rotationClockwise = not rotationClockwise
         state.animationProgress = 0
         state.animationDuration = 0.38
         self.sound:play_se("rotate")
         state.phase = GamePhase.UNDO_ROTATING
-    elseif rewindHoldAnimation then
-        state.animationProgress = 0
-        state.animationDuration = 0.30
-        state.phase = GamePhase.HOLD_ANIM
     else
         state.holdAnimationSourceValue = 0
         state.holdAnimationReturnValue = 0
