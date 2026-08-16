@@ -121,7 +121,8 @@ function App:draw()
 		pd.drawFPS(2, 2)
 	end
 
-    if state.phase == Config.GAME_PHASE.UNDO_ROTATING then
+    if not state.suspendRestoreActive
+        and state.phase == Config.GAME_PHASE.UNDO_ROTATING then
 		-- XORの反転描画.
         local previousColor = gfx.getColor()
         gfx.setColor(gfx.kColorXOR)

@@ -47,6 +47,10 @@ function NormalGameScene:update()
 end
 
 function NormalGameScene:draw()
+    if self.context.game:isSuspendRestoring() then
+        self.context.renderer:drawSuspendLoadingFrame()
+        return
+    end
     self.context.renderer:drawNormalFrame()
 end
 

@@ -174,13 +174,6 @@ function OverlayRenderer:drawRewindHint()
 end
 
 function OverlayRenderer:drawReplayStatus()
-    if self.state.suspendRestoreActive then
-        gfx.fillRoundRect(8, 216, 112, 20, 4)
-        gfx.setImageDrawMode(gfx.kDrawModeInverted)
-        gfx.drawTextAligned("RESTORING...", 64, 218, kTextAlignment.center)
-        gfx.setImageDrawMode(gfx.kDrawModeCopy)
-        return
-    end
     if not self.state.replayActive then return end
     gfx.fillRoundRect(8, 216, 72, 20, 4)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)

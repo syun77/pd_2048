@@ -341,6 +341,15 @@ function GameRenderer:drawNormalFrame()
     end
 end
 
+-- 中断データの復元中にゲーム状態を見せないための描画.
+function GameRenderer:drawSuspendLoadingFrame()
+    gfx.setColor(gfx.kColorBlack)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+    gfx.drawTextAligned("NOW LOADING...",
+        Config.SCREEN_CENTER_X, Config.SCREEN_CENTER_Y,
+        kTextAlignment.center)
+end
+
 function GameRenderer:drawGameOverFrame(selectedIndex)
     self:drawHeader()
     self.overlay:drawDangerIcons()
