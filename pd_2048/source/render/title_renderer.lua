@@ -72,7 +72,8 @@ end
 ---@param selectedIndex integer 選択している項目番号
 ---@param menuItems any[] 項目リスト
 ---@param title string|nil
-function TitleRenderer:drawTitle(selectedIndex, menuItems, title)
+---@param notice string|nil
+function TitleRenderer:drawTitle(selectedIndex, menuItems, title, notice)
     self:drawBackground()
     local labels = {}
     local itemOptions = {}
@@ -101,6 +102,8 @@ function TitleRenderer:drawTitle(selectedIndex, menuItems, title)
         if item ~= nil and item.footer ~= nil then
             self:drawCenteredText(item.footer, 220)
         end
+    elseif notice ~= nil then
+        self:drawCenteredText(notice, 220)
     end
 end
 

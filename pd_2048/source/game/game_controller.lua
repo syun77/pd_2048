@@ -50,6 +50,9 @@ function GameController.new(dependencies)
     self.replayExecuting = false
     self.replayRemainingHolds = 0
     self.replaySaved = false
+    self.suspendRestoreData = nil
+    self.suspendRestoreActive = false
+    self.titleNotice = nil
     self.practiceStage = nil
     self.session = GameSession.new(self.state)
     self.undoController = UndoController.new({
@@ -77,6 +80,24 @@ function GameController:isReplayMode()
     return self.replayMode
 end
 
+function GameController:isSuspendRestoring()
+    return self.suspendRestoreActive
+end
+
+function GameController:hasSuspendData()
+    return ReplayController.hasSuspend(pd)
+end
+
+function GameController:discardSuspendData()
+    ReplayController.deleteSuspend(pd)
+end
+
+function GameController:consumeTitleNotice()
+    local notice = self.titleNotice
+    self.titleNotice = nil
+    return notice
+end
+
 function GameController:listReplays()
     return ReplayController.loadAll(pd)
 end
@@ -98,6 +119,23 @@ function GameController:restartReplay()
     if data == nil or data.mode ~= Config.GAME_MODE.NORMAL then return false end
     self:start(Config.GAME_MODE.NORMAL, nil,
         { replayData = data, seed = data.seed })
+    return true
+end
+
+-- NORMALの中断データを読み込み、復元処理を開始する関数.
+---@return boolean 開始できたかどうか
+function GameController:startSuspendRestore()
+    local data = ReplayController.loadSuspend(pd)
+    if data == nil then return false end
+    self.suspendRestoreData = data
+    self.suspendRestoreActive = true
+    self.sound.effectsSuppressed = true
+    self:start(Config.GAME_MODE.NORMAL, nil, {
+        replayData = data,
+        seed = data.seed,
+        restoring = true,
+    })
+    self.state.levelRecordEligible = data.levelRecordEligible ~= false
     return true
 end
 
@@ -828,7 +866,10 @@ function GameController:start(mode, practiceStage, options)
     self.replayExecuting = false
     self.replayRemainingHolds = 0
     self.replaySaved = false
+    self.suspendRestoreActive = options.restoring == true
+    if not self.suspendRestoreActive then self.suspendRestoreData = nil end
     state.replayActive = self.replayMode
+    state.suspendRestoreActive = self.suspendRestoreActive
     local seed = options.seed or self:createReplaySeed()
     self.randomGenerator:setSeed(seed)
     state.mode = mode or Config.GAME_MODE.NORMAL
@@ -922,13 +963,16 @@ function GameController:start(mode, practiceStage, options)
     end
     state.phase = GamePhase.INPUT
 	-- "GET READY" 表示開始.
-    state.startReadyUntil = pd.getCurrentTimeMilliseconds() + 1000
+    state.startReadyUntil = self.suspendRestoreActive
+        and 0 or pd.getCurrentTimeMilliseconds() + 1000
     state.message = ""
     state.crisisBgmActive = false
 	-- BGM再生開始.
-    self.sound:playGameBgm()
-	-- 開始SEの再生
-	self.sound:play_se("start")
+    if not self.suspendRestoreActive then
+	    self.sound:playGameBgm()
+	    -- 開始SEの再生
+	    self.sound:play_se("start")
+    end
 end
 
 function GameController:holdCurrentBlock()
@@ -1076,6 +1120,35 @@ function GameController:completeReplayEvent()
     self.replayRemainingHolds = 0
 end
 
+-- 受理済みのアニメーションを論理的な安定状態まで完了させる関数.
+---@return boolean INPUT状態へ到達したかどうか
+function GameController:settleAnimationsForSuspend()
+    local previousSuppressed = self.sound.effectsSuppressed
+    self.sound.effectsSuppressed = true
+    local steps = 0
+    while GameState.isAnimating(self.state) and steps < 1000 do
+        self.state.animationProgress = 1
+        self:advanceAnimation()
+        steps += 1
+    end
+    self.sound.effectsSuppressed = previousSuppressed
+    return self.state.phase == GamePhase.INPUT and self.state.result == nil
+end
+
+-- 現在のNORMALプレイを中断保存する関数.
+---@return boolean 保存に成功したかどうか
+function GameController:suspendNormalGame()
+    local state = self.state
+    if state.mode ~= Config.GAME_MODE.NORMAL or self.replayMode
+        or self.suspendRestoreActive or state.result ~= nil then return false end
+    if not self:settleAnimationsForSuspend() then return false end
+    self:resetCursorKeyRepeat()
+    state.rewindHoldStartedAt = nil
+    state.rewindHoldTriggered = false
+    return self.replayController:saveSuspend(
+        state, self.randomGenerator:getState())
+end
+
 function GameController:stopReplayWithError()
     self.replayIndex = #(self.replayData.events or {}) + 1
     self.replayEventStartedAt = nil
@@ -1083,7 +1156,7 @@ function GameController:stopReplayWithError()
     self:setMessage("REPLAY DESYNC", 3000)
 end
 
-function GameController:updateReplayPlayback(now)
+function GameController:updateReplayPlayback(now, ignoreWait)
     local state = self.state
     local events = self.replayData ~= nil and self.replayData.events or {}
     local event = events[self.replayIndex]
@@ -1093,7 +1166,8 @@ function GameController:updateReplayPlayback(now)
         self.replayEventStartedAt = now
     end
     if not self.replayExecuting then
-        if now - self.replayEventStartedAt < (event.waitMs or 0) then return end
+        if not ignoreWait
+            and now - self.replayEventStartedAt < (event.waitMs or 0) then return end
         self.replayExecuting = true
         self.replayRemainingHolds = event.holdApplications or 0
     end
@@ -1106,7 +1180,7 @@ function GameController:updateReplayPlayback(now)
         self:completeReplayEvent()
         return
     end
-    if event.type ~= "TURN" then
+    if event.type ~= "TURN" and event.type ~= "CHECKPOINT" then
         self:stopReplayWithError()
         return
     end
@@ -1144,6 +1218,70 @@ function GameController:updateReplayPlayback(now)
     self:completeReplayEvent()
 end
 
+-- 中断イベントを高速適用し、通常プレイへ引き継ぐ関数.
+---@return table? シーン遷移要求
+function GameController:updateSuspendRestore()
+    local state = self.state
+    local data = self.suspendRestoreData
+    if data == nil then
+        self.suspendRestoreActive = false
+        state.suspendRestoreActive = false
+        state.replayActive = false
+        self.replayMode = false
+        self.sound.effectsSuppressed = false
+        self.titleNotice = "SUSPEND DATA ERROR"
+        return { scene = Config.SCENE.TITLE }
+    end
+
+    for _ = 1, Config.SUSPEND_RESTORE_STEPS_PER_FRAME do
+        if state.result ~= nil then break end
+        if GameState.isAnimating(state) then
+            state.animationProgress = 1
+            self:advanceAnimation()
+        elseif self.replayIndex <= #(data.events or {}) then
+            self:updateReplayPlayback(pd.getCurrentTimeMilliseconds(), true)
+        else
+            local checksum = ReplayController.suspendChecksum(
+                state, self.randomGenerator:getState())
+            if checksum ~= data.checkpointChecksum then break end
+
+            self.replayMode = false
+            self.replayData = nil
+            self.replayIndex = 1
+            self.replayEventStartedAt = nil
+            self.replayExecuting = false
+            self.replayRemainingHolds = 0
+            self.suspendRestoreActive = false
+            self.suspendRestoreData = nil
+            state.replayActive = false
+            state.suspendRestoreActive = false
+            state.levelRecordEligible = data.levelRecordEligible ~= false
+            self.replayController:resume(data)
+            ReplayController.deleteSuspend(pd)
+            self.sound.effectsSuppressed = false
+            self.sound:playGameBgm()
+            self:setMessage("GAME RESUMED", 1000)
+            return nil
+        end
+    end
+
+    local exhausted = self.replayIndex > #(data.events or {})
+        and not GameState.isAnimating(state)
+    if state.result ~= nil or exhausted then
+        self.replayController:cancelRecording()
+        self.replayMode = false
+        self.replayData = nil
+        self.suspendRestoreActive = false
+        self.suspendRestoreData = nil
+        state.replayActive = false
+        state.suspendRestoreActive = false
+        self.sound.effectsSuppressed = false
+        self.titleNotice = "SUSPEND DATA ERROR"
+        return { scene = Config.SCENE.TITLE }
+    end
+    return nil
+end
+
 function GameController:finishReplayRecordingIfNeeded()
     if self.replaySaved or self.state.result == nil then return end
     self.replaySaved = true
@@ -1165,6 +1303,7 @@ end
 -- 更新.
 function GameController:update()
     local state = self.state
+    if self.suspendRestoreActive then return self:updateSuspendRestore() end
     if state.levelUpDisplayFrame < Config.LEVEL_UP_DISPLAY_FRAMES then
         state.levelUpDisplayFrame += 1
     end

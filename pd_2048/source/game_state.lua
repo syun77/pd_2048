@@ -106,6 +106,7 @@ local Config <const> = GameConfig
 ---@field replayStartTimeMs integer リプレイ再生開始時刻 (ミリ秒)
 ---@field replayLastUpdateTimeMs integer リプレイ再生中の最後の更新時刻 (ミリ秒)
 ---@field replaySpeed number リプレイ再生速度 (1.0 = 通常速度)
+---@field suspendRestoreActive boolean 中断データを復元中かどうか
 ---■実績関連.
 ---@field timeAttackBestTimeMs integer タイムアタックモードでの最短クリア時間（ミリ秒）
 ---@field coreRushBestTimeMs integer コアラッシュモードでの最短クリア時間（ミリ秒）
@@ -184,6 +185,7 @@ function GameState.new()
         phase = Config.GAME_PHASE.INPUT,
         result = nil,
         replayActive = false,
+        suspendRestoreActive = false,
         message = "",
         messageUntil = 0,
         animationProgress = 0,

@@ -16,15 +16,27 @@ local function getModeSelectItem(scene)
 end
 
 function NormalGameScene.new(context)
-    return setmetatable({ context = context, manager = nil }, NormalGameScene)
+    return setmetatable({
+        context = context,
+        manager = nil,
+        restoreMenuPending = false,
+    }, NormalGameScene)
 end
 
 function NormalGameScene:enter()
-    self.context.sound:playGameBgm()
+    self.restoreMenuPending = self.context.game:isSuspendRestoring()
+    if not self.restoreMenuPending then
+        self.context.sound:playGameBgm()
+    end
 end
 
 function NormalGameScene:update()
     local result = self.context.game:update()
+    if self.restoreMenuPending
+        and not self.context.game:isSuspendRestoring() then
+        self.restoreMenuPending = false
+        self.manager:refreshSystemMenu()
+    end
     if result ~= nil and result.scene ~= nil then
         self.manager:change(result.scene)
     end
@@ -35,6 +47,7 @@ function NormalGameScene:draw()
 end
 
 function NormalGameScene:getSystemMenuItems()
+    if self.context.game:isSuspendRestoring() then return {} end
     local returnTitle, returnParams = getModeSelectItem(self)
     local items = {}
 
@@ -49,12 +62,28 @@ function NormalGameScene:getSystemMenuItems()
         }
     end
 
-    items[#items + 1] = {
-        title = returnTitle,
-        callback = function()
-            self.manager:change(GameConfig.SCENE.TITLE, returnParams)
-        end,
-    }
+    local state = self.context.game:getState()
+    if state.mode == GameConfig.GAME_MODE.NORMAL
+        and not self.context.game:isReplayMode()
+        and not self.context.game:isSuspendRestoring() then
+        items[#items + 1] = {
+            title = "Suspend",
+            callback = function()
+                if self.context.game:suspendNormalGame() then
+                    self.manager:change(GameConfig.SCENE.TITLE)
+                else
+                    self.context.game:setMessage("SUSPEND FAILED", 1800)
+                end
+            end,
+        }
+    else
+        items[#items + 1] = {
+            title = returnTitle,
+            callback = function()
+                self.manager:change(GameConfig.SCENE.TITLE, returnParams)
+            end,
+        }
+    end
     items[#items + 1] = {
         title = "Retry",
         callback = function()

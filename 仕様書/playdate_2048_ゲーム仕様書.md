@@ -143,6 +143,19 @@ cellY = 54 + (y - 1) * 32
 - 再生中はハイスコアと最高レベルを更新しない。
 - 待ち時間を3秒へ切り詰めるため、再生中の経過時間は元プレイと一致しない場合がある。元プレイの経過時間はリプレイのサマリーへ保存する。
 
+### 5.5 中断セーブ
+
+- 中断セーブはプレイヤーが操作するNORMALでのみ使用でき、TIME ATTACK、CORE RUSH、PRACTICE、リプレイ再生、ゲームオーバーでは使用できない。
+- 中断データはdatastoreの`normalSuspend`へ1件だけ保存し、リプレイ一覧の最大30件には含めない。再度中断した場合は最新データで上書きする。
+- NORMALプレイ中のPlaydateシステムメニューでは`Back to Title`の代わりに`Suspend`を表示する。保存に成功した場合だけタイトルへ戻り、失敗した場合はゲームを継続して`SUSPEND FAILED`を表示する。
+- 互換性のある中断データが存在する場合、タイトルの`NORMAL GAME`から`CONTINUE`と`NEW GAME`を選択する。初期カーソルは`CONTINUE`とし、Bボタンでタイトルへ戻る。
+- `CONTINUE`はseedと論理イベント列から状態を高速復元し、チェックサムが一致した場合だけ通常入力とリプレイ記録を再開する。復元中は`RESTORING...`を表示し、待ち時間、SE、各アニメーションの実時間を省略する。
+- `NEW GAME`は中断データを破棄して新しいNORMALを開始する。復元成功時にも中断データを削除するため、中断データは一回だけ使用できる。
+- 中断前後の論理イベント列は引き継ぎ、ゲーム終了時に保存する完成リプレイへ両方を含める。
+- 中断時点の未確定なカーソル移動とHOLD結果は`CHECKPOINT`イベントとして保存する。アニメーション中に中断した場合、受理済み操作を次の安定した`INPUT`状態まで適用した状態を中断地点とする。
+- アニメーションの途中フレーム、一時メッセージ、キーの押下状態、BGMとSEの再生位置は復元しない。
+- 中断データの欠損、非互換、復元後のチェックサム不一致では通常プレイを開始せず、タイトルへ戻って`SUSPEND DATA ERROR`を表示する。失敗した中断データは自動削除しない。
+
 ## 6. 落下可能セル
 
 `findDropCell`は各列を`y=1`から`y=5`へ調べ、最初に見つかった合法セルを落下先とする。落下先より上側にブロックがある場合は、その列に落下できない。下側のブロックは接着面として利用できる。
@@ -416,7 +429,7 @@ Playdateのシステムメニュー項目は画面遷移時に切り替える。
 | 画面 | 項目 |
 |---|---|
 | タイトル | `BG: ...` |
-| ゲーム（NORMAL GAME） | `Back to Title`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
+| ゲーム（NORMAL GAME） | `Suspend`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play`。リプレイ再生中は`Suspend`ではなく`Back to Title` |
 | ゲーム（TIME ATTACK） | `Mode Select`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
 | ゲーム（PRACTICE） | `Stage Select`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
 | ゲームオーバー | 現在のモードに応じた戻り項目（`Back to Title`、`Mode Select`、`Stage Select`）と`Retry` |
@@ -424,6 +437,7 @@ Playdateのシステムメニュー項目は画面遷移時に切り替える。
 
 - `Auto Play`：自動プレイの有効・無効を切り替える開発・補助機能。製品版では`SHOW_AUTO_PLAY_MENU_ITEM`の初期値を`false`にして非表示にする
 - `Back to Title`：タイトルへ戻る
+- `Suspend`：現在のNORMALを中断保存し、保存成功後にタイトルへ戻る
 - `Mode Select`：TIME ATTACKのモード選択へ戻る
 - `Stage Select`：PRACTICEのステージ選択へ戻る
 - `Retry`：現在のモードでリスタート
@@ -438,4 +452,4 @@ Auto Playは通常の入力と同じDROP、HOLD、左右移動コマンドをゲ
 - 盤面の回転・マージ・履歴管理は描画処理から分離する。
 - アニメーション中は新しいゲーム操作を受け付けない。
 - NEXTキューは内部に7個保持し、表示は6個とする。
-- ハイスコア、NORMALの最高レベル、PRACTICEステージのクリア状況はPlaydateの`datastore`へ保存する。
+- ハイスコア、NORMALの最高レベル、PRACTICEステージのクリア状況、NORMALの中断データはPlaydateの`datastore`へ保存する。

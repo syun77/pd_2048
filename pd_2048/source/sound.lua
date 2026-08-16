@@ -111,6 +111,7 @@ local seTable = {
 ---@field bgmRandomMode BGMRandomMode BGMランダム再生モード.
 ---@field bgmRandomCount integer ランダム再生回数.
 ---@field isChangingBgm boolean BGMを切り替え中かどうか.
+---@field effectsSuppressed boolean SEを一時的に抑制するかどうか.
 ---@field pool table<string, pd.sound.sampleplayer> SEのプール.
 ---@field setBgmRandomMode fun(self: Sound, mode: BGMRandomMode) BGMランダム再生モードを設定する.
 ---@field playMenuBgm fun(self: Sound) メニューBGMを再生する.
@@ -140,6 +141,7 @@ function Sound:init()
 	self.bgmRandomMode = BGMRandomMode.MENU -- デフォルトはメニューBGM.
 	self.bgmRandomCount = 0 -- ランダム再生回数.
 	self.isChangingBgm = false
+	self.effectsSuppressed = false
 
 	-- SEは常駐.
 	self.pool = {}
@@ -382,6 +384,7 @@ end
 
 -- SEを再生する.
 function Sound:play_se(soundName)
+	if self.effectsSuppressed then return end
 	if self.pool ~= nil and self.pool[soundName] ~= nil then
 		-- print("Sound:play_se() - playing SE: " .. soundName)
 		self.pool[soundName]:play()

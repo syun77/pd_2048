@@ -37,6 +37,7 @@ function TitleScene.new(context)
         page = "ROOT",
         selectedByPage = {
             ROOT = 1,
+            NORMAL = 1,
             REPLAYS = 1,
             TIME_ATTACK = 1,
             PRACTICE = 1,
@@ -61,7 +62,12 @@ function TitleScene.new(context)
               mode = GameConfig.GAME_MODE.CORE_RUSH },
         },
         replayItems = {},
+        normalItems = {
+            { label = "CONTINUE", continueSuspend = true },
+            { label = "NEW GAME", newNormal = true },
+        },
         practiceItems = {},
+        notice = nil,
     }, TitleScene)
 end
 
@@ -100,6 +106,19 @@ end
 function TitleScene:enter(params)
 	-- メニュー用BGMを再生.
     self.context.sound:playMenuBgm()
+    self.notice = self.context.game:consumeTitleNotice()
+    local normalItem = self.menuItems[1]
+    if self.context.game:hasSuspendData() then
+        normalItem.scene = nil
+        normalItem.mode = nil
+        normalItem.submenu = true
+        normalItem.submenuPage = "NORMAL"
+    else
+        normalItem.scene = GameConfig.SCENE.GAME
+        normalItem.mode = GameConfig.GAME_MODE.NORMAL
+        normalItem.submenu = nil
+        normalItem.submenuPage = nil
+    end
     for index = #self.menuItems, 1, -1 do
         if self.menuItems[index].replayMenu then table.remove(self.menuItems, index) end
     end
@@ -205,6 +224,22 @@ function TitleScene:update()
             end
             return
         end
+        if item.continueSuspend then
+            if self.context.game:startSuspendRestore() then
+                self.manager:change(GameConfig.SCENE.GAME)
+            else
+                self.context.sound:play_se("error")
+                self.page = "ROOT"
+                self.selectedIndex = 1
+            end
+            return
+        end
+        if item.newNormal then
+            self.context.game:discardSuspendData()
+            self.context.game:start(GameConfig.GAME_MODE.NORMAL)
+            self.manager:change(GameConfig.SCENE.GAME)
+            return
+        end
         if item.submenu then
             self.page = item.submenuPage
             self.selectedIndex = 1
@@ -213,6 +248,9 @@ function TitleScene:update()
             return
         end
         if item.mode ~= nil then
+            if item.mode == GameConfig.GAME_MODE.NORMAL then
+                self.context.game:discardSuspendData()
+            end
             self.context.game:start(item.mode, item.practiceStage)
         end
         self.manager:change(item.scene)
@@ -223,12 +261,14 @@ end
 function TitleScene:draw()
     local items = self:getCurrentItems()
     local title = self.page == "ROOT" and nil or self.page
-    self.context.titleRenderer:drawTitle(self.selectedIndex, items, title)
+    self.context.titleRenderer:drawTitle(
+        self.selectedIndex, items, title, self.notice)
 end
 
 -- 選択している項目リストを取得.
 function TitleScene:getCurrentItems()
     if self.page == "ROOT" then return self.menuItems end
+    if self.page == "NORMAL" then return self.normalItems end
     if self.page == "REPLAYS" then return self.replayItems end
     if self.page == "TIME_ATTACK" then return self.timeAttackItems end
     return self.practiceItems

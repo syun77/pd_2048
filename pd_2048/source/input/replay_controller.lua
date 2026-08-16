@@ -16,6 +16,7 @@ local INDEX_DATASTORE_KEY <const> = "replayIndex"
 local REPLAY_DATASTORE_PREFIX <const> = "replay_"
 local COLLECTION_DATASTORE_KEY <const> = "replays"
 local LEGACY_DATASTORE_KEY <const> = "lastReplay"
+local SUSPEND_DATASTORE_KEY <const> = "normalSuspend"
 local INDEX_VERSION <const> = 1
 local COLLECTION_VERSION <const> = 1
 
@@ -47,6 +48,16 @@ local function isCompatibleReplay(data)
         and data.mode == Config.GAME_MODE.NORMAL
         and type(data.seed) == "number"
         and type(data.events) == "table"
+end
+
+-- 現行ルールで復元できる中断データか判定する関数.
+---@param data any 中断データ
+---@return boolean 復元可能かどうか
+local function isCompatibleSuspend(data)
+    return isCompatibleReplay(data)
+        and data.suspendVersion == Config.SUSPEND_FORMAT_VERSION
+        and type(data.checkpointChecksum) == "number"
+        and type(data.summary) == "table"
 end
 
 -- 一覧用メタデータが現行ルールと互換か判定する関数.
@@ -279,6 +290,64 @@ function ReplayController.checksum(state, randomGeneratorState)
     return addHash(hash, randomGeneratorState)
 end
 
+local function addFlatTableHash(hash, values)
+    local keys = {}
+    for key in pairs(values or {}) do table.insert(keys, tostring(key)) end
+    table.sort(keys)
+    for _, key in ipairs(keys) do
+        hash = addHash(hash, key)
+        hash = addHash(hash, values[key] or values[tonumber(key)])
+    end
+    return hash
+end
+
+-- 中断復元で必要な進行状態を含むチェックサムを計算する関数.
+---@param state GameState ゲーム状態
+---@param randomGeneratorState integer ランダムジェネレーターの状態
+---@return integer チェックサム値
+function ReplayController.suspendChecksum(state, randomGeneratorState)
+    local hash = ReplayController.checksum(state, randomGeneratorState)
+    hash = addHash(hash, state.level)
+    hash = addHash(hash, state.levelXp)
+    hash = addHash(hash, state.levelDropCount)
+    hash = addFlatTableHash(hash, state.levelCreatedMilestones)
+    hash = addFlatTableHash(hash, state.levelXpBySource)
+    hash = addHash(hash, state.rewindUsesRemaining)
+    hash = addHash(hash, state.holdAvailable)
+    hash = addHash(hash, state.lastRandomBlockValue)
+    hash = addHash(hash, state.consecutiveRandomBlockCount)
+    hash = addHash(hash, state.levelRecordEligible)
+    hash = addHash(hash, #(state.undoStates or {}))
+    for _, snapshot in ipairs(state.undoStates or {}) do
+        local restored = snapshot.state or {}
+        if restored.board ~= nil then
+            for y = 1, Config.BOARD_SIZE do
+                for x = 1, Config.BOARD_SIZE do
+                    hash = addHash(hash, restored.board:get(x, y))
+                end
+            end
+        end
+        hash = addHash(hash, restored.score)
+        hash = addHash(hash, restored.cursorX)
+        hash = addHash(hash, restored.holdValue)
+        hash = addHash(hash, restored.holdAvailable)
+        hash = addHash(hash, restored.lastRandomBlockValue)
+        hash = addHash(hash, restored.consecutiveRandomBlockCount)
+        hash = addHash(hash, restored.randomGeneratorState)
+        hash = addHash(hash, restored.level)
+        hash = addHash(hash, restored.levelXp)
+        hash = addHash(hash, restored.levelDropCount)
+        hash = addFlatTableHash(hash, restored.levelCreatedMilestones)
+        hash = addFlatTableHash(hash, restored.levelXpBySource)
+        for index = 1, Config.NEXT_QUEUE_COUNT do
+            hash = addHash(hash, (restored.nextValues or {})[index])
+        end
+        hash = addHash(hash, snapshot.turn ~= nil
+            and snapshot.turn.rotationClockwise or nil)
+    end
+    return hash
+end
+
 -- 生成.
 ---@param pd playdate Playdate SDKのグローバルオブジェクト
 function ReplayController.new(pd)
@@ -291,6 +360,7 @@ function ReplayController.new(pd)
         lastInputAt = nil,
         decisionHoldWasEmpty = false,
         rawHoldCount = 0,
+        pendingTurnUsedHold = false,
     }, ReplayController)
 end
 
@@ -299,6 +369,28 @@ end
 ---@return table[] 読み込まれたリプレイ一覧
 function ReplayController.loadAll(pd)
     return loadIndex(pd).entries
+end
+
+-- 中断データを読み込む関数.
+---@param pd playdate Playdate SDKのグローバルオブジェクト
+---@return table? 中断データ
+function ReplayController.loadSuspend(pd)
+    local ok, data = pcall(pd.datastore.read, SUSPEND_DATASTORE_KEY)
+    if not ok or not isCompatibleSuspend(data) then return nil end
+    return data
+end
+
+-- 互換性のある中断データが存在するか判定する関数.
+---@param pd playdate Playdate SDKのグローバルオブジェクト
+---@return boolean
+function ReplayController.hasSuspend(pd)
+    return ReplayController.loadSuspend(pd) ~= nil
+end
+
+-- 中断データを削除する関数.
+---@param pd playdate Playdate SDKのグローバルオブジェクト
+function ReplayController.deleteSuspend(pd)
+    deleteDatastore(pd, SUSPEND_DATASTORE_KEY)
 end
 
 -- IDで指定した個別リプレイを読み込む関数.
@@ -388,6 +480,7 @@ function ReplayController:cancelRecording()
     self.decisionWaitMs = 0
     self.lastInputAt = nil
     self.rawHoldCount = 0
+    self.pendingTurnUsedHold = false
 end
 
 -- 記録を開始する関数.
@@ -404,12 +497,29 @@ function ReplayController:start(mode, practiceStageId, seed)
         seed = seed,
         events = {},
         summary = { turnsWithHold = 0, turnsWithoutHold = 0 },
+        pendingTurnUsedHold = false,
     }
     self.recording = true
     self.decisionStartedAt = nil
     self.decisionWaitMs = 0
     self.lastInputAt = nil
     self.rawHoldCount = 0
+    self.pendingTurnUsedHold = false
+end
+
+-- 中断復元後に既存イベント列を引き継いで記録を再開する関数.
+---@param data table 中断データ
+function ReplayController:resume(data)
+    self.data = data
+    self.data.summary = self.data.summary
+        or { turnsWithHold = 0, turnsWithoutHold = 0 }
+    self.recording = true
+    self.decisionStartedAt = nil
+    self.decisionWaitMs = 0
+    self.lastInputAt = nil
+    self.decisionHoldWasEmpty = false
+    self.rawHoldCount = 0
+    self.pendingTurnUsedHold = self.data.pendingTurnUsedHold == true
 end
 
 -- 記録中のターンの意思決定を開始する関数.
@@ -469,19 +579,43 @@ function ReplayController:recordTurn(now, targetColumn, shouldDrop)
     if not self.recording or self.decisionStartedAt == nil then return end
     local holdCount = normalizedHoldCount(
         self.rawHoldCount, self.decisionHoldWasEmpty)
+    local usedHold = holdCount > 0 or self.pendingTurnUsedHold
     table.insert(self.data.events, {
         type = "TURN",
         waitMs = self:getDecisionWait(now),
         targetColumn = targetColumn,
-        holdClass = holdCount == 0 and "NONE" or "USED",
+        holdClass = usedHold and "USED" or "NONE",
         holdApplications = holdCount,
         drop = shouldDrop ~= false,
     })
-    if holdCount == 0 then
-        self.data.summary.turnsWithoutHold += 1
-    else
+    if usedHold then
         self.data.summary.turnsWithHold += 1
+    else
+        self.data.summary.turnsWithoutHold += 1
     end
+    self.pendingTurnUsedHold = false
+    self.data.pendingTurnUsedHold = false
+    self:finishDecision()
+end
+
+-- DROP前のカーソルとHOLD結果を中断チェックポイントとして記録する関数.
+---@param now integer 現在の時刻 (ミリ秒)
+---@param targetColumn integer 現在のカーソル列
+function ReplayController:recordCheckpoint(now, targetColumn)
+    if not self.recording or self.data == nil
+        or self.decisionStartedAt == nil then return end
+    local holdCount = normalizedHoldCount(
+        self.rawHoldCount, self.decisionHoldWasEmpty)
+    table.insert(self.data.events, {
+        type = "CHECKPOINT",
+        waitMs = self:getDecisionWait(now),
+        targetColumn = targetColumn,
+        holdClass = holdCount == 0 and "NONE" or "USED",
+        holdApplications = holdCount,
+        drop = false,
+    })
+    self.pendingTurnUsedHold = self.pendingTurnUsedHold or holdCount > 0
+    self.data.pendingTurnUsedHold = self.pendingTurnUsedHold
     self:finishDecision()
 end
 
@@ -493,7 +627,25 @@ function ReplayController:recordRewind(now)
         type = "REWIND",
         waitMs = self:getDecisionWait(now),
     })
+    self.pendingTurnUsedHold = false
+    self.data.pendingTurnUsedHold = false
     self:finishDecision()
+end
+
+-- 記録中のNORMALを中断データとして保存する関数.
+---@param state GameState ゲーム状態
+---@param randomGeneratorState integer ランダムジェネレーターの状態
+---@return boolean 成功したかどうか
+function ReplayController:saveSuspend(state, randomGeneratorState)
+    if not self.recording or self.data == nil
+        or self.data.mode ~= Config.GAME_MODE.NORMAL then return false end
+    self:recordCheckpoint(self.pd.getCurrentTimeMilliseconds(), state.cursorX)
+    self.data.suspendVersion = Config.SUSPEND_FORMAT_VERSION
+    self.data.savedAt = currentLocalTime(self.pd)
+    self.data.levelRecordEligible = state.levelRecordEligible ~= false
+    self.data.checkpointChecksum = ReplayController.suspendChecksum(
+        state, randomGeneratorState)
+    return writeDatastore(self.pd, self.data, SUSPEND_DATASTORE_KEY)
 end
 
 -- 記録中のリプレイを終了し、保存する関数.
