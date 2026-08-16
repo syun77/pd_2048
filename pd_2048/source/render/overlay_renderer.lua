@@ -190,6 +190,15 @@ function OverlayRenderer:drawPause()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
+-- リプレイ一時停止の表示.
+function OverlayRenderer:drawReplayPause()
+    gfx.fillRect(137, 93, 126, 44)
+    gfx.setImageDrawMode(gfx.kDrawModeInverted)
+    self:drawCenteredText("PAUSED", 102)
+    self:drawCenteredText("A/B: RESUME", 120)
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
+end
+
 -- 通知メッセージの描画.
 function OverlayRenderer:drawMessage()
     local state = self.state

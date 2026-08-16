@@ -334,7 +334,9 @@ function GameRenderer:drawNormalFrame()
     self.overlay:drawReplayStatus()
     self.overlay:drawStartReady()
     self.overlay:drawLevelUp()
-    if state.phase == GamePhase.PAUSED then
+    if state.replayPaused then
+        self.overlay:drawReplayPause()
+    elseif state.phase == GamePhase.PAUSED then
         self.overlay:drawPause()
     else
         self.overlay:drawMessage()

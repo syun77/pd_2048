@@ -90,6 +90,10 @@ function GameController:isReplayMode()
     return self.replayMode
 end
 
+function GameController:isReplayPaused()
+    return self.state.replayPaused
+end
+
 function GameController:isSuspendRestoring()
     return self.suspendRestoreActive
 end
@@ -1002,6 +1006,8 @@ function GameController:start(mode, practiceStage, options)
     self.suspendRestoreActive = options.restoring == true
     if not self.suspendRestoreActive then self.suspendRestoreData = nil end
     state.replayActive = self.replayMode
+    state.replayPaused = false
+    state.replayPauseStartedAt = nil
     state.suspendRestoreActive = self.suspendRestoreActive
     local seed = options.seed or self:createReplaySeed()
     self.randomGenerator:setSeed(seed)
@@ -1266,6 +1272,31 @@ function GameController:completeReplayEvent()
     self.replayRemainingHolds = 0
 end
 
+-- リプレイ再生の一時停止を切り替える.
+-- 再開時は停止時間を待ち時間と開始演出の基準時刻から除外する.
+function GameController:toggleReplayPause(now)
+    local state = self.state
+    if not self.replayMode or self.suspendRestoreActive or state.result ~= nil then
+        return
+    end
+
+    if not state.replayPaused then
+        state.replayPaused = true
+        state.replayPauseStartedAt = now
+        return
+    end
+
+    local pausedDuration = math.max(0, now - (state.replayPauseStartedAt or now))
+    if self.replayEventStartedAt ~= nil then
+        self.replayEventStartedAt += pausedDuration
+    end
+    if state.startReadyUntil ~= 0 then
+        state.startReadyUntil += pausedDuration
+    end
+    state.replayPaused = false
+    state.replayPauseStartedAt = nil
+end
+
 -- 受理済みのアニメーションを論理的な安定状態まで完了させる関数.
 ---@return boolean INPUT状態へ到達したかどうか
 function GameController:settleAnimationsForSuspend()
@@ -1467,13 +1498,20 @@ end
 -- 更新.
 function GameController:update()
     local state = self.state
-    self:updateStatisticsPlayTime(pd.getCurrentTimeMilliseconds())
     if self.suspendRestoreActive then return self:updateSuspendRestore() end
+    local now = pd.getCurrentTimeMilliseconds()
+    if self.replayMode and state.result == nil
+        and (pd.buttonJustPressed(pd.kButtonA)
+            or pd.buttonJustPressed(pd.kButtonB)) then
+        self:toggleReplayPause(now)
+        return nil
+    end
+    if state.replayPaused then return nil end
+    self:updateStatisticsPlayTime(now)
     if state.levelUpDisplayFrame < Config.LEVEL_UP_DISPLAY_FRAMES then
         state.levelUpDisplayFrame += 1
     end
     if state.startReadyUntil ~= 0 then
-        local now = pd.getCurrentTimeMilliseconds()
         if now < state.startReadyUntil then return nil end
         state.startReadyUntil = 0
         if self:isTimeAttack() or self:isCoreRush() then
