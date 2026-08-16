@@ -195,10 +195,11 @@ end
 
 -- リプレイ一時停止の表示.
 function OverlayRenderer:drawReplayPause()
-    gfx.fillRect(137, 93, 126, 44)
+    gfx.fillRect(120, 84, 160, 68)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
-    self:drawCenteredText("PAUSED", 102)
-    self:drawCenteredText("A/B: RESUME", 120)
+    self:drawCenteredText("PAUSED", 90)
+    self:drawCenteredText("LEFT/RIGHT: STEP", 108)
+    self:drawCenteredText("A/B: RESUME", 126)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 

@@ -33,6 +33,10 @@ local GameResult <const> = Config.GAME_RESULT
 ---@field randomGenerator GameRandom ランダムジェネレーター.
 ---@field replayController ReplayController リプレイ管理.
 ---@field replayTurnByEventIndex table<integer, integer> イベントごとの表示手数.
+---@field replayTurnEndEventIndexes table<integer, integer> 各手に含める最後のイベント番号.
+---@field replaySeekActive boolean リプレイの高速再構築中か.
+---@field replayAtSeekBoundary boolean 手送り後の安定状態か.
+---@field replayPlaybackError boolean リプレイ再生エラーが発生したか.
 local GameController = {}
 GameController.__index = GameController
 
@@ -52,6 +56,10 @@ function GameController.new(dependencies)
     self.replayExecuting = false
     self.replayRemainingHolds = 0
     self.replayTurnByEventIndex = {}
+    self.replayTurnEndEventIndexes = {}
+    self.replaySeekActive = false
+    self.replayAtSeekBoundary = false
+    self.replayPlaybackError = false
     self.replaySaved = false
     self.suspendRestoreData = nil
     self.suspendRestoreActive = false
@@ -683,8 +691,10 @@ function GameController:beginGameOver()
     state.result = GameResult.GAME_OVER
     self:recordStatisticsResult()
     state.phase = GamePhase.INPUT
-    self.sound:play_se("gameover")
-    self.sound:stop_bgm(1.0)
+    if not self.replaySeekActive then
+        self.sound:play_se("gameover")
+        self.sound:stop_bgm(1.0)
+    end
 end
 
 function GameController:beginTimeUp()
@@ -1005,6 +1015,10 @@ function GameController:start(mode, practiceStage, options)
     self.replayExecuting = false
     self.replayRemainingHolds = 0
     self.replayTurnByEventIndex = {}
+    self.replayTurnEndEventIndexes = {}
+    self.replaySeekActive = options.replaySeek == true
+    self.replayAtSeekBoundary = false
+    self.replayPlaybackError = false
     self.replaySaved = false
     self.suspendRestoreActive = options.restoring == true
     if not self.suspendRestoreActive then self.suspendRestoreData = nil end
@@ -1016,8 +1030,16 @@ function GameController:start(mode, practiceStage, options)
     if self.replayMode then
         local turn = 0
         for index, event in ipairs(self.replayData.events or {}) do
-            if event.type == "TURN" then turn += 1 end
+            if event.type == "TURN" then
+                if turn > 0 then
+                    self.replayTurnEndEventIndexes[turn] = index - 1
+                end
+                turn += 1
+            end
             self.replayTurnByEventIndex[index] = turn
+        end
+        if turn > 0 then
+            self.replayTurnEndEventIndexes[turn] = #(self.replayData.events or {})
         end
         state.replayTotalTurns = turn
         if turn > 0 then
@@ -1133,12 +1155,12 @@ function GameController:start(mode, practiceStage, options)
     end
     state.phase = GamePhase.INPUT
 	-- "GET READY" 表示開始.
-    state.startReadyUntil = self.suspendRestoreActive
+    state.startReadyUntil = (self.suspendRestoreActive or options.skipReady == true)
         and 0 or pd.getCurrentTimeMilliseconds() + 1000
     state.message = ""
     state.crisisBgmActive = false
 	-- BGM再生開始.
-    if not self.suspendRestoreActive then
+    if not self.suspendRestoreActive and options.silent ~= true then
 	    self.sound:playGameBgm()
 	    -- 開始SEの再生
 	    self.sound:play_se("start")
@@ -1295,13 +1317,13 @@ end
 -- 再開時は停止時間を待ち時間と開始演出の基準時刻から除外する.
 function GameController:toggleReplayPause(now)
     local state = self.state
-    if not self.replayMode or self.suspendRestoreActive or state.result ~= nil then
-        return
-    end
+    if not self.replayMode or self.suspendRestoreActive then return end
 
     if not state.replayPaused then
+        if state.result ~= nil then return end
         state.replayPaused = true
         state.replayPauseStartedAt = now
+        self.replayAtSeekBoundary = false
         return
     end
 
@@ -1314,6 +1336,69 @@ function GameController:toggleReplayPause(now)
     end
     state.replayPaused = false
     state.replayPauseStartedAt = nil
+    self.replayAtSeekBoundary = false
+    if state.result == GameResult.GAME_OVER then
+        self.sound:play_se("gameover")
+        self.sound:stop_bgm(1.0)
+    end
+end
+
+-- seedから指定手の終了状態まで待ち時間とアニメーションを
+-- 省略して再構築する.
+---@param targetTurn integer 移動先の手数
+---@return boolean 再構築に成功したか
+function GameController:seekReplayTurn(targetTurn)
+    local data = self.replayData
+    local totalTurns = self.state.replayTotalTurns
+    if not self.replayMode or not self.state.replayPaused or data == nil
+        or totalTurns <= 0 then return false end
+
+    targetTurn = math.max(1, math.min(totalTurns, targetTurn))
+    local targetEventIndex = self.replayTurnEndEventIndexes[targetTurn]
+    if targetEventIndex == nil then return false end
+
+    local previousEffectsSuppressed = self.sound.effectsSuppressed
+    self.sound.effectsSuppressed = true
+    self:start(data.mode, nil, {
+        replayData = data,
+        seed = data.seed,
+        replaySeek = true,
+        skipReady = true,
+        silent = true,
+    })
+
+    local steps = 0
+    local maxSteps <const> = 100000
+    while steps < maxSteps do
+        local state = self.state
+        if GameState.isAnimating(state) then
+            state.animationProgress = 1
+            self:advanceAnimation()
+        elseif state.result ~= nil or self.replayIndex > targetEventIndex then
+            break
+        else
+            self:updateReplayPlayback(pd.getCurrentTimeMilliseconds(), true)
+        end
+        steps += 1
+    end
+
+    self.replaySeekActive = false
+    self.sound.effectsSuppressed = previousEffectsSuppressed
+    local reachedTarget = self.replayIndex > targetEventIndex
+        and not GameState.isAnimating(self.state) and not self.replayPlaybackError
+    if not reachedTarget then
+        if not self.replayPlaybackError then self:stopReplayWithError() end
+        self.state.replayPaused = true
+        self.state.replayPauseStartedAt = pd.getCurrentTimeMilliseconds()
+        return false
+    end
+
+    self.state.replayTurn = targetTurn
+    self.state.replayPaused = true
+    self.state.replayPauseStartedAt = pd.getCurrentTimeMilliseconds()
+    self.replayAtSeekBoundary = true
+    if self.state.result ~= nil then self:finishReplayRecordingIfNeeded() end
+    return true
 end
 
 -- 受理済みのアニメーションを論理的な安定状態まで完了させる関数.
@@ -1361,6 +1446,7 @@ function GameController:suspendNormalGame()
 end
 
 function GameController:stopReplayWithError()
+    self.replayPlaybackError = true
     self.replayIndex = #(self.replayData.events or {}) + 1
     self.replayEventStartedAt = nil
     self.replayExecuting = false
@@ -1521,13 +1607,29 @@ function GameController:update()
     local state = self.state
     if self.suspendRestoreActive then return self:updateSuspendRestore() end
     local now = pd.getCurrentTimeMilliseconds()
+    if self.replayMode and state.replayPaused then
+        if pd.buttonJustPressed(pd.kButtonLeft) then
+            if state.replayTurn > 1 then
+                self:seekReplayTurn(state.replayTurn - 1)
+            end
+        elseif pd.buttonJustPressed(pd.kButtonRight) then
+            if state.replayTurn < state.replayTotalTurns then
+                self:seekReplayTurn(state.replayTurn + 1)
+            elseif not self.replayAtSeekBoundary then
+                self:seekReplayTurn(state.replayTotalTurns)
+            end
+        elseif pd.buttonJustPressed(pd.kButtonA)
+            or pd.buttonJustPressed(pd.kButtonB) then
+            self:toggleReplayPause(now)
+        end
+        return nil
+    end
     if self.replayMode and state.result == nil
         and (pd.buttonJustPressed(pd.kButtonA)
             or pd.buttonJustPressed(pd.kButtonB)) then
         self:toggleReplayPause(now)
         return nil
     end
-    if state.replayPaused then return nil end
     self:updateStatisticsPlayTime(now)
     if state.levelUpDisplayFrame < Config.LEVEL_UP_DISPLAY_FRAMES then
         state.levelUpDisplayFrame += 1
