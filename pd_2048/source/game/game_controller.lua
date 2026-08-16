@@ -29,6 +29,8 @@ local GameResult <const> = Config.GAME_RESULT
 ---@field practiceStage any
 ---@field session GameSession ゲームセッション.
 ---@field undoController UndoController UNDO管理.
+---@field randomGenerator GameRandom ランダムジェネレーター.
+---@field replayController ReplayController リプレイ管理.
 local GameController = {}
 GameController.__index = GameController
 

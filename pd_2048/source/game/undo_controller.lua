@@ -8,6 +8,7 @@ local GamePhase <const> = Config.GAME_PHASE
 ---@field session GameSession ゲームセッション.
 ---@field sound Sound サウンド管理.
 ---@field setMessage fun(message: string, durationMs: integer) メッセージを表示する関数.
+---@field randomGenerator GameRandom ランダムジェネレーター.
 local UndoController = {}
 UndoController.__index = UndoController
 

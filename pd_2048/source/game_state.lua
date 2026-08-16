@@ -6,7 +6,6 @@ local Config <const> = GameConfig
 ---@class GameState ゲーム状態クラス.
 ---@field phase GAME_PHASE 現在のゲームフェーズ.
 ---@field result GAME_RESULT 現在のゲーム結果.
----@field replayActive boolean リプレイ再生中かどうか.
 ---@field mode GAME_MODE 現在のゲームモード
 ---@field board Array2D ゲーム盤面.
 ---■カーソル関連.
@@ -102,6 +101,13 @@ local Config <const> = GameConfig
 ---@field practiceVictoryPending boolean PRACTICEモードでのクリア演出が保留中かどうか
 ---@field practiceCompleteUntil integer PRACTICEモードでのクリア演出の終了時刻
 ---@field practiceDescriptionText string PRACTICEモードでのシナリオの説明テキスト
+---■リプレイ関連.
+---@field replayActive boolean リプレイ再生中かどうか
+---@field replayData table リプレイデータ
+---@field replayIndex integer リプレイ再生中の現在のインデックス
+---@field replayStartTimeMs integer リプレイ再生開始時刻 (ミリ秒)
+---@field replayLastUpdateTimeMs integer リプレイ再生中の最後の更新時刻 (ミリ秒)
+---@field replaySpeed number リプレイ再生速度 (1.0 = 通常速度)
 ---■実績関連.
 ---@field timeAttackBestTimeMs integer タイムアタックモードでの最短クリア時間（ミリ秒）
 ---@field coreRushBestTimeMs integer コアラッシュモードでの最短クリア時間（ミリ秒）

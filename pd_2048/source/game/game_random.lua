@@ -1,5 +1,5 @@
--- ブロック生成専用の決定的乱数生成器。
--- BGMなどの演出が使用する math.random から乱数系列を分離する。
+---@class GameRandom ブロック生成専用の決定的乱数生成器。BGMなどの演出が使用する math.random から乱数系列を分離する。
+---@field state integer 現在の乱数生成器の状態
 local GameRandom = {}
 GameRandom.__index = GameRandom
 
