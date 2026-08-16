@@ -49,9 +49,10 @@ local Config = {
         [2048] = 150,
     },
 	-- メニューの基準Y座標.
-    TITLE_MENU_CENTER_Y = 132,
-    TITLE_SUBMENU_CENTER_Y = 132,
-    TITLE_PRACTICE_MENU_CENTER_Y = 108,
+    TITLE_MENU_CENTER_Y = 132, -- メニューの基準Y座標.
+    TITLE_SUBMENU_CENTER_Y = 132, -- サブメニューの基準Y座標.
+    TITLE_PRACTICE_MENU_CENTER_Y = 108, -- PRACTICEモードのメニューの基準Y座標.
+    TITLE_REPLAY_MENU_CENTER_Y = 108, -- リプレイ画面のメニューの基準Y座標.
 	-- PRACTICEモードの説明文の描画位置.
     TITLE_PRACTICE_DESCRIPTION_X = 12,
     TITLE_PRACTICE_DESCRIPTION_Y = 200,

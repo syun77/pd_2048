@@ -89,6 +89,8 @@ function TitleRenderer:drawTitle(selectedIndex, menuItems, title, notice)
     local menuCenterY = Config.TITLE_MENU_CENTER_Y
     if title == "PRACTICE" then
         menuCenterY = Config.TITLE_PRACTICE_MENU_CENTER_Y
+    elseif title == "REPLAYS" then
+        menuCenterY = Config.TITLE_REPLAY_MENU_CENTER_Y
     elseif title ~= nil then
         menuCenterY = Config.TITLE_SUBMENU_CENTER_Y
     end
