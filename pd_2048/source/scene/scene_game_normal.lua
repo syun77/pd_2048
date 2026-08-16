@@ -59,7 +59,7 @@ function NormalGameScene:getSystemMenuItems()
         title = "Retry",
         callback = function()
             if self.context.game:isReplayMode() then
-                self.context.game:startLastReplay()
+                self.context.game:restartReplay()
             else
                 local state = self.context.game:getState()
                 self.context.game:start(state.mode)

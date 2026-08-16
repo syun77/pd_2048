@@ -15,6 +15,7 @@ local Config <const> = GameConfig
 ---@field background MenuBackgroundRenderer メニューバックグラウンド描画クラス.
 ---@field titleImage playdate.graphics.image|nil タイトル背景画像.
 ---@field practiceClearedImage playdate.graphics.image|nil PRACTICEモードのクリア済みアイコン.
+---@field favoriteImage playdate.graphics.image|nil リプレイのお気に入りアイコン.
 local TitleRenderer = {}
 TitleRenderer.__index = TitleRenderer
 
@@ -28,6 +29,7 @@ function TitleRenderer.new(dependencies)
         background = dependencies.background,
         titleImage = gfx.image.new("assets/images/title2"),
         practiceClearedImage = gfx.image.new("assets/images/check"),
+        favoriteImage = gfx.image.new("assets/images/fav"),
     }, TitleRenderer)
 end
 
@@ -77,7 +79,9 @@ function TitleRenderer:drawTitle(selectedIndex, menuItems, title)
     for _, item in ipairs(menuItems) do
         table.insert(labels, item.label)
         table.insert(itemOptions, {
-            icon = item.cleared and self.practiceClearedImage or nil,
+            icon = item.cleared and self.practiceClearedImage
+                or item.favorite and self.favoriteImage
+                or nil,
         })
     end
     if title ~= nil then self:drawCenteredText(title, 42) end
@@ -92,6 +96,11 @@ function TitleRenderer:drawTitle(selectedIndex, menuItems, title)
         itemOptions)
     if title == "PRACTICE" then
         self:drawPracticeDescription(menuItems, selectedIndex)
+    elseif title == "REPLAYS" then
+        local item = menuItems[selectedIndex]
+        if item ~= nil and item.footer ~= nil then
+            self:drawCenteredText(item.footer, 220)
+        end
     end
 end
 

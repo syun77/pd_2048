@@ -12,7 +12,51 @@ local ReplayController = {}
 ReplayController.__index = ReplayController
 
 local Config <const> = GameConfig
-local DATASTORE_KEY <const> = "lastReplay"
+local DATASTORE_KEY <const> = "replays"
+local LEGACY_DATASTORE_KEY <const> = "lastReplay"
+local COLLECTION_VERSION <const> = 1
+
+-- 本体のローカル日時をdatastoreへ保存できる単純なtableへ変換する関数.
+---@param pd playdate Playdate SDKのグローバルオブジェクト
+---@return table 保存日時
+local function currentLocalTime(pd)
+    local time = pd.getTime()
+    return {
+        year = time.year,
+        month = time.month,
+        day = time.day,
+        weekday = time.weekday,
+        hour = time.hour,
+        minute = time.minute,
+        second = time.second,
+        millisecond = time.millisecond,
+    }
+end
+
+-- 現行ルールで再生できるリプレイか判定する関数.
+---@param data any リプレイデータ
+---@return boolean 再生可能かどうか
+local function isCompatibleReplay(data)
+    return type(data) == "table"
+        and data.formatVersion == Config.REPLAY_FORMAT_VERSION
+        and data.rulesVersion == Config.REPLAY_RULES_VERSION
+        and data.rngVersion == Config.REPLAY_RNG_VERSION
+        and data.mode == Config.GAME_MODE.NORMAL
+        and type(data.seed) == "number"
+        and type(data.events) == "table"
+end
+
+-- リプレイ一覧をdatastoreへ保存する関数.
+---@param pd playdate Playdate SDKのグローバルオブジェクト
+---@param entries table[] リプレイ一覧（新しい順）
+---@return boolean 成功したかどうか
+local function writeCollection(pd, entries)
+    local ok = pcall(pd.datastore.write, {
+        collectionVersion = COLLECTION_VERSION,
+        entries = entries,
+    }, DATASTORE_KEY)
+    return ok
+end
 
 -- HOLDの使用回数を正規化する関数.
 ---@param rawCount integer 生のHOLD使用回数
@@ -75,28 +119,65 @@ function ReplayController.new(pd)
     }, ReplayController)
 end
 
--- 読み込み
+-- 保存済みリプレイの一覧を新しい順で読み込む関数.
 ---@param pd playdate Playdate SDKのグローバルオブジェクト
----@return table? 読み込まれたリプレイデータ、またはnil
-function ReplayController.load(pd)
-    local ok, data = pcall(pd.datastore.read, DATASTORE_KEY)
-    if not ok or type(data) ~= "table"
-        or data.formatVersion ~= Config.REPLAY_FORMAT_VERSION
-        or data.rulesVersion ~= Config.REPLAY_RULES_VERSION
-        or data.rngVersion ~= Config.REPLAY_RNG_VERSION
-        or type(data.seed) ~= "number"
-        or type(data.events) ~= "table" then
-        return nil
+---@return table[] 読み込まれたリプレイ一覧
+function ReplayController.loadAll(pd)
+    local ok, collection = pcall(pd.datastore.read, DATASTORE_KEY)
+    if ok and type(collection) == "table"
+        and collection.collectionVersion == COLLECTION_VERSION
+        and type(collection.entries) == "table" then
+        local entries = {}
+        for _, data in ipairs(collection.entries) do
+            if isCompatibleReplay(data) then
+                table.insert(entries, data)
+                if #entries >= Config.MAX_REPLAY_COUNT then break end
+            end
+        end
+        return entries
     end
-    return data
+
+    -- 単一保存形式からの移行。次回の保存またはお気に入り切替時に新形式へ書き込む。
+    local legacyOk, legacyData = pcall(pd.datastore.read, LEGACY_DATASTORE_KEY)
+    if legacyOk and isCompatibleReplay(legacyData) then return { legacyData } end
+    return {}
 end
 
--- 保存されているリプレイが存在するかどうかを確認する関数.
+-- 指定リプレイのお気に入りを切り替える関数.
 ---@param pd playdate Playdate SDKのグローバルオブジェクト
----@return boolean 保存されているリプレイが存在するかどうか
-function ReplayController.hasSavedReplay(pd)
-    local data = ReplayController.load(pd)
-    return data ~= nil and data.mode == Config.GAME_MODE.NORMAL
+---@param index integer リプレイ一覧の番号
+---@return boolean 成功したかどうか
+function ReplayController.toggleFavorite(pd, index)
+    local entries = ReplayController.loadAll(pd)
+    local data = entries[index]
+    if data == nil then return false end
+    data.favorite = data.favorite ~= true
+    return writeCollection(pd, entries)
+end
+
+-- 新しいリプレイを一覧へ保存する関数.
+---@param pd playdate Playdate SDKのグローバルオブジェクト
+---@param data table 新しいリプレイデータ
+---@return boolean 成功したかどうか
+function ReplayController.save(pd, data)
+    local entries = ReplayController.loadAll(pd)
+    data.favorite = false
+    table.insert(entries, 1, data)
+
+    while #entries > Config.MAX_REPLAY_COUNT do
+        local removeIndex = nil
+        for index = #entries, 1, -1 do
+            if entries[index].favorite ~= true then
+                removeIndex = index
+                break
+            end
+        end
+        if removeIndex == nil or removeIndex == 1 then
+            return false
+        end
+        table.remove(entries, removeIndex)
+    end
+    return writeCollection(pd, entries)
 end
 
 -- 記録をキャンセルする関数.
@@ -225,14 +306,15 @@ function ReplayController:finish(state, randomGeneratorState)
 	end
     self.recording = false
     self.data.summary.score = state.score
+    self.data.summary.level = state.level
     self.data.summary.elapsedTimeMs = state.elapsedTimeMs
     self.data.summary.result = state.result
     self.data.summary.holdValue = state.holdValue
     self.data.summary.nextValue = state.nextValues[1]
+    self.data.savedAt = currentLocalTime(self.pd)
     self.data.finalChecksum = ReplayController.checksum(
         state, randomGeneratorState)
-    local ok = pcall(self.pd.datastore.write, self.data, DATASTORE_KEY)
-    if not ok then
+    if not ReplayController.save(self.pd, self.data) then
 		return false -- 保存に失敗した場合は何もしない.
 	end
     return true

@@ -77,16 +77,23 @@ function GameController:isReplayMode()
     return self.replayMode
 end
 
-function GameController:hasLastReplay()
-    return ReplayController.hasSavedReplay(pd)
+function GameController:listReplays()
+    return ReplayController.loadAll(pd)
 end
 
-function GameController:startLastReplay()
-    local data = ReplayController.load(pd)
+function GameController:toggleReplayFavorite(index)
+    return ReplayController.toggleFavorite(pd, index)
+end
+
+function GameController:startReplay(data)
     if data == nil or data.mode ~= Config.GAME_MODE.NORMAL then return false end
     self:start(Config.GAME_MODE.NORMAL, nil,
         { replayData = data, seed = data.seed })
     return true
+end
+
+function GameController:restartReplay()
+    return self:startReplay(self.replayData)
 end
 
 function GameController:setAutoPlayEnabled(value)
@@ -1144,8 +1151,10 @@ function GameController:finishReplayRecordingIfNeeded()
         end
         return
     end
-    self.replayController:finish(
-        self.state, self.randomGenerator:getState())
+    if not self.replayController:finish(
+        self.state, self.randomGenerator:getState()) then
+        self:setMessage("REPLAY NOT SAVED", 3000)
+    end
 end
 
 -- 更新.

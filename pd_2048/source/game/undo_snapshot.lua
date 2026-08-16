@@ -56,7 +56,7 @@ end
 ---@return UndoSnapshot
 function UndoSnapshot.capture(state, randomGeneratorState)
     return {
-		---@see UndoSnapshotState
+		---@see UndoSnapshotState UNDOで復元するゲーム状態.
         state = {
             board = BoardTransform.copy(state.board),
             score = state.score,
@@ -79,7 +79,7 @@ function UndoSnapshot.capture(state, randomGeneratorState)
             levelXpBySource = copyTable(state.levelXpBySource),
             nextValues = copyNextValues(state.nextValues),
         },
-		---@see UndoSnapshotTurn
+		---@see UndoSnapshotTurn UNDO対象の手に関する情報.
         turn = {
             rotationClockwise = nil,
         },
@@ -87,9 +87,9 @@ function UndoSnapshot.capture(state, randomGeneratorState)
 end
 
 -- スナップショットに保存したゲーム状態を復元する.
----@param snapshot UndoSnapshot
----@param state GameState
----@param randomGenerator GameRandom
+---@param snapshot UndoSnapshot UNDO履歴のスナップショット.
+---@param state GameState ゲーム状態.
+---@param randomGenerator GameRandom ブロック生成専用の決定的乱数生成器
 function UndoSnapshot.apply(snapshot, state, randomGenerator)
     local restored = snapshot.state
     state.board = restored.board

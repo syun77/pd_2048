@@ -10,6 +10,23 @@ local pd <const> = playdate
 local TitleScene = {}
 TitleScene.__index = TitleScene
 
+local function replayLabel(data)
+    local savedAt = data.savedAt
+    local dateText = "[--/--/-- --:--]"
+    if type(savedAt) == "table" then
+        dateText = string.format("[%02d/%02d/%02d %02d:%02d]",
+            (savedAt.year or 0) % 100,
+            savedAt.month or 0,
+            savedAt.day or 0,
+            savedAt.hour or 0,
+            savedAt.minute or 0)
+    end
+    local summary = type(data.summary) == "table" and data.summary or {}
+    local levelText = summary.level == nil and "--" or tostring(summary.level)
+    local scoreText = summary.score == nil and "--" or tostring(summary.score)
+    return string.format("%s LV%s %s", dateText, levelText, scoreText)
+end
+
 -- コンストラクタ.
 function TitleScene.new(context)
     return setmetatable({
@@ -20,6 +37,7 @@ function TitleScene.new(context)
         page = "ROOT",
         selectedByPage = {
             ROOT = 1,
+            REPLAYS = 1,
             TIME_ATTACK = 1,
             PRACTICE = 1,
         },
@@ -42,6 +60,7 @@ function TitleScene.new(context)
             { label = "2048 CORE RUSH", scene = GameConfig.SCENE.GAME,
               mode = GameConfig.GAME_MODE.CORE_RUSH },
         },
+        replayItems = {},
         practiceItems = {},
     }, TitleScene)
 end
@@ -65,15 +84,34 @@ function TitleScene:clampSelectedIndex()
     self.selectedByPage[self.page] = self.selectedIndex
 end
 
+function TitleScene:refreshReplayItems()
+    self.replayItems = {}
+    for index, data in ipairs(self.context.game:listReplays()) do
+        table.insert(self.replayItems, {
+            label = replayLabel(data),
+            replayData = data,
+            replayIndex = index,
+            favorite = data.favorite == true,
+            footer = "A PLAY  LEFT/RIGHT FAV  B BACK",
+        })
+    end
+end
+
 -- 開始.
 function TitleScene:enter(params)
 	-- メニュー用BGMを再生.
     self.context.sound:playMenuBgm()
     for index = #self.menuItems, 1, -1 do
-        if self.menuItems[index].replay then table.remove(self.menuItems, index) end
+        if self.menuItems[index].replayMenu then table.remove(self.menuItems, index) end
     end
-    if self.context.game:hasLastReplay() then
-        table.insert(self.menuItems, 2, { label = "LAST REPLAY", replay = true })
+    self:refreshReplayItems()
+    if #self.replayItems > 0 then
+        table.insert(self.menuItems, 2, {
+            label = "REPLAYS",
+            replayMenu = true,
+            submenu = true,
+            submenuPage = "REPLAYS",
+        })
     end
     self.practiceItems = {}
     for _, stage in ipairs(PracticeStageLoader.loadAll()) do
@@ -127,6 +165,20 @@ function TitleScene:update()
         self.context.sound:play_se("cancel")
         return
     end
+    if self.page == "REPLAYS"
+        and (pd.buttonJustPressed(pd.kButtonLeft)
+            or pd.buttonJustPressed(pd.kButtonRight)) then
+        local item = items[self.selectedIndex]
+        if item ~= nil
+            and self.context.game:toggleReplayFavorite(item.replayIndex) then
+            self:refreshReplayItems()
+            self:clampSelectedIndex()
+            self.context.sound:play_se("decide")
+        else
+            self.context.sound:play_se("error")
+        end
+        return
+    end
 
     MenuSelectionController.update(self.menuSelectionController, pd,
         pd.getCurrentTimeMilliseconds(),
@@ -139,9 +191,13 @@ function TitleScene:update()
     if pd.buttonJustPressed(pd.kButtonA) then
         self.context.sound:play_se("decide")
         local item = items[self.selectedIndex]
+        if item == nil then
+            self.context.sound:play_se("error")
+            return
+        end
         self.selectedByPage[self.page] = self.selectedIndex
-        if item.replay then
-            if self.context.game:startLastReplay() then
+        if item.replayData ~= nil then
+            if self.context.game:startReplay(item.replayData) then
                 self.manager:change(GameConfig.SCENE.GAME)
             else
                 self.context.sound:play_se("error")
@@ -172,6 +228,7 @@ end
 -- 選択している項目リストを取得.
 function TitleScene:getCurrentItems()
     if self.page == "ROOT" then return self.menuItems end
+    if self.page == "REPLAYS" then return self.replayItems end
     if self.page == "TIME_ATTACK" then return self.timeAttackItems end
     return self.practiceItems
 end
