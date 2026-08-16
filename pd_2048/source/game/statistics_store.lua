@@ -4,6 +4,27 @@ local Config <const> = GameConfig
 local DATASTORE_KEY <const> = "statistics"
 local FORMAT_VERSION <const> = 1
 
+---@class StatisticsStore 統計情報の保存データ.
+---@field version integer 保存データのフォーマットバージョン.
+---@field totalPlayTimeMs integer 総プレイ時間（ミリ秒）.
+---@field normal StatisticsStore.NormalModeStatistics NORMALモードの統計情報.
+---@field timeAttack StatisticsStore.TimeAttackStatistics TIME ATTACKモードの統計情報.
+---@class StatisticsStore.NormalModeStatistics NORMALモードの統計情報.
+---@field plays integer プレイ回数.
+---@field highScore integer ハイスコア.
+---@field bestLevel integer 最高到達レベル.
+---@field highestTile integer 最高到達タイル.
+---@field maxCombo integer 最大コンボ数.
+---@field clears integer クリア回数.
+---@class StatisticsStore.TimeAttackStatistics TIME ATTACKモードの統計情報.
+---@field sprint64 StatisticsStore.TimedModeStatistics SPRINT 64の統計情報.
+---@field sprint256 StatisticsStore.TimedModeStatistics SPRINT 256の統計情報.
+---@field sprint512 StatisticsStore.TimedModeStatistics SPRINT 512の統計情報.
+---@field coreRush StatisticsStore.TimedModeStatistics COREの統計情報.
+---@class StatisticsStore.TimedModeStatistics 各タイムアタックモードの統計情報.
+---@field plays integer プレイ回数.
+---@field clears integer クリア回数.
+---@field bestTimeMs integer|nil ベストタイム（ミリ秒）.
 local StatisticsStore = {}
 
 local function nonNegativeInteger(value, fallback)
@@ -16,10 +37,14 @@ local function optionalTime(value)
     return math.floor(value)
 end
 
+-- TIME ATTACKモードの新しい統計情報のデータを作成する.
+---@return StatisticsStore 新しい統計情報のデータ.
 local function newTimedMode()
     return { plays = 0, clears = 0, bestTimeMs = nil }
 end
 
+-- 新しい統計情報のデータを作成する.
+---@return false|StatisticsStore 新しい統計情報のデータ.
 function StatisticsStore.newData()
     return {
         version = FORMAT_VERSION,
@@ -47,6 +72,10 @@ local function normalizeTimedMode(target, source)
     target.bestTimeMs = optionalTime(source.bestTimeMs)
 end
 
+-- 古い統計情報のデータを新しい形式に変換する.
+---@param data table|nil 古い統計情報のデータ.
+---@param legacy table|nil 古い統計情報のデータ（旧形式）.
+---@return StatisticsStore|false 新しい統計情報のデータ.
 local function normalize(data, legacy)
     local result = StatisticsStore.newData()
     data = type(data) == "table" and data or {}
@@ -78,12 +107,20 @@ local function normalize(data, legacy)
     return result
 end
 
+-- 統計情報のデータを読み込む.
+---@param pd playdate Playdate SDK.
+---@param legacy table|nil 古い統計情報のデータ（旧形式）.
+---@return StatisticsStore|false 統計情報のデータ.
 function StatisticsStore.load(pd, legacy)
     local ok, data = pcall(pd.datastore.read, DATASTORE_KEY)
     if not ok then data = nil end
     return normalize(data, legacy)
 end
 
+-- 統計情報のデータを保存する.
+---@param pd playdate Playdate SDK.
+---@param statistics StatisticsStore 統計情報のデータ.
+---@return boolean 成功した場合はtrue、失敗した場合はfalse.
 function StatisticsStore.save(pd, statistics)
     statistics.version = FORMAT_VERSION
     return pcall(pd.datastore.write, statistics, DATASTORE_KEY)
@@ -102,6 +139,10 @@ function StatisticsStore.timedModeFor(statistics, mode)
     return nil
 end
 
+-- 統計情報のプレイ回数を記録する.
+---@param statistics StatisticsStore 統計情報のデータ.
+---@param mode GAME_MODE ゲームモード.
+---@return boolean 成功した場合はtrue、失敗した場合はfalse.
 function StatisticsStore.recordPlay(statistics, mode)
     if mode == Config.GAME_MODE.NORMAL then
         statistics.normal.plays += 1
@@ -113,6 +154,10 @@ function StatisticsStore.recordPlay(statistics, mode)
     return true
 end
 
+-- 統計情報のプレイ回数を削除する.
+---@param statistics StatisticsStore 統計情報のデータ.
+---@param mode GAME_MODE ゲームモード.
+---@return boolean 成功した場合はtrue、失敗した場合はfalse.
 function StatisticsStore.removePlay(statistics, mode)
     if mode == Config.GAME_MODE.NORMAL then
         statistics.normal.plays = math.max(0, statistics.normal.plays - 1)
@@ -134,6 +179,9 @@ function StatisticsStore.recordTimedClear(statistics, mode, elapsedTimeMs)
     return true
 end
 
+-- 統計情報の総プレイ回数を取得する.
+---@param statistics StatisticsStore 統計情報のデータ.
+---@return integer 総プレイ回数.
 function StatisticsStore.totalPlays(statistics)
     local timed = statistics.timeAttack
     return statistics.normal.plays + timed.sprint64.plays

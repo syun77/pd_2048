@@ -208,6 +208,10 @@ function TitleRenderer:drawStatisticsPageCursor(page)
     end
 end
 
+-- 統計情報の描画.
+---@param page integer ページ番号.
+---@param practiceCleared integer PRACTICEモードのクリア済みステージ数.
+---@param practiceTotal integer PRACTICEモードの総ステージ数.
 function TitleRenderer:drawStatistics(page, practiceCleared, practiceTotal)
     self:drawBackground()
 	-- タイトルの背景枠を描画.
@@ -221,6 +225,7 @@ function TitleRenderer:drawStatistics(page, practiceCleared, practiceTotal)
     gfx.drawLine(100, 40, 300, 40)
     local statistics = self.state.statistics
     if page == 1 then
+		-- OVERALL.
         drawStatisticsPanel(52, 118)
         self:drawCenteredText("PLAY TIME  "
             .. playTimeText(statistics.totalPlayTimeMs), 64)
@@ -229,6 +234,7 @@ function TitleRenderer:drawStatistics(page, practiceCleared, practiceTotal)
         self:drawCenteredText(string.format("PRACTICE  %d/%d CLEARED",
             practiceCleared, practiceTotal), 144)
     elseif page == 2 then
+		-- NORMAL.
         local normal = statistics.normal
         drawStatisticsPanel(52, 151)
         self:drawCenteredText("PLAYS  " .. tostring(normal.plays), 60)
@@ -237,6 +243,7 @@ function TitleRenderer:drawStatistics(page, practiceCleared, practiceTotal)
         self:drawCenteredText("HIGHEST TILE  " .. tostring(normal.highestTile), 144)
         self:drawCenteredText("MAX COMBO  " .. tostring(normal.maxCombo), 172)
     else
+		-- TIME ATTACK.
         local timed = statistics.timeAttack
         drawStatisticsPanel(52, 143)
         self:drawCenteredText("MODE       BEST       CLEARS", 60)
