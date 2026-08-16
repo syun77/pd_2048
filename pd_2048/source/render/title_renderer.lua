@@ -31,6 +31,9 @@ function TitleRenderer.new(dependencies)
         titleImage = gfx.image.new("assets/images/title2"),
         practiceClearedImage = gfx.image.new("assets/images/check"),
         favoriteImage = gfx.image.new("assets/images/fav"),
+        statisticsLastPage = nil,
+        statisticsLeftAnimationOffset = 0,
+        statisticsRightAnimationOffset = 0,
     }, TitleRenderer)
 end
 
@@ -147,12 +150,62 @@ local function playTimeText(timeMs)
     return string.format("%d:%02d", hours, totalMinutes % 60)
 end
 
+local STATISTICS_PANEL_WIDTH <const> = 320
+local STATISTICS_PANEL_X <const> =
+    (Config.SCREEN_WIDTH - STATISTICS_PANEL_WIDTH) / 2
+
 local function drawStatisticsPanel(y, height)
-    local panelWidth <const> = 320
-    local panelX = (Config.SCREEN_WIDTH - panelWidth) / 2
     gfx.setColor(gfx.kColorWhite)
-    gfx.fillRect(panelX, y, panelWidth, height)
+    gfx.fillRect(STATISTICS_PANEL_X, y, STATISTICS_PANEL_WIDTH, height)
     gfx.setColor(gfx.kColorBlack)
+end
+
+function TitleRenderer:resetStatisticsPageCursor()
+    self.statisticsLastPage = nil
+    self.statisticsLeftAnimationOffset = 0
+    self.statisticsRightAnimationOffset = 0
+end
+
+function TitleRenderer:drawStatisticsPageCursor(page)
+    if self.statisticsLastPage ~= nil and page ~= self.statisticsLastPage then
+        local movedLeft = page == self.statisticsLastPage - 1
+            or self.statisticsLastPage == 1 and page == 3
+        if movedLeft then
+            self.statisticsLeftAnimationOffset = -8
+        else
+            self.statisticsRightAnimationOffset = 8
+        end
+    end
+    self.statisticsLastPage = page
+
+    local centerY <const> = 124
+    local indicatorHalfHeight <const> = 10
+    local indicatorWidth <const> = 12
+    local leftX = STATISTICS_PANEL_X + 8
+        + self.statisticsLeftAnimationOffset
+    local rightX = STATISTICS_PANEL_X + STATISTICS_PANEL_WIDTH - 8
+        + self.statisticsRightAnimationOffset
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillPolygon(leftX, centerY,
+        leftX + indicatorWidth, centerY - indicatorHalfHeight,
+        leftX + indicatorWidth, centerY + indicatorHalfHeight)
+    gfx.fillPolygon(rightX, centerY,
+        rightX - indicatorWidth, centerY - indicatorHalfHeight,
+        rightX - indicatorWidth, centerY + indicatorHalfHeight)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.fillPolygon(leftX + 3, centerY,
+        leftX + indicatorWidth - 2, centerY - indicatorHalfHeight + 3,
+        leftX + indicatorWidth - 2, centerY + indicatorHalfHeight - 3)
+    gfx.fillPolygon(rightX - 3, centerY,
+        rightX - indicatorWidth + 2, centerY - indicatorHalfHeight + 3,
+        rightX - indicatorWidth + 2, centerY + indicatorHalfHeight - 3)
+
+    if self.statisticsLeftAnimationOffset < 0 then
+        self.statisticsLeftAnimationOffset += 1
+    end
+    if self.statisticsRightAnimationOffset > 0 then
+        self.statisticsRightAnimationOffset -= 1
+    end
 end
 
 function TitleRenderer:drawStatistics(page, practiceCleared, practiceTotal)
@@ -201,7 +254,7 @@ function TitleRenderer:drawStatistics(page, practiceCleared, practiceTotal)
 	gfx.setColor(gfx.kColorWhite)
 	gfx.fillRect(0, 216, Config.SCREEN_WIDTH, 24)
 	-- 説明文の描画.
-    self:drawCenteredText("LEFT/RIGHT: PAGE", 220)
+    self:drawStatisticsPageCursor(page)
 end
 
 function TitleRenderer:drawSoundTest(selectedTab, selectedIndex, menuItems, bgmDbStatus)

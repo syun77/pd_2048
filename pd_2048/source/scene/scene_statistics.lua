@@ -20,6 +20,7 @@ end
 function StatisticsScene:enter()
     self.context.sound:playMenuBgm()
     self.page = 1
+    self.context.titleRenderer:resetStatisticsPageCursor()
     self.practiceTotal = 0
     self.practiceCleared = 0
     for _, stage in ipairs(PracticeStageLoader.loadAll()) do
