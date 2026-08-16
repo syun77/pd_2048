@@ -201,10 +201,10 @@ function TitleRenderer:drawStatisticsPageCursor(page)
         rightX - indicatorWidth + 2, centerY + indicatorHalfHeight - 3)
 
     if self.statisticsLeftAnimationOffset < 0 then
-        self.statisticsLeftAnimationOffset += 1
+        self.statisticsLeftAnimationOffset += 2
     end
     if self.statisticsRightAnimationOffset > 0 then
-        self.statisticsRightAnimationOffset -= 1
+        self.statisticsRightAnimationOffset -= 2
     end
 end
 
