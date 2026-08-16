@@ -226,31 +226,49 @@ function TitleRenderer:drawStatistics(page, practiceCleared, practiceTotal)
     local statistics = self.state.statistics
     if page == 1 then
 		-- OVERALL.
+        local labelX <const> = 72
+        local valueX <const> = 328
         drawStatisticsPanel(52, 118)
-        self:drawCenteredText("PLAY TIME  "
-            .. playTimeText(statistics.totalPlayTimeMs), 64)
-        self:drawCenteredText("TOTAL PLAYS  "
-            .. tostring(StatisticsStore.totalPlays(statistics)), 104)
-        self:drawCenteredText(string.format("PRACTICE  %d/%d CLEARED",
-            practiceCleared, practiceTotal), 144)
+        local function drawOverall(label, value, y)
+            gfx.drawTextAligned(label, labelX, y, kTextAlignment.left)
+            gfx.drawTextAligned(value, valueX, y, kTextAlignment.right)
+        end
+        drawOverall("PLAY TIME", playTimeText(statistics.totalPlayTimeMs), 64)
+        drawOverall("TOTAL PLAYS",
+            tostring(StatisticsStore.totalPlays(statistics)), 104)
+        drawOverall("PRACTICE CLEARED",
+            string.format("%d/%d", practiceCleared, practiceTotal), 144)
     elseif page == 2 then
 		-- NORMAL.
         local normal = statistics.normal
+        local labelX <const> = 72
+        local valueX <const> = 328
         drawStatisticsPanel(52, 151)
-        self:drawCenteredText("PLAYS  " .. tostring(normal.plays), 60)
-        self:drawCenteredText("HIGH SCORE  " .. tostring(normal.highScore), 88)
-        self:drawCenteredText("BEST LEVEL  " .. tostring(normal.bestLevel), 116)
-        self:drawCenteredText("HIGHEST TILE  " .. tostring(normal.highestTile), 144)
-        self:drawCenteredText("MAX COMBO  " .. tostring(normal.maxCombo), 172)
+        local function drawNormal(label, value, y)
+            gfx.drawTextAligned(label, labelX, y, kTextAlignment.left)
+            gfx.drawTextAligned(tostring(value), valueX, y, kTextAlignment.right)
+        end
+        drawNormal("PLAYS", normal.plays, 60)
+        drawNormal("HIGH SCORE", normal.highScore, 88)
+        drawNormal("BEST LEVEL", normal.bestLevel, 116)
+        drawNormal("HIGHEST TILE", normal.highestTile, 144)
+        drawNormal("MAX COMBO", normal.maxCombo, 172)
     else
 		-- TIME ATTACK.
         local timed = statistics.timeAttack
+        local modeX <const> = 72
+        local bestX <const> = 206
+        local clearX <const> = 320
         drawStatisticsPanel(52, 143)
-        self:drawCenteredText("MODE       BEST       CLEARS", 60)
+        gfx.drawTextAligned("MODE", modeX, 60, kTextAlignment.left)
+        gfx.drawTextAligned("BEST", bestX, 60, kTextAlignment.center)
+        gfx.drawTextAligned("CLEAR", clearX, 60, kTextAlignment.center)
         local function drawTimed(label, value, y)
-            self:drawCenteredText(string.format("%-5s  %s  %d/%d",
-                label, statisticsTimeText(value.bestTimeMs),
-                value.clears, value.plays), y)
+            gfx.drawTextAligned(label, modeX, y, kTextAlignment.left)
+            gfx.drawTextAligned(statisticsTimeText(value.bestTimeMs),
+                bestX, y, kTextAlignment.center)
+            gfx.drawTextAligned(string.format("%d/%d", value.clears, value.plays),
+                clearX, y, kTextAlignment.center)
         end
         drawTimed("64", timed.sprint64, 88)
         drawTimed("256", timed.sprint256, 116)
