@@ -318,7 +318,7 @@ function OverlayRenderer:drawMenu(centerX, centerY, items, selectedIndex, backgr
     end
 
 	local mergin = 32 -- 左右の余白を32pxに設定.
-    local horizontalPadding = 16
+    local horizontalPadding = 8 -- 左右のパディング.
     local verticalPadding = 8
     local rowHeight = math.max(textHeight, maxIconHeight)
     local itemHeight = rowHeight + 8
@@ -428,21 +428,50 @@ function OverlayRenderer:drawMenu(centerX, centerY, items, selectedIndex, backgr
     end
     gfx.setImageDrawMode(previousDrawMode)
 
-    if selectedIndex == nil then
-        gfx.setColor(previousColor)
-        return
-    end
-    selectedIndex = math.max(1, math.min(#items, selectedIndex))
-    local selectedY = contentTop + (selectedIndex - 1) * itemHeight - scrollOffset
+    if selectedIndex ~= nil then
+        selectedIndex = math.max(1, math.min(#items, selectedIndex))
+        local selectedY = contentTop + (selectedIndex - 1) * itemHeight - scrollOffset
+        local selectedWidth = menuWidth - 8
+        if scrollable then
+            selectedWidth = menuWidth - horizontalPadding - 8
+        end
 
-	-- カーソルを XORで描画.
-	gfx.setColor(gfx.kColorXOR)
-	if backgroundColor == gfx.kColorBlack then
-		gfx.drawRoundRect(menuX + 4, selectedY - 4, menuWidth - 8, rowHeight + 6, 4)
-	else
-	    gfx.fillRoundRect(menuX + 4, selectedY - 4, menuWidth - 8, rowHeight + 6, 4)
-	end
-	gfx.setColor(gfx.kColorBlack)
+        -- カーソルを XORで描画.
+        gfx.setColor(gfx.kColorXOR)
+        if backgroundColor == gfx.kColorBlack then
+            gfx.drawRoundRect(menuX + 4, selectedY - 4,
+                selectedWidth, rowHeight + 6, 4)
+        else
+            gfx.fillRoundRect(menuX + 4, selectedY - 4,
+                selectedWidth, rowHeight + 6, 4)
+        end
+    end
+
+    if scrollable then
+        -- 表示範囲の右端に、表示割合と先頭項目の位置を示すバーを描画する.
+        local scrollBarWidth = 5
+        local scrollBarX = menuX + menuWidth - horizontalPadding
+        local scrollBarInnerHeight = visibleContentHeight - 2
+        local thumbHeight = math.max(1, math.floor(scrollBarInnerHeight
+            * visibleItemCount / #items))
+        local thumbTravel = scrollBarInnerHeight - thumbHeight
+        local maxScrollOffset = contentHeight - visibleContentHeight
+        local thumbOffset = 0
+        if maxScrollOffset > 0 then
+            thumbOffset = math.floor(thumbTravel * scrollOffset
+                / maxScrollOffset + 0.5)
+        end
+
+        gfx.setImageDrawMode(gfx.kDrawModeCopy)
+        gfx.setColor(backgroundColor == gfx.kColorBlack
+            and gfx.kColorWhite or gfx.kColorBlack)
+        gfx.drawRect(scrollBarX, contentTop,
+            scrollBarWidth, visibleContentHeight)
+        gfx.fillRect(scrollBarX + 1, contentTop + 1 + thumbOffset,
+            scrollBarWidth - 2, thumbHeight)
+    end
+
+    gfx.setImageDrawMode(previousDrawMode)
     gfx.setColor(previousColor)
 end
 
