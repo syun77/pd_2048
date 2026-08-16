@@ -33,7 +33,8 @@ end
 local function makeItems(names)
     local items = {}
     for _, name in ipairs(names) do
-        table.insert(items, { label = name, name = name })
+        local label = string.gsub(name, "_", " ")
+        table.insert(items, { label = label, name = name })
     end
     return items
 end
