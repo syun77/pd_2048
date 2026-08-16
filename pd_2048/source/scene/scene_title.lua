@@ -86,11 +86,10 @@ end
 
 function TitleScene:refreshReplayItems()
     self.replayItems = {}
-    for index, data in ipairs(self.context.game:listReplays()) do
+    for _, data in ipairs(self.context.game:listReplays()) do
         table.insert(self.replayItems, {
             label = replayLabel(data),
-            replayData = data,
-            replayIndex = index,
+            replayId = data.id,
             favorite = data.favorite == true,
             footer = "A PLAY  LEFT/RIGHT FAV  B BACK",
         })
@@ -170,7 +169,7 @@ function TitleScene:update()
             or pd.buttonJustPressed(pd.kButtonRight)) then
         local item = items[self.selectedIndex]
         if item ~= nil
-            and self.context.game:toggleReplayFavorite(item.replayIndex) then
+            and self.context.game:toggleReplayFavorite(item.replayId) then
             self:refreshReplayItems()
             self:clampSelectedIndex()
             self.context.sound:play_se("decide")
@@ -196,10 +195,12 @@ function TitleScene:update()
             return
         end
         self.selectedByPage[self.page] = self.selectedIndex
-        if item.replayData ~= nil then
-            if self.context.game:startReplay(item.replayData) then
+        if item.replayId ~= nil then
+            if self.context.game:startReplay(item.replayId) then
                 self.manager:change(GameConfig.SCENE.GAME)
             else
+                self:refreshReplayItems()
+                self:clampSelectedIndex()
                 self.context.sound:play_se("error")
             end
             return

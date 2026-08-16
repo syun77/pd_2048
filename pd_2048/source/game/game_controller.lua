@@ -81,11 +81,12 @@ function GameController:listReplays()
     return ReplayController.loadAll(pd)
 end
 
-function GameController:toggleReplayFavorite(index)
-    return ReplayController.toggleFavorite(pd, index)
+function GameController:toggleReplayFavorite(id)
+    return ReplayController.toggleFavorite(pd, id)
 end
 
-function GameController:startReplay(data)
+function GameController:startReplay(id)
+    local data = ReplayController.load(pd, id)
     if data == nil or data.mode ~= Config.GAME_MODE.NORMAL then return false end
     self:start(Config.GAME_MODE.NORMAL, nil,
         { replayData = data, seed = data.seed })
@@ -93,7 +94,11 @@ function GameController:startReplay(data)
 end
 
 function GameController:restartReplay()
-    return self:startReplay(self.replayData)
+    local data = self.replayData
+    if data == nil or data.mode ~= Config.GAME_MODE.NORMAL then return false end
+    self:start(Config.GAME_MODE.NORMAL, nil,
+        { replayData = data, seed = data.seed })
+    return true
 end
 
 function GameController:setAutoPlayEnabled(value)
