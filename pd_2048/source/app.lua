@@ -99,6 +99,14 @@ function App:update()
     self.sceneManager:update()
 end
 
+-- OSからゲーム終了または低バッテリースリープを通知されたとき、
+-- プレイヤー操作中のNORMALだけを中断保存する.
+---@return boolean 保存に成功したかどうか
+function App:autoSuspendNormal()
+    if self.sceneManager.currentName ~= Config.SCENE.GAME then return false end
+    return self.game:suspendNormalGame()
+end
+
 -- 描画.
 function App:draw()
     local state = self.game:getState()

@@ -873,6 +873,10 @@ function GameController:start(mode, practiceStage, options)
     local seed = options.seed or self:createReplaySeed()
     self.randomGenerator:setSeed(seed)
     state.mode = mode or Config.GAME_MODE.NORMAL
+    if state.mode == Config.GAME_MODE.NORMAL and not self.replayMode
+        and not self.suspendRestoreActive then
+        ReplayController.deleteSuspend(pd)
+    end
     if practiceStage ~= nil then self.practiceStage = practiceStage end
     self:clearBoard()
     state.result = nil
@@ -1140,8 +1144,15 @@ end
 function GameController:suspendNormalGame()
     local state = self.state
     if state.mode ~= Config.GAME_MODE.NORMAL or self.replayMode
-        or self.suspendRestoreActive or state.result ~= nil then return false end
-    if not self:settleAnimationsForSuspend() then return false end
+        or self.suspendRestoreActive then return false end
+    if state.result ~= nil then
+        ReplayController.deleteSuspend(pd)
+        return false
+    end
+    if not self:settleAnimationsForSuspend() then
+        if state.result ~= nil then ReplayController.deleteSuspend(pd) end
+        return false
+    end
     self:resetCursorKeyRepeat()
     state.rewindHoldStartedAt = nil
     state.rewindHoldTriggered = false
@@ -1293,6 +1304,9 @@ function GameController:finishReplayRecordingIfNeeded()
             self:setMessage("REPLAY DESYNC", 3000)
         end
         return
+    end
+    if self.state.mode == Config.GAME_MODE.NORMAL then
+        ReplayController.deleteSuspend(pd)
     end
     if not self.replayController:finish(
         self.state, self.randomGenerator:getState()) then
