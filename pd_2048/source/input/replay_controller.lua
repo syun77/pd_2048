@@ -635,14 +635,16 @@ end
 -- 記録中のNORMALを中断データとして保存する関数.
 ---@param state GameState ゲーム状態
 ---@param randomGeneratorState integer ランダムジェネレーターの状態
+---@param statisticsRun table? 統計上のプレイ状態
 ---@return boolean 成功したかどうか
-function ReplayController:saveSuspend(state, randomGeneratorState)
+function ReplayController:saveSuspend(state, randomGeneratorState, statisticsRun)
     if not self.recording or self.data == nil
         or self.data.mode ~= Config.GAME_MODE.NORMAL then return false end
     self:recordCheckpoint(self.pd.getCurrentTimeMilliseconds(), state.cursorX)
     self.data.suspendVersion = Config.SUSPEND_FORMAT_VERSION
     self.data.savedAt = currentLocalTime(self.pd)
     self.data.levelRecordEligible = state.levelRecordEligible ~= false
+    self.data.statisticsRun = statisticsRun
     self.data.checkpointChecksum = ReplayController.suspendChecksum(
         state, randomGeneratorState)
     return writeDatastore(self.pd, self.data, SUSPEND_DATASTORE_KEY)

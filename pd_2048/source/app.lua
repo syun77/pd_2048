@@ -103,6 +103,7 @@ end
 -- プレイヤー操作中のNORMALだけを中断保存する.
 ---@return boolean 保存に成功したかどうか
 function App:autoSuspendNormal()
+    self.game:flushStatistics()
     if self.sceneManager.currentName ~= Config.SCENE.GAME then return false end
     return self.game:suspendNormalGame()
 end

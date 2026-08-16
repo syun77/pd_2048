@@ -4,6 +4,7 @@ import "game_state"
 import "game/merge_resolver"
 import "game/game_session"
 import "game/level_progress"
+import "game/statistics_store"
 import "game/undo_controller"
 import "board/board_transform"
 import "board/board_rules"
@@ -54,6 +55,15 @@ function GameController.new(dependencies)
     self.suspendRestoreActive = false
     self.titleNotice = nil
     self.practiceStage = nil
+    self.statisticsRunStarted = false
+    self.statisticsRunEligible = true
+    self.statisticsResultRecorded = false
+    self.statisticsLastTickMs = nil
+    self.statisticsDirty = false
+    self.statisticsNormalHighestTileAtStart = 0
+    self.statisticsNormalMaxComboAtStart = 0
+    self.statisticsNormalHighScoreAtStart = 0
+    self.statisticsNormalBestLevelAtStart = 1
     self.session = GameSession.new(self.state)
     self.undoController = UndoController.new({
         state = self.state,
@@ -136,10 +146,57 @@ function GameController:startSuspendRestore()
         restoring = true,
     })
     self.state.levelRecordEligible = data.levelRecordEligible ~= false
+    local statisticsRun = type(data.statisticsRun) == "table"
+        and data.statisticsRun or {}
+    self.statisticsRunEligible = statisticsRun.eligible ~= false
+        and data.levelRecordEligible ~= false
+    self.statisticsRunStarted = statisticsRun.started == true
+        or data.statisticsRunStarted == true
+    if statisticsRun.started == nil and data.statisticsRunStarted == nil then
+        for _, event in ipairs(data.events or {}) do
+            if event.drop == true then self.statisticsRunStarted = true break end
+        end
+    end
+    if type(statisticsRun.normalHighScoreAtStart) == "number" then
+        self.statisticsNormalHighScoreAtStart = statisticsRun.normalHighScoreAtStart
+    end
+    if type(statisticsRun.normalBestLevelAtStart) == "number" then
+        self.statisticsNormalBestLevelAtStart = statisticsRun.normalBestLevelAtStart
+    end
+    if type(statisticsRun.normalHighestTileAtStart) == "number" then
+        self.statisticsNormalHighestTileAtStart = statisticsRun.normalHighestTileAtStart
+    end
+    if type(statisticsRun.normalMaxComboAtStart) == "number" then
+        self.statisticsNormalMaxComboAtStart = statisticsRun.normalMaxComboAtStart
+    end
     return true
 end
 
 function GameController:setAutoPlayEnabled(value)
+    if value and self.statisticsRunEligible then
+        self.statisticsRunEligible = false
+        if self.statisticsRunStarted then
+            StatisticsStore.removePlay(self.state.statistics, self.state.mode)
+            self.statisticsRunStarted = false
+        end
+        if self.state.mode == Config.GAME_MODE.NORMAL then
+            self.state.normalHighScore = self.statisticsNormalHighScoreAtStart
+            self.state.highScore = math.max(self.state.score,
+                self.statisticsNormalHighScoreAtStart)
+            self.state.normalBestLevel = self.statisticsNormalBestLevelAtStart
+            self.state.statistics.normal.highScore =
+                self.statisticsNormalHighScoreAtStart
+            self.state.statistics.normal.bestLevel =
+                self.statisticsNormalBestLevelAtStart
+            self.state.statistics.normal.highestTile =
+                self.statisticsNormalHighestTileAtStart
+            self.state.statistics.normal.maxCombo =
+                self.statisticsNormalMaxComboAtStart
+            pd.datastore.write(self.state.normalHighScore, "highScore")
+            pd.datastore.write(self.state.normalBestLevel, "normalBestLevel")
+        end
+        self.statisticsDirty = true
+    end
     self.autoPlayEnabled = value
     self.autoPlayer:reset()
     if value and self.state.mode == Config.GAME_MODE.NORMAL then
@@ -197,7 +254,59 @@ function GameController:loadHighScore()
     if okPractice and type(practiceValue) == "table" then
         self.state.practiceClearedStages = practiceValue
     end
+    self.state.statistics = StatisticsStore.load(pd, {
+        normalHighScore = self.state.normalHighScore,
+        normalBestLevel = self.state.normalBestLevel,
+        coreRushBestTimeMs = self.state.coreRushBestTimeMs,
+    })
+    self.state.normalHighScore = self.state.statistics.normal.highScore
+    self.state.normalBestLevel = self.state.statistics.normal.bestLevel
+    self.state.coreRushBestTimeMs =
+        self.state.statistics.timeAttack.coreRush.bestTimeMs
     self.state.highScore = self.state.normalHighScore
+end
+
+function GameController:flushStatistics()
+    if not self.statisticsDirty or self.state.statistics == nil then return true end
+    local ok = StatisticsStore.save(pd, self.state.statistics)
+    if ok then self.statisticsDirty = false end
+    return ok
+end
+
+function GameController:updateStatisticsPlayTime(now)
+    local previous = self.statisticsLastTickMs
+    self.statisticsLastTickMs = now
+    if previous == nil then return end
+    local delta = now - previous
+    if delta < 0 or delta > 250 then return end
+    local state = self.state
+    if state.startReadyUntil ~= 0 or state.result ~= nil or self.replayMode
+        or self.suspendRestoreActive or self.autoPlayEnabled then return end
+    state.statistics.totalPlayTimeMs += delta
+    self.statisticsDirty = true
+end
+
+function GameController:recordStatisticsPlay()
+    if self.statisticsRunStarted or not self.statisticsRunEligible
+        or self.replayMode or self.autoPlayEnabled then return end
+    if StatisticsStore.recordPlay(self.state.statistics, self.state.mode) then
+        self.statisticsRunStarted = true
+        self.statisticsDirty = true
+    end
+end
+
+function GameController:recordStatisticsResult()
+    if self.statisticsResultRecorded then return end
+    self.statisticsResultRecorded = true
+    local state = self.state
+    if self.replayMode or not self.statisticsRunEligible
+        or not self.statisticsRunStarted then return end
+    if state.result == GameResult.VICTORY
+        and StatisticsStore.recordTimedClear(
+            state.statistics, state.mode, state.elapsedTimeMs) then
+        self.statisticsDirty = true
+    end
+    self:flushStatistics()
 end
 
 function GameController:getPracticeStageId(stage)
@@ -229,8 +338,11 @@ end
 function GameController:saveCurrentModeHighScore()
     if self.replayMode then return end
     local state = self.state
-    if state.mode == Config.GAME_MODE.NORMAL and state.score > state.normalHighScore then
+    if state.mode == Config.GAME_MODE.NORMAL and self.statisticsRunEligible
+        and state.score > state.normalHighScore then
         state.normalHighScore = state.score
+        state.statistics.normal.highScore = state.score
+        self.statisticsDirty = true
         pd.datastore.write(state.normalHighScore, "highScore")
     end
 end
@@ -255,6 +367,8 @@ function GameController:applyLevelProgress(levelUp, previousLevel)
     if state.levelRecordEligible and state.level > state.normalBestLevel then
 		-- 最高レベルの記録更新.
         state.normalBestLevel = state.level
+        state.statistics.normal.bestLevel = state.level
+        self.statisticsDirty = true
         state.levelNewBest = true
         pd.datastore.write(state.normalBestLevel, "normalBestLevel")
     end
@@ -264,22 +378,21 @@ end
 function GameController:saveTimeAttackBestTime()
     if self.replayMode then return end
     local state = self.state
-    if not self:isTimeAttack() or state.result ~= GameResult.VICTORY then return end
-    if state.timeAttackBestTimeMs == nil
-        or state.elapsedTimeMs < state.timeAttackBestTimeMs then
-        state.timeAttackBestTimeMs = state.elapsedTimeMs
-        pd.datastore.write(state.timeAttackBestTimeMs, "timeAttackBestTimeMs")
-    end
+    if not self.statisticsRunEligible or not self:isTimeAttack()
+        or state.result ~= GameResult.VICTORY then return end
+    self:recordStatisticsResult()
 end
 
 function GameController:saveCoreRushBestTime()
     if self.replayMode then return end
     local state = self.state
-    if not self:isCoreRush() or state.result ~= GameResult.VICTORY then return end
+    if not self.statisticsRunEligible or not self:isCoreRush()
+        or state.result ~= GameResult.VICTORY then return end
     if state.coreRushBestTimeMs == nil or state.elapsedTimeMs < state.coreRushBestTimeMs then
         state.coreRushBestTimeMs = state.elapsedTimeMs
         pd.datastore.write(state.coreRushBestTimeMs, "coreRushBestTimeMs")
     end
+    self:recordStatisticsResult()
 end
 
 function GameController:clearBoard()
@@ -557,6 +670,7 @@ function GameController:beginGameOver()
     local state = self.state
     self:saveCurrentModeHighScore()
     state.result = GameResult.GAME_OVER
+    self:recordStatisticsResult()
     state.phase = GamePhase.INPUT
     self.sound:play_se("gameover")
     self.sound:stop_bgm(1.0)
@@ -567,6 +681,7 @@ function GameController:beginTimeUp()
     state.remainingTimeMs = 0
     state.timeoutPending = false
     state.result = GameResult.TIME_UP
+    self:recordStatisticsResult()
     state.phase = GamePhase.INPUT
     self:saveCurrentModeHighScore()
     self.sound:play_se("gameover")
@@ -752,6 +867,18 @@ function GameController:finishMerge()
         state.timeAttackVictoryPending = true
     end
     self.session:recordMerge(state.mergeValue)
+    if state.mode == Config.GAME_MODE.NORMAL and self.statisticsRunEligible
+        and not self.replayMode and not self.autoPlayEnabled then
+        local normal = state.statistics.normal
+        if state.mergeValue > normal.highestTile then
+            normal.highestTile = state.mergeValue
+            self.statisticsDirty = true
+        end
+        if state.combo > normal.maxCombo then
+            normal.maxCombo = state.combo
+            self.statisticsDirty = true
+        end
+    end
     self:applyLevelProgress(LevelProgress.recordMerge(state, state.mergeValue))
     state.practiceMergeCount += 1
     state.activeMergeX, state.activeMergeY = state.mergeTargetX, state.mergeTargetY
@@ -858,6 +985,7 @@ end
 -- ゲームの開始.
 function GameController:start(mode, practiceStage, options)
     options = options or {}
+    self:flushStatistics()
     local state = self.state
     self.replayMode = options.replayData ~= nil
     self.replayData = options.replayData
@@ -873,6 +1001,14 @@ function GameController:start(mode, practiceStage, options)
     local seed = options.seed or self:createReplaySeed()
     self.randomGenerator:setSeed(seed)
     state.mode = mode or Config.GAME_MODE.NORMAL
+    self.statisticsRunStarted = false
+    self.statisticsRunEligible = not self.autoPlayEnabled and not self.replayMode
+    self.statisticsResultRecorded = false
+    self.statisticsLastTickMs = nil
+    self.statisticsNormalHighestTileAtStart = state.statistics.normal.highestTile
+    self.statisticsNormalMaxComboAtStart = state.statistics.normal.maxCombo
+    self.statisticsNormalHighScoreAtStart = state.statistics.normal.highScore
+    self.statisticsNormalBestLevelAtStart = state.statistics.normal.bestLevel
     if state.mode == Config.GAME_MODE.NORMAL and not self.replayMode
         and not self.suspendRestoreActive then
         ReplayController.deleteSuspend(pd)
@@ -1052,6 +1188,7 @@ function GameController:beginDrop()
         self.sound:play_se("error")
         return false
     end
+    self:recordStatisticsPlay()
     local x, y = self:findDropCell(state.cursorX)
     if not self.replayMode then
         self.replayController:recordTurn(
@@ -1156,8 +1293,16 @@ function GameController:suspendNormalGame()
     self:resetCursorKeyRepeat()
     state.rewindHoldStartedAt = nil
     state.rewindHoldTriggered = false
+    self:flushStatistics()
     return self.replayController:saveSuspend(
-        state, self.randomGenerator:getState())
+        state, self.randomGenerator:getState(), {
+            started = self.statisticsRunStarted,
+            eligible = self.statisticsRunEligible,
+            normalHighScoreAtStart = self.statisticsNormalHighScoreAtStart,
+            normalBestLevelAtStart = self.statisticsNormalBestLevelAtStart,
+            normalHighestTileAtStart = self.statisticsNormalHighestTileAtStart,
+            normalMaxComboAtStart = self.statisticsNormalMaxComboAtStart,
+        })
 end
 
 function GameController:stopReplayWithError()
@@ -1317,6 +1462,7 @@ end
 -- 更新.
 function GameController:update()
     local state = self.state
+    self:updateStatisticsPlayTime(pd.getCurrentTimeMilliseconds())
     if self.suspendRestoreActive then return self:updateSuspendRestore() end
     if state.levelUpDisplayFrame < Config.LEVEL_UP_DISPLAY_FRAMES then
         state.levelUpDisplayFrame += 1

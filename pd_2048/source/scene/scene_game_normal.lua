@@ -30,6 +30,10 @@ function NormalGameScene:enter()
     end
 end
 
+function NormalGameScene:exit()
+    self.context.game:flushStatistics()
+end
+
 function NormalGameScene:update()
     local result = self.context.game:update()
     if self.restoreMenuPending

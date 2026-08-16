@@ -59,6 +59,7 @@ local Config <const> = GameConfig
 ---@field score integer 現在のスコア
 ---@field highScore integer ハイスコア
 ---@field normalHighScore integer ノーマルモードのハイスコア
+---@field statistics table 累計統計情報
 ---■レベル関連.
 ---@field level integer 現在のレベル
 ---@field levelXp integer 現在のレベルでの経験値
@@ -128,6 +129,7 @@ function GameState.new()
         score = 0,
         highScore = 0,
         normalHighScore = 0,
+        statistics = nil,
         level = 1,
         levelXp = 0,
         levelDropCount = 0,

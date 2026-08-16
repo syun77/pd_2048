@@ -97,7 +97,7 @@ function TitleScene:refreshReplayItems()
             label = replayLabel(data),
             replayId = data.id,
             favorite = data.favorite == true,
-            footer = "A:PLAY  LEFT/RIGHT:FAV",
+            footer = "A:PLAY  LEFT/RIGHT:FAV (FAVS ARE KEPT)",
         })
     end
 end

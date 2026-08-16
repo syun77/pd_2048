@@ -1,5 +1,6 @@
 import "CoreLibs/graphics"
 import "game_config"
+import "game/statistics_store"
 
 local gfx <const> = playdate.graphics
 local Config <const> = GameConfig
@@ -98,10 +99,22 @@ function TitleRenderer:drawTitle(selectedIndex, menuItems, title, notice)
         labels, selectedIndex, gfx.kColorWhite, title == nil and nil or 5,
         itemOptions)
     if title == "PRACTICE" then
+		-- PRACTICEモードの説明文の描画.
+		-- 背景枠の描画.
+		gfx.setColor(gfx.kColorWhite)
+		gfx.fillRect(0, 210, 400, 30)
+		-- 文字の描画.
+		gfx.setColor(gfx.kColorBlack)
         self:drawPracticeDescription(menuItems, selectedIndex)
     elseif title == "REPLAYS" then
         local item = menuItems[selectedIndex]
         if item ~= nil and item.footer ~= nil then
+			-- リプレイ説明文の描画.
+			-- 背景枠の描画.
+			gfx.setColor(gfx.kColorWhite)
+			gfx.fillRect(0, 216, 400, 24)
+			-- 文字の描画.
+			gfx.setColor(gfx.kColorBlack)
             self:drawCenteredText(item.footer, 220)
         end
     elseif notice ~= nil then
@@ -120,18 +133,75 @@ function TitleRenderer:drawAchievements()
     self:drawCenteredText("NO ACHIEVEMENTS YET", 124)
 end
 
-function TitleRenderer:drawStatistics()
-    self:drawMenuPage("STATISTICS")
-    self:drawCenteredText("NORMAL  " .. tostring(self.state.normalHighScore), 120)
-    self:drawCenteredText("NORMAL LEVEL  " .. tostring(self.state.normalBestLevel), 144)
-    local timeAttackBest = self.state.timeAttackBestTimeMs
-    local timeAttackText = timeAttackBest == nil and "--" or string.format("%02d.%02d",
-        math.floor(timeAttackBest / 1000), math.floor(timeAttackBest / 10) % 100)
-    self:drawCenteredText("TIME ATTACK  " .. timeAttackText, 168)
-    local best = self.state.coreRushBestTimeMs
-    local bestText = best == nil and "--" or string.format("%02d.%02d",
-        math.floor(best / 1000), math.floor(best / 10) % 100)
-    self:drawCenteredText("CORE RUSH  " .. bestText, 192)
+local function statisticsTimeText(timeMs)
+    if timeMs == nil then return "--:--.--" end
+    local centiseconds = math.floor(timeMs / 10)
+    local minutes = math.floor(centiseconds / 6000)
+    local seconds = math.floor(centiseconds / 100) % 60
+    return string.format("%02d:%02d.%02d", minutes, seconds, centiseconds % 100)
+end
+
+local function playTimeText(timeMs)
+    local totalMinutes = math.floor(timeMs / 60000)
+    local hours = math.floor(totalMinutes / 60)
+    return string.format("%d:%02d", hours, totalMinutes % 60)
+end
+
+local function drawStatisticsPanel(y, height)
+    local panelWidth <const> = 320
+    local panelX = (Config.SCREEN_WIDTH - panelWidth) / 2
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillRect(panelX, y, panelWidth, height)
+    gfx.setColor(gfx.kColorBlack)
+end
+
+function TitleRenderer:drawStatistics(page, practiceCleared, practiceTotal)
+    self:drawBackground()
+	-- タイトルの背景枠を描画.
+	gfx.setColor(gfx.kColorWhite)
+	gfx.fillRoundRect(64, 16, Config.SCREEN_WIDTH-128, 24, 4)
+	-- タイトルの文字を描画.
+    gfx.setColor(gfx.kColorBlack)
+    local category = page == 1 and "OVERALL"
+        or page == 2 and "NORMAL" or "TIME ATTACK"
+    self:drawCenteredText("STATISTICS " .. tostring(page) .. "/3 [" .. category .. "]", 20)
+    gfx.drawLine(100, 40, 300, 40)
+    local statistics = self.state.statistics
+    if page == 1 then
+        drawStatisticsPanel(52, 118)
+        self:drawCenteredText("PLAY TIME  "
+            .. playTimeText(statistics.totalPlayTimeMs), 64)
+        self:drawCenteredText("TOTAL PLAYS  "
+            .. tostring(StatisticsStore.totalPlays(statistics)), 104)
+        self:drawCenteredText(string.format("PRACTICE  %d/%d CLEARED",
+            practiceCleared, practiceTotal), 144)
+    elseif page == 2 then
+        local normal = statistics.normal
+        drawStatisticsPanel(52, 151)
+        self:drawCenteredText("PLAYS  " .. tostring(normal.plays), 60)
+        self:drawCenteredText("HIGH SCORE  " .. tostring(normal.highScore), 88)
+        self:drawCenteredText("BEST LEVEL  " .. tostring(normal.bestLevel), 116)
+        self:drawCenteredText("HIGHEST TILE  " .. tostring(normal.highestTile), 144)
+        self:drawCenteredText("MAX COMBO  " .. tostring(normal.maxCombo), 172)
+    else
+        local timed = statistics.timeAttack
+        drawStatisticsPanel(52, 143)
+        self:drawCenteredText("MODE       BEST       CLEARS", 60)
+        local function drawTimed(label, value, y)
+            self:drawCenteredText(string.format("%-5s  %s  %d/%d",
+                label, statisticsTimeText(value.bestTimeMs),
+                value.clears, value.plays), y)
+        end
+        drawTimed("64", timed.sprint64, 88)
+        drawTimed("256", timed.sprint256, 116)
+        drawTimed("512", timed.sprint512, 144)
+        drawTimed("CORE", timed.coreRush, 172)
+    end
+	-- 説明文の白い枠の描画.
+	gfx.setColor(gfx.kColorWhite)
+	gfx.fillRect(0, 216, Config.SCREEN_WIDTH, 24)
+	-- 説明文の描画.
+    self:drawCenteredText("LEFT/RIGHT: PAGE", 220)
 end
 
 function TitleRenderer:drawSoundTest(selectedTab, selectedIndex, menuItems, bgmDbStatus)
