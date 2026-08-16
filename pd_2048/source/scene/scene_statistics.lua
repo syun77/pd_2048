@@ -12,6 +12,7 @@ function StatisticsScene.new(context)
         context = context,
         manager = nil,
         page = 1,
+        normalHistoryVisible = false,
         practiceTotal = 0,
         practiceCleared = 0,
     }, StatisticsScene)
@@ -20,6 +21,7 @@ end
 function StatisticsScene:enter()
     self.context.sound:playMenuBgm()
     self.page = 1
+    self.normalHistoryVisible = false
     self.context.titleRenderer:resetStatisticsPageCursor()
     self.practiceTotal = 0
     self.practiceCleared = 0
@@ -35,10 +37,16 @@ function StatisticsScene:update()
     if playdate.buttonJustPressed(playdate.kButtonB) then
         self.context.sound:play_se("cancel")
         self.manager:change(GameConfig.SCENE.TITLE)
+    elseif playdate.buttonJustPressed(playdate.kButtonA)
+        and self.page == 2 then
+        self.normalHistoryVisible = not self.normalHistoryVisible
+        self.context.sound:play_se("decide")
     elseif playdate.buttonJustPressed(playdate.kButtonLeft) then
+        self.normalHistoryVisible = false
         self.page = self.page == 1 and 3 or self.page - 1
         self.context.sound:play_se("pi")
     elseif playdate.buttonJustPressed(playdate.kButtonRight) then
+        self.normalHistoryVisible = false
         self.page = self.page == 3 and 1 or self.page + 1
         self.context.sound:play_se("pi")
     end
@@ -46,7 +54,8 @@ end
 
 function StatisticsScene:draw()
     self.context.titleRenderer:drawStatistics(
-        self.page, self.practiceCleared, self.practiceTotal)
+        self.page, self.practiceCleared, self.practiceTotal,
+        self.normalHistoryVisible)
 end
 
 function StatisticsScene:getSystemMenuItems()

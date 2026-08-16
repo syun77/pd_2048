@@ -2,7 +2,8 @@ import "game_config"
 
 local Config <const> = GameConfig
 local DATASTORE_KEY <const> = "statistics"
-local FORMAT_VERSION <const> = 1
+local FORMAT_VERSION <const> = 2
+local NORMAL_HISTORY_LIMIT <const> = 30
 
 ---@class StatisticsStore 統計情報の保存データ.
 ---@field version integer 保存データのフォーマットバージョン.
@@ -15,7 +16,14 @@ local FORMAT_VERSION <const> = 1
 ---@field bestLevel integer 最高到達レベル.
 ---@field highestTile integer 最高到達タイル.
 ---@field maxCombo integer 最大コンボ数.
----@field clears integer クリア回数.
+---@field history StatisticsStore.NormalHistory NORMALモードのプレイ履歴.
+---@class StatisticsStore.NormalHistory NORMALモードのプレイ履歴.
+---@field completedPlays integer 記録対象として完了した通算プレイ数.
+---@field runs StatisticsStore.NormalRun[] 過去のプレイ情報（最大30件）.
+---@class StatisticsStore.NormalRun NORMALモードの1プレイ分の情報.
+---@field number integer 記録対象として完了したプレイ番号.
+---@field level integer 最終到達レベル.
+---@field score integer 最終スコア.
 ---@class StatisticsStore.TimeAttackStatistics TIME ATTACKモードの統計情報.
 ---@field sprint64 StatisticsStore.TimedModeStatistics SPRINT 64の統計情報.
 ---@field sprint256 StatisticsStore.TimedModeStatistics SPRINT 256の統計情報.
@@ -55,6 +63,10 @@ function StatisticsStore.newData()
             bestLevel = 1,
             highestTile = 0,
             maxCombo = 0,
+            history = {
+                completedPlays = 0,
+                runs = {},
+            },
         },
         timeAttack = {
             sprint64 = newTimedMode(),
@@ -70,6 +82,29 @@ local function normalizeTimedMode(target, source)
     target.plays = nonNegativeInteger(source.plays)
     target.clears = math.min(target.plays, nonNegativeInteger(source.clears))
     target.bestTimeMs = optionalTime(source.bestTimeMs)
+end
+
+local function normalizeNormalHistory(target, source)
+    source = type(source) == "table" and source or {}
+    local sourceRuns = type(source.runs) == "table" and source.runs or {}
+    local firstIndex = math.max(1, #sourceRuns - NORMAL_HISTORY_LIMIT + 1)
+    local highestNumber = 0
+    for index = firstIndex, #sourceRuns do
+        local run = sourceRuns[index]
+        if type(run) == "table" then
+            local number = math.max(1, nonNegativeInteger(run.number, index))
+            local level = math.max(1, nonNegativeInteger(run.level, 1))
+            local score = nonNegativeInteger(run.score)
+            target.runs[#target.runs + 1] = {
+                number = number,
+                level = level,
+                score = score,
+            }
+            highestNumber = math.max(highestNumber, number)
+        end
+    end
+    target.completedPlays = math.max(highestNumber,
+        nonNegativeInteger(source.completedPlays))
 end
 
 -- 古い統計情報のデータを新しい形式に変換する.
@@ -95,6 +130,7 @@ local function normalize(data, legacy)
         nonNegativeInteger(legacy.normalBestLevel, 1))
     result.normal.highestTile = nonNegativeInteger(normal.highestTile)
     result.normal.maxCombo = nonNegativeInteger(normal.maxCombo)
+    normalizeNormalHistory(result.normal.history, normal.history)
 
     local timeAttack = type(data.timeAttack) == "table" and data.timeAttack or {}
     normalizeTimedMode(result.timeAttack.sprint64, timeAttack.sprint64)
@@ -177,6 +213,40 @@ function StatisticsStore.recordTimedClear(statistics, mode, elapsedTimeMs)
         timedMode.bestTimeMs = math.max(0, math.floor(elapsedTimeMs))
     end
     return true
+end
+
+-- NORMALモードで完了したプレイ情報を記録する.
+---@param statistics StatisticsStore 統計情報のデータ.
+---@param level integer 最終到達レベル.
+---@param score integer 最終スコア.
+function StatisticsStore.recordNormalCompletion(statistics, level, score)
+    local history = statistics.normal.history
+    history.completedPlays += 1
+    history.runs[#history.runs + 1] = {
+        number = history.completedPlays,
+        level = math.max(1, math.floor(level)),
+        score = math.max(0, math.floor(score)),
+    }
+    while #history.runs > NORMAL_HISTORY_LIMIT do
+        table.remove(history.runs, 1)
+    end
+end
+
+-- NORMALモードの保存済み履歴から平均値を計算する.
+---@param statistics StatisticsStore 統計情報のデータ.
+---@return number|nil averageLevel 平均到達レベル.
+---@return number|nil averageScore 平均スコア.
+---@return integer count 集計したプレイ数.
+function StatisticsStore.normalHistoryAverages(statistics)
+    local runs = statistics.normal.history.runs
+    if #runs == 0 then return nil, nil, 0 end
+    local totalLevel = 0
+    local totalScore = 0
+    for _, run in ipairs(runs) do
+        totalLevel += run.level
+        totalScore += run.score
+    end
+    return totalLevel / #runs, totalScore / #runs, #runs
 end
 
 -- 統計情報の総プレイ回数を取得する.

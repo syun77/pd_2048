@@ -301,7 +301,12 @@ function GameController:recordStatisticsResult()
     local state = self.state
     if self.replayMode or not self.statisticsRunEligible
         or not self.statisticsRunStarted then return end
-    if state.result == GameResult.VICTORY
+    if state.mode == Config.GAME_MODE.NORMAL
+        and state.result == GameResult.GAME_OVER then
+        StatisticsStore.recordNormalCompletion(
+            state.statistics, state.level, state.score)
+        self.statisticsDirty = true
+    elseif state.result == GameResult.VICTORY
         and StatisticsStore.recordTimedClear(
             state.statistics, state.mode, state.elapsedTimeMs) then
         self.statisticsDirty = true

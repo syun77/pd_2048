@@ -208,11 +208,87 @@ function TitleRenderer:drawStatisticsPageCursor(page)
     end
 end
 
+local function drawDottedHorizontalLine(x1, x2, y)
+    for x = x1, x2, 4 do
+        gfx.drawLine(x, y, math.min(x + 1, x2), y)
+    end
+end
+
+local function drawNormalHistory(renderer, statistics)
+    local normal = statistics.normal
+    local runs = normal.history.runs
+    local plotLeft <const> = 88
+    local plotRight <const> = 328
+    local plotTop <const> = 60
+    local plotBottom <const> = 132
+    local plotWidth <const> = plotRight - plotLeft
+    local plotHeight <const> = plotBottom - plotTop
+    local labelX <const> = 72
+    local valueX <const> = 328
+
+    drawStatisticsPanel(52, 160)
+	gfx.setLineWidth(1)
+    if #runs == 0 then
+        renderer:drawCenteredText("NO PLAY HISTORY", 100)
+    else
+        local maxLevel = 1
+        for _, run in ipairs(runs) do
+            maxLevel = math.max(maxLevel, run.level)
+        end
+        local axisMax = math.max(5, math.ceil(maxLevel / 5) * 5)
+        local middleY = math.floor((plotTop + plotBottom) / 2)
+        drawDottedHorizontalLine(plotLeft, plotRight, plotTop)
+        drawDottedHorizontalLine(plotLeft, plotRight, middleY)
+        gfx.drawLine(plotLeft, plotBottom, plotRight, plotBottom)
+        gfx.drawLine(plotLeft, plotTop, plotLeft, plotBottom)
+        gfx.drawTextAligned(tostring(axisMax), plotLeft - 6,
+            plotTop - 6, kTextAlignment.right)
+        gfx.drawTextAligned("0", plotLeft - 6,
+            plotBottom - 6, kTextAlignment.right)
+
+        local previousX = nil
+        local previousY = nil
+        for index, run in ipairs(runs) do
+            local x = #runs == 1 and math.floor((plotLeft + plotRight) / 2)
+                or math.floor(plotLeft
+                    + (index - 1) * plotWidth / (#runs - 1) + 0.5)
+            local y = math.floor(plotBottom
+                - math.min(axisMax, run.level) * plotHeight / axisMax + 0.5)
+            if previousX ~= nil then gfx.drawLine(previousX, previousY, x, y) end
+            gfx.fillRect(x - 1, y - 1, 3, 3)
+            previousX, previousY = x, y
+        end
+        if #runs == 1 then
+            gfx.drawTextAligned(tostring(runs[1].number),
+                math.floor((plotLeft + plotRight) / 2), 136,
+                kTextAlignment.center)
+        else
+            gfx.drawTextAligned(tostring(runs[1].number),
+                plotLeft, 136, kTextAlignment.left)
+            gfx.drawTextAligned(tostring(runs[#runs].number),
+                plotRight, 136, kTextAlignment.right)
+        end
+    end
+
+    local averageLevel, averageScore =
+        StatisticsStore.normalHistoryAverages(statistics)
+    gfx.drawTextAligned("AVG LEVEL", labelX, 164, kTextAlignment.left)
+    gfx.drawTextAligned(averageLevel == nil and "--"
+        or string.format("%.1f", averageLevel),
+        valueX, 164, kTextAlignment.right)
+    gfx.drawTextAligned("AVG SCORE", labelX, 188, kTextAlignment.left)
+    gfx.drawTextAligned(averageScore == nil and "--"
+        or tostring(math.floor(averageScore + 0.5)),
+        valueX, 188, kTextAlignment.right)
+end
+
 -- 統計情報の描画.
 ---@param page integer ページ番号.
 ---@param practiceCleared integer PRACTICEモードのクリア済みステージ数.
 ---@param practiceTotal integer PRACTICEモードの総ステージ数.
-function TitleRenderer:drawStatistics(page, practiceCleared, practiceTotal)
+---@param normalHistoryVisible boolean NORMAL履歴グラフを表示するか.
+function TitleRenderer:drawStatistics(
+    page, practiceCleared, practiceTotal, normalHistoryVisible)
     self:drawBackground()
 	-- タイトルの背景枠を描画.
 	gfx.setColor(gfx.kColorWhite)
@@ -241,18 +317,22 @@ function TitleRenderer:drawStatistics(page, practiceCleared, practiceTotal)
     elseif page == 2 then
 		-- NORMAL.
         local normal = statistics.normal
-        local labelX <const> = 72
-        local valueX <const> = 328
-        drawStatisticsPanel(52, 151)
-        local function drawNormal(label, value, y)
-            gfx.drawTextAligned(label, labelX, y, kTextAlignment.left)
-            gfx.drawTextAligned(tostring(value), valueX, y, kTextAlignment.right)
+        if normalHistoryVisible then
+            drawNormalHistory(self, statistics)
+        else
+            local labelX <const> = 72
+            local valueX <const> = 328
+            drawStatisticsPanel(52, 151)
+            local function drawNormal(label, value, y)
+                gfx.drawTextAligned(label, labelX, y, kTextAlignment.left)
+                gfx.drawTextAligned(tostring(value), valueX, y, kTextAlignment.right)
+            end
+            drawNormal("PLAYS", normal.plays, 60)
+            drawNormal("HIGH SCORE", normal.highScore, 88)
+            drawNormal("BEST LEVEL", normal.bestLevel, 116)
+            drawNormal("HIGHEST TILE", normal.highestTile, 144)
+            drawNormal("MAX COMBO", normal.maxCombo, 172)
         end
-        drawNormal("PLAYS", normal.plays, 60)
-        drawNormal("HIGH SCORE", normal.highScore, 88)
-        drawNormal("BEST LEVEL", normal.bestLevel, 116)
-        drawNormal("HIGHEST TILE", normal.highestTile, 144)
-        drawNormal("MAX COMBO", normal.maxCombo, 172)
     else
 		-- TIME ATTACK.
         local timed = statistics.timeAttack
@@ -280,6 +360,10 @@ function TitleRenderer:drawStatistics(page, practiceCleared, practiceTotal)
 	gfx.fillRect(0, 216, Config.SCREEN_WIDTH, 24)
 	-- 説明文の描画.
     self:drawStatisticsPageCursor(page)
+    if page == 2 then
+        self:drawCenteredText(normalHistoryVisible
+            and "A: SUMMARY" or "A: GRAPH", 220)
+    end
 end
 
 function TitleRenderer:drawSoundTest(selectedTab, selectedIndex, menuItems, bgmDbStatus)
