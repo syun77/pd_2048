@@ -175,9 +175,12 @@ end
 
 function OverlayRenderer:drawReplayStatus()
     if not self.state.replayActive then return end
-    gfx.fillRoundRect(8, 216, 72, 20, 4)
+    local text = "REPLAY " .. tostring(self.state.replayTurn)
+        .. "/" .. tostring(self.state.replayTotalTurns)
+    local textWidth = gfx.getTextSize(text)
+    gfx.fillRoundRect(8, 216, textWidth + 16, 20, 4)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
-    gfx.drawTextAligned("REPLAY", 44, 218, kTextAlignment.center)
+    gfx.drawText(text, 16, 218)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 

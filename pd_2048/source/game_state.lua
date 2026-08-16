@@ -104,6 +104,8 @@ local Config <const> = GameConfig
 ---@field replayActive boolean リプレイ再生中かどうか
 ---@field replayPaused boolean リプレイ再生を一時停止中かどうか
 ---@field replayPauseStartedAt integer? リプレイの一時停止開始時刻 (ミリ秒)
+---@field replayTurn integer リプレイ再生中の現在手数
+---@field replayTotalTurns integer リプレイの総手数
 ---@field replayData table リプレイデータ
 ---@field replayIndex integer リプレイ再生中の現在のインデックス
 ---@field replayStartTimeMs integer リプレイ再生開始時刻 (ミリ秒)
@@ -191,6 +193,8 @@ function GameState.new()
         replayActive = false,
         replayPaused = false,
         replayPauseStartedAt = nil,
+        replayTurn = 0,
+        replayTotalTurns = 0,
         suspendRestoreActive = false,
         message = "",
         messageUntil = 0,

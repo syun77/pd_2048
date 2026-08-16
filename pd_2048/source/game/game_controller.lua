@@ -32,6 +32,7 @@ local GameResult <const> = Config.GAME_RESULT
 ---@field undoController UndoController UNDO管理.
 ---@field randomGenerator GameRandom ランダムジェネレーター.
 ---@field replayController ReplayController リプレイ管理.
+---@field replayTurnByEventIndex table<integer, integer> イベントごとの表示手数.
 local GameController = {}
 GameController.__index = GameController
 
@@ -50,6 +51,7 @@ function GameController.new(dependencies)
     self.replayEventStartedAt = nil
     self.replayExecuting = false
     self.replayRemainingHolds = 0
+    self.replayTurnByEventIndex = {}
     self.replaySaved = false
     self.suspendRestoreData = nil
     self.suspendRestoreActive = false
@@ -1002,12 +1004,29 @@ function GameController:start(mode, practiceStage, options)
     self.replayEventStartedAt = nil
     self.replayExecuting = false
     self.replayRemainingHolds = 0
+    self.replayTurnByEventIndex = {}
     self.replaySaved = false
     self.suspendRestoreActive = options.restoring == true
     if not self.suspendRestoreActive then self.suspendRestoreData = nil end
     state.replayActive = self.replayMode
     state.replayPaused = false
     state.replayPauseStartedAt = nil
+    state.replayTurn = 0
+    state.replayTotalTurns = 0
+    if self.replayMode then
+        local turn = 0
+        for index, event in ipairs(self.replayData.events or {}) do
+            if event.type == "TURN" then turn += 1 end
+            self.replayTurnByEventIndex[index] = turn
+        end
+        state.replayTotalTurns = turn
+        if turn > 0 then
+            state.replayTurn = 1
+            for index, eventTurn in ipairs(self.replayTurnByEventIndex) do
+                if eventTurn == 0 then self.replayTurnByEventIndex[index] = 1 end
+            end
+        end
+    end
     state.suspendRestoreActive = self.suspendRestoreActive
     local seed = options.seed or self:createReplaySeed()
     self.randomGenerator:setSeed(seed)
@@ -1353,6 +1372,8 @@ function GameController:updateReplayPlayback(now, ignoreWait)
     local events = self.replayData ~= nil and self.replayData.events or {}
     local event = events[self.replayIndex]
     if event == nil then return end
+    state.replayTurn = self.replayTurnByEventIndex[self.replayIndex]
+        or state.replayTotalTurns
 
     if self.replayEventStartedAt == nil then
         self.replayEventStartedAt = now
