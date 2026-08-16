@@ -15,7 +15,7 @@
       },
       {
         "id": "CORE_RUSH",
-        "label": "コアクラッシュモード"
+        "label": "コアラッシュモード"
       },
       {
         "id": "PRACTICE",
@@ -274,7 +274,7 @@
         "en": "Created a 512 Tile"
       },
       "description": {
-        "ja": "Created a 512 Tile",
+        "ja": "ノーマルモードで512タイルを作成した",
         "en": "Created a 512 tile in Normal Mode."
       },
       "condition": {
@@ -412,7 +412,7 @@
         "scope": "RUN",
         "operator": ">=",
         "params": {
-          "valuet": 5
+          "value": 5
         }
       },
       "reward": {
@@ -438,7 +438,7 @@
         "scope": "RUN",
         "operator": ">=",
         "params": {
-          "valuet": 10
+          "value": 10
         }
       },
       "reward": {
@@ -464,7 +464,7 @@
         "scope": "RUN",
         "operator": ">=",
         "params": {
-          "valuet": 15
+          "value": 15
         }
       },
       "reward": {
@@ -483,7 +483,7 @@
       },
       "description": {
         "ja": "64 SPRINT を 2分以内でクリアした",
-        "en": "Cleared 64 SPRINT in under 2 minutes."
+        "en": "Cleared 64 SPRINT in within 2 minutes."
       },
       "condition": {
         "type": "CLEAR_TIME_MINUTE",
@@ -509,7 +509,7 @@
       },
       "description": {
         "ja": "256 SPRINT を 4分以内でクリアした",
-        "en": "Cleared 256 SPRINT in under 4 minutes."
+        "en": "Cleared 256 SPRINT in within 4 minutes."
       },
       "condition": {
         "type": "CLEAR_TIME_MINUTE",
@@ -535,7 +535,7 @@
       },
       "description": {
         "ja": "512 SPRINT を 8分以内でクリアした",
-        "en": "Cleared 512 SPRINT in under 8 minutes."
+        "en": "Cleared 512 SPRINT in within 8 minutes."
       },
       "condition": {
         "type": "CLEAR_TIME_MINUTE",
@@ -560,15 +560,15 @@
         "en": "CORE RUSH 2048"
       },
       "description": {
-        "ja": "CORE RUSH 2048 を 2分以内でクリアした",
-        "en": "Cleared CORE RUSH 2048 in under 2 minutes."
+        "ja": "CORE RUSH 2048 を 3分以内でクリアした",
+        "en": "Cleared CORE RUSH 2048 in within 3 minutes."
       },
       "condition": {
         "type": "CLEAR_TIME_MINUTE",
         "scope": "RUN",
         "operator": "<=",
         "params": {
-          "count": 2
+          "value": 3
         }
       },
       "reward": {
