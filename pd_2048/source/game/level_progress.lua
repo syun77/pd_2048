@@ -17,8 +17,7 @@ end
 
 -- レベル進行をリセットする関数.
 ---@param state GameState ゲーム状態
----@param recordEligible boolean レベル進行の記録が可能かどうか
-function LevelProgress.reset(state, recordEligible)
+function LevelProgress.reset(state)
     state.level = 1
     state.levelXp = 0
     state.levelDropCount = 0
@@ -28,7 +27,6 @@ function LevelProgress.reset(state, recordEligible)
     state.levelUpTo = 0
     state.levelUpDisplayFrame = Config.LEVEL_UP_DISPLAY_FRAMES
     state.levelNewBest = false
-    state.levelRecordEligible = recordEligible ~= false
 end
 
 -- レベルアップに必要な経験値を計算する関数.

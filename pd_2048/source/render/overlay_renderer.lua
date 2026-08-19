@@ -195,12 +195,20 @@ end
 
 -- リプレイ一時停止の表示.
 function OverlayRenderer:drawReplayPause()
-    gfx.fillRect(120, 84, 160, 68)
+    gfx.fillRect(105, 74, 190, 92)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
-    self:drawCenteredText("PAUSED", 90)
-    self:drawCenteredText("LEFT/RIGHT: STEP", 108)
-    self:drawCenteredText("A/B: RESUME", 126)
+    self:drawCenteredText("PAUSED", 80)
+    self:drawCenteredText("LEFT/RIGHT: STEP", 100)
+    self:drawCenteredText("A: PLAY FROM HERE", 120)
+    self:drawCenteredText("B: RESUME", 140)
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
+end
+
+function OverlayRenderer:drawReplayBranchDialog()
+    local selection = self.state.replayBranchSelection
+        or Config.REPLAY_BRANCH_SELECTION.NO
+    self:drawMenu(200, 120, { "PLAY FROM HERE?", "YES", "NO" },
+        selection + 1)
 end
 
 -- 通知メッセージの描画.

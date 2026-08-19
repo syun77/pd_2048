@@ -71,7 +71,7 @@ local Config <const> = GameConfig
 ---@field levelUpDisplayFrame integer レベルアップ表示の経過フレーム数
 ---@field normalBestLevel integer ノーマルモードの最高レベル
 ---@field levelNewBest boolean レベルアップ時に新記録かどうか
----@field levelRecordEligible boolean レベルアップ時に記録対象かどうか
+---@field persistentRecordEligible boolean 永続記録の対象ランかどうか
 ---■コンボ関連.
 ---@field combo integer 現在のコンボ数
 ---@field comboBonusScore integer 現在のコンボボーナススコア
@@ -106,6 +106,9 @@ local Config <const> = GameConfig
 ---@field replayPauseStartedAt integer? リプレイの一時停止開始時刻 (ミリ秒)
 ---@field replayTurn integer リプレイ再生中の現在手数
 ---@field replayTotalTurns integer リプレイの総手数
+---@field replayBranchDialogOpen boolean プレイ分岐確認を表示中かどうか
+---@field replayBranchSelection REPLAY_BRANCH_SELECTION プレイ分岐確認の選択値
+---@field replayBranchedPlay boolean リプレイから分岐したプレイかどうか
 ---@field replayData table リプレイデータ
 ---@field replayIndex integer リプレイ再生中の現在のインデックス
 ---@field replayStartTimeMs integer リプレイ再生開始時刻 (ミリ秒)
@@ -144,7 +147,7 @@ function GameState.new()
         levelUpDisplayFrame = Config.LEVEL_UP_DISPLAY_FRAMES,
         normalBestLevel = 1,
         levelNewBest = false,
-        levelRecordEligible = true,
+        persistentRecordEligible = true,
         timeAttackBestTimeMs = nil,
         coreRushBestTimeMs = nil,
         coreRushValue = 0,
@@ -195,6 +198,9 @@ function GameState.new()
         replayPauseStartedAt = nil,
         replayTurn = 0,
         replayTotalTurns = 0,
+        replayBranchDialogOpen = false,
+        replayBranchSelection = Config.REPLAY_BRANCH_SELECTION.NO,
+        replayBranchedPlay = false,
         suspendRestoreActive = false,
         message = "",
         messageUntil = 0,

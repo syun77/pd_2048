@@ -66,7 +66,6 @@ function GameController.new(dependencies)
     self.titleNotice = nil
     self.practiceStage = nil
     self.statisticsRunStarted = false
-    self.statisticsRunEligible = true
     self.statisticsResultRecorded = false
     self.statisticsLastTickMs = nil
     self.statisticsDirty = false
@@ -102,6 +101,37 @@ end
 
 function GameController:isReplayPaused()
     return self.state.replayPaused
+end
+
+function GameController:isReplayBranchedPlay()
+    return self.state.replayBranchedPlay
+end
+
+function GameController:isPersistentRecordEligible()
+    return self.state.persistentRecordEligible
+end
+
+function GameController:canWritePersistentProgress()
+    return self.state.persistentRecordEligible
+        and not self.replayMode and not self.suspendRestoreActive
+end
+
+function GameController:canSuspendNormalGame()
+    local state = self.state
+    return state.mode == Config.GAME_MODE.NORMAL
+        and state.persistentRecordEligible
+        and not self.replayMode
+        and not self.suspendRestoreActive
+        and state.result == nil
+end
+
+function GameController:canRecordReplayInput()
+    local state = self.state
+    return state.mode == Config.GAME_MODE.NORMAL
+        and state.persistentRecordEligible
+        and not self.replayMode
+        and not self.suspendRestoreActive
+        and not self.autoPlayEnabled
 end
 
 function GameController:isSuspendRestoring()
@@ -158,12 +188,10 @@ function GameController:startSuspendRestore()
         replayData = data,
         seed = data.seed,
         restoring = true,
+        persistentRecordEligible = data.persistentRecordEligible ~= false,
     })
-    self.state.levelRecordEligible = data.levelRecordEligible ~= false
     local statisticsRun = type(data.statisticsRun) == "table"
         and data.statisticsRun or {}
-    self.statisticsRunEligible = statisticsRun.eligible ~= false
-        and data.levelRecordEligible ~= false
     self.statisticsRunStarted = statisticsRun.started == true
         or data.statisticsRunStarted == true
     if statisticsRun.started == nil and data.statisticsRunStarted == nil then
@@ -187,35 +215,33 @@ function GameController:startSuspendRestore()
 end
 
 function GameController:setAutoPlayEnabled(value)
-    if value and self.statisticsRunEligible then
-        self.statisticsRunEligible = false
+    local state = self.state
+    if value and state.persistentRecordEligible then
         if self.statisticsRunStarted then
-            StatisticsStore.removePlay(self.state.statistics, self.state.mode)
+            StatisticsStore.removePlay(state.statistics, state.mode)
             self.statisticsRunStarted = false
         end
-        if self.state.mode == Config.GAME_MODE.NORMAL then
-            self.state.normalHighScore = self.statisticsNormalHighScoreAtStart
-            self.state.highScore = math.max(self.state.score,
+        if state.mode == Config.GAME_MODE.NORMAL then
+            state.normalHighScore = self.statisticsNormalHighScoreAtStart
+            state.highScore = math.max(state.score,
                 self.statisticsNormalHighScoreAtStart)
-            self.state.normalBestLevel = self.statisticsNormalBestLevelAtStart
-            self.state.statistics.normal.highScore =
+            state.normalBestLevel = self.statisticsNormalBestLevelAtStart
+            state.statistics.normal.highScore =
                 self.statisticsNormalHighScoreAtStart
-            self.state.statistics.normal.bestLevel =
+            state.statistics.normal.bestLevel =
                 self.statisticsNormalBestLevelAtStart
-            self.state.statistics.normal.highestTile =
+            state.statistics.normal.highestTile =
                 self.statisticsNormalHighestTileAtStart
-            self.state.statistics.normal.maxCombo =
+            state.statistics.normal.maxCombo =
                 self.statisticsNormalMaxComboAtStart
-            pd.datastore.write(self.state.normalHighScore, "highScore")
-            pd.datastore.write(self.state.normalBestLevel, "normalBestLevel")
+            pd.datastore.write(state.normalHighScore, "highScore")
+            pd.datastore.write(state.normalBestLevel, "normalBestLevel")
         end
         self.statisticsDirty = true
     end
     self.autoPlayEnabled = value
     self.autoPlayer:reset()
-    if value and self.state.mode == Config.GAME_MODE.NORMAL then
-        self.state.levelRecordEligible = false
-    end
+    if value then state.persistentRecordEligible = false end
 end
 
 function GameController:isAutoPlayEnabled()
@@ -294,15 +320,16 @@ function GameController:updateStatisticsPlayTime(now)
     local delta = now - previous
     if delta < 0 or delta > 250 then return end
     local state = self.state
-    if state.startReadyUntil ~= 0 or state.result ~= nil or self.replayMode
-        or self.suspendRestoreActive or self.autoPlayEnabled then return end
+    if state.startReadyUntil ~= 0 or state.result ~= nil
+        or not self:canWritePersistentProgress()
+        or self.autoPlayEnabled then return end
     state.statistics.totalPlayTimeMs += delta
     self.statisticsDirty = true
 end
 
 function GameController:recordStatisticsPlay()
-    if self.statisticsRunStarted or not self.statisticsRunEligible
-        or self.replayMode or self.autoPlayEnabled then return end
+    if self.statisticsRunStarted or not self:canWritePersistentProgress()
+        or self.autoPlayEnabled then return end
     if StatisticsStore.recordPlay(self.state.statistics, self.state.mode) then
         self.statisticsRunStarted = true
         self.statisticsDirty = true
@@ -313,7 +340,7 @@ function GameController:recordStatisticsResult()
     if self.statisticsResultRecorded then return end
     self.statisticsResultRecorded = true
     local state = self.state
-    if self.replayMode or not self.statisticsRunEligible
+    if not self:canWritePersistentProgress()
         or not self.statisticsRunStarted then return end
     if state.mode == Config.GAME_MODE.NORMAL
         and state.result == GameResult.GAME_OVER then
@@ -340,12 +367,12 @@ function GameController:isPracticeStageCleared(stage)
 end
 
 function GameController:savePracticeClearedStages()
-    if self.replayMode then return end
+    if not self:canWritePersistentProgress() then return end
     pd.datastore.write(self.state.practiceClearedStages, "practiceClearedStages")
 end
 
 function GameController:markPracticeStageCleared()
-    if self.replayMode then return end
+    if not self:canWritePersistentProgress() then return end
     local stageId = self:getPracticeStageId(self.practiceStage)
     if stageId == nil or self.state.practiceClearedStages[stageId] == true then
         return
@@ -355,9 +382,9 @@ function GameController:markPracticeStageCleared()
 end
 
 function GameController:saveCurrentModeHighScore()
-    if self.replayMode then return end
     local state = self.state
-    if state.mode == Config.GAME_MODE.NORMAL and self.statisticsRunEligible
+    if state.mode == Config.GAME_MODE.NORMAL
+        and self:canWritePersistentProgress()
         and state.score > state.normalHighScore then
         state.normalHighScore = state.score
         state.statistics.normal.highScore = state.score
@@ -383,7 +410,8 @@ function GameController:applyLevelProgress(levelUp, previousLevel)
 	-- レベルアップSEを再生.
 	self.sound:play_se("levelup")
 
-    if state.levelRecordEligible and state.level > state.normalBestLevel then
+    if self:canWritePersistentProgress()
+        and state.level > state.normalBestLevel then
 		-- 最高レベルの記録更新.
         state.normalBestLevel = state.level
         state.statistics.normal.bestLevel = state.level
@@ -395,17 +423,15 @@ end
 
 -- タイムアタックでの最短クリア時間を保存する.
 function GameController:saveTimeAttackBestTime()
-    if self.replayMode then return end
     local state = self.state
-    if not self.statisticsRunEligible or not self:isTimeAttack()
+    if not self:canWritePersistentProgress() or not self:isTimeAttack()
         or state.result ~= GameResult.VICTORY then return end
     self:recordStatisticsResult()
 end
 
 function GameController:saveCoreRushBestTime()
-    if self.replayMode then return end
     local state = self.state
-    if not self.statisticsRunEligible or not self:isCoreRush()
+    if not self:canWritePersistentProgress() or not self:isCoreRush()
         or state.result ~= GameResult.VICTORY then return end
     if state.coreRushBestTimeMs == nil or state.elapsedTimeMs < state.coreRushBestTimeMs then
         state.coreRushBestTimeMs = state.elapsedTimeMs
@@ -888,8 +914,8 @@ function GameController:finishMerge()
         state.timeAttackVictoryPending = true
     end
     self.session:recordMerge(state.mergeValue)
-    if state.mode == Config.GAME_MODE.NORMAL and self.statisticsRunEligible
-        and not self.replayMode and not self.autoPlayEnabled then
+    if state.mode == Config.GAME_MODE.NORMAL
+        and self:canWritePersistentProgress() and not self.autoPlayEnabled then
         local normal = state.statistics.normal
         if state.mergeValue > normal.highestTile then
             normal.highestTile = state.mergeValue
@@ -1027,6 +1053,9 @@ function GameController:start(mode, practiceStage, options)
     state.replayPauseStartedAt = nil
     state.replayTurn = 0
     state.replayTotalTurns = 0
+    state.replayBranchDialogOpen = false
+    state.replayBranchSelection = Config.REPLAY_BRANCH_SELECTION.NO
+    state.replayBranchedPlay = false
     if self.replayMode then
         local turn = 0
         for index, event in ipairs(self.replayData.events or {}) do
@@ -1053,23 +1082,28 @@ function GameController:start(mode, practiceStage, options)
     local seed = options.seed or self:createReplaySeed()
     self.randomGenerator:setSeed(seed)
     state.mode = mode or Config.GAME_MODE.NORMAL
+    if options.persistentRecordEligible ~= nil then
+        state.persistentRecordEligible = options.persistentRecordEligible == true
+    else
+        state.persistentRecordEligible = not self.autoPlayEnabled
+            and not self.replayMode
+    end
     self.statisticsRunStarted = false
-    self.statisticsRunEligible = not self.autoPlayEnabled and not self.replayMode
     self.statisticsResultRecorded = false
     self.statisticsLastTickMs = nil
     self.statisticsNormalHighestTileAtStart = state.statistics.normal.highestTile
     self.statisticsNormalMaxComboAtStart = state.statistics.normal.maxCombo
     self.statisticsNormalHighScoreAtStart = state.statistics.normal.highScore
     self.statisticsNormalBestLevelAtStart = state.statistics.normal.bestLevel
-    if state.mode == Config.GAME_MODE.NORMAL and not self.replayMode
-        and not self.suspendRestoreActive then
+    if state.mode == Config.GAME_MODE.NORMAL
+        and state.persistentRecordEligible and not self.suspendRestoreActive then
         ReplayController.deleteSuspend(pd)
     end
     if practiceStage ~= nil then self.practiceStage = practiceStage end
     self:clearBoard()
     state.result = nil
     state.score = 0
-    LevelProgress.reset(state, not self.autoPlayEnabled and not self.replayMode)
+    LevelProgress.reset(state)
     state.coreRushValue = 0
     state.coreRushGainCombo = 0
     state.coreRushGainMergeValue = 0
@@ -1142,9 +1176,10 @@ function GameController:start(mode, practiceStage, options)
                 state.board, state, self.randomGenerator)
         end
     end
-    if not self.replayMode and state.mode == Config.GAME_MODE.NORMAL then
+    if state.persistentRecordEligible and not self.replayMode
+        and state.mode == Config.GAME_MODE.NORMAL then
         self.replayController:start(state.mode, nil, seed)
-    elseif not self.replayMode then
+    else
         self.replayController:cancelRecording()
     end
     self:updateHoldAvailability()
@@ -1201,7 +1236,7 @@ function GameController:holdCurrentBlock()
     state.animationProgress = 0
     state.animationDuration = 0.30
     state.phase = GamePhase.HOLD_ANIM
-    if not self.replayMode then
+    if self:canRecordReplayInput() then
         self.replayController:noteHold()
         self.replayController:pauseDecision(pd.getCurrentTimeMilliseconds())
     end
@@ -1215,13 +1250,13 @@ function GameController:finishHoldAnimation()
     state.holdAnimationReturnValue = 0
     state.holdAnimationNextValue = 0
     if state.practiceVictoryPending then
-        if not self.replayMode then
+        if self:canRecordReplayInput() then
             self.replayController:recordTurn(
                 pd.getCurrentTimeMilliseconds(), state.cursorX, false)
         end
         self:beginPracticeVictory()
     elseif state.nextValues[1] == 0 or not self:canDropInAnyColumn() then
-        if not self.replayMode then
+        if self:canRecordReplayInput() then
             self.replayController:recordTurn(
                 pd.getCurrentTimeMilliseconds(), state.cursorX, false)
         end
@@ -1242,7 +1277,7 @@ function GameController:beginDrop()
     end
     self:recordStatisticsPlay()
     local x, y = self:findDropCell(state.cursorX)
-    if not self.replayMode then
+    if self:canRecordReplayInput() then
         self.replayController:recordTurn(
             pd.getCurrentTimeMilliseconds(), state.cursorX, true)
     end
@@ -1279,7 +1314,7 @@ function GameController:executeCommand(command)
     elseif command == InputCommand.DROP then return self:beginDrop()
     elseif command == InputCommand.REWIND then
         local restored = self.undoController:restore()
-        if restored and not self.replayMode then
+        if restored and self:canRecordReplayInput() then
             self.replayController:recordRewind(pd.getCurrentTimeMilliseconds())
         end
         return restored
@@ -1311,6 +1346,83 @@ function GameController:completeReplayEvent()
     self.replayEventStartedAt = nil
     self.replayExecuting = false
     self.replayRemainingHolds = 0
+end
+
+function GameController:openReplayBranchDialog()
+    local state = self.state
+    if not self.replayMode or not state.replayPaused or state.result ~= nil
+        or self.replayPlaybackError or self.suspendRestoreActive then
+        return false
+    end
+    state.replayBranchDialogOpen = true
+    state.replayBranchSelection = Config.REPLAY_BRANCH_SELECTION.NO
+    self.sound:play_se("decide")
+    return true
+end
+
+function GameController:moveReplayBranchSelection(delta)
+    local state = self.state
+    if not state.replayBranchDialogOpen or delta == 0 then return false end
+    local selectionCount <const> = 2
+    state.replayBranchSelection =
+        (state.replayBranchSelection - 1 + delta) % selectionCount + 1
+    self.sound:play_se("pi")
+    return true
+end
+
+function GameController:closeReplayBranchDialog()
+    local state = self.state
+    if not state.replayBranchDialogOpen then return false end
+    state.replayBranchDialogOpen = false
+    state.replayBranchSelection = Config.REPLAY_BRANCH_SELECTION.NO
+    return true
+end
+
+function GameController:branchReplayToPlayer(now)
+    local state = self.state
+    if not self.replayMode or not state.replayPaused
+        or not state.replayBranchDialogOpen or state.result ~= nil
+        or self.replayPlaybackError or self.suspendRestoreActive then
+        return false
+    end
+
+    local pausedDuration = math.max(0,
+        now - (state.replayPauseStartedAt or now))
+    if state.startReadyUntil ~= 0 then
+        state.startReadyUntil += pausedDuration
+    end
+
+    self.replayMode = false
+    self.replayData = nil
+    self.replayIndex = 1
+    self.replayEventStartedAt = nil
+    self.replayExecuting = false
+    self.replayRemainingHolds = 0
+    self.replayTurnByEventIndex = {}
+    self.replayTurnEndEventIndexes = {}
+    self.replaySeekActive = false
+    self.replayAtSeekBoundary = false
+    self.replayPlaybackError = false
+    self.replaySaved = true
+    self.replayController:cancelRecording()
+
+    state.replayActive = false
+    state.replayPaused = false
+    state.replayPauseStartedAt = nil
+    state.replayTurn = 0
+    state.replayTotalTurns = 0
+    state.replayBranchDialogOpen = false
+    state.replayBranchSelection = Config.REPLAY_BRANCH_SELECTION.NO
+    state.replayBranchedPlay = true
+    state.persistentRecordEligible = false
+    self.autoPlayEnabled = false
+    self.autoPlayer:reset()
+    self:resetCursorKeyRepeat()
+    state.rewindHoldStartedAt = nil
+    state.rewindHoldTriggered = false
+    self.statisticsLastTickMs = now
+    self.sound:play_se("decide")
+    return true
 end
 
 -- リプレイ再生の一時停止を切り替える.
@@ -1420,8 +1532,7 @@ end
 ---@return boolean 保存に成功したかどうか
 function GameController:suspendNormalGame()
     local state = self.state
-    if state.mode ~= Config.GAME_MODE.NORMAL or self.replayMode
-        or self.suspendRestoreActive then return false end
+    if not self:canSuspendNormalGame() then return false end
     if state.result ~= nil then
         ReplayController.deleteSuspend(pd)
         return false
@@ -1437,7 +1548,6 @@ function GameController:suspendNormalGame()
     return self.replayController:saveSuspend(
         state, self.randomGenerator:getState(), {
             started = self.statisticsRunStarted,
-            eligible = self.statisticsRunEligible,
             normalHighScoreAtStart = self.statisticsNormalHighScoreAtStart,
             normalBestLevelAtStart = self.statisticsNormalBestLevelAtStart,
             normalHighestTileAtStart = self.statisticsNormalHighestTileAtStart,
@@ -1554,7 +1664,8 @@ function GameController:updateSuspendRestore()
             self.suspendRestoreData = nil
             state.replayActive = false
             state.suspendRestoreActive = false
-            state.levelRecordEligible = data.levelRecordEligible ~= false
+            state.persistentRecordEligible =
+                data.persistentRecordEligible ~= false
             self.replayController:resume(data)
             ReplayController.deleteSuspend(pd)
             self.sound.effectsSuppressed = false
@@ -1593,6 +1704,7 @@ function GameController:finishReplayRecordingIfNeeded()
         end
         return
     end
+    if not self:canWritePersistentProgress() then return end
     if self.state.mode == Config.GAME_MODE.NORMAL then
         ReplayController.deleteSuspend(pd)
     end
@@ -1608,7 +1720,29 @@ function GameController:update()
     if self.suspendRestoreActive then return self:updateSuspendRestore() end
     local now = pd.getCurrentTimeMilliseconds()
     if self.replayMode and state.replayPaused then
-        if pd.buttonJustPressed(pd.kButtonLeft) then
+        if state.replayBranchDialogOpen then
+            if pd.buttonJustPressed(pd.kButtonUp) then
+                self:moveReplayBranchSelection(-1)
+            elseif pd.buttonJustPressed(pd.kButtonDown) then
+                self:moveReplayBranchSelection(1)
+            elseif pd.buttonJustPressed(pd.kButtonB) then
+                self.sound:play_se("decide")
+                self:closeReplayBranchDialog()
+            elseif pd.buttonJustPressed(pd.kButtonA) then
+                if state.replayBranchSelection
+                    == Config.REPLAY_BRANCH_SELECTION.YES then
+                    self:branchReplayToPlayer(now)
+                else
+                    self.sound:play_se("decide")
+                    self:closeReplayBranchDialog()
+                end
+            end
+        elseif state.result ~= nil then
+            if pd.buttonJustPressed(pd.kButtonA)
+                or pd.buttonJustPressed(pd.kButtonB) then
+                self:toggleReplayPause(now)
+            end
+        elseif pd.buttonJustPressed(pd.kButtonLeft) then
             if state.replayTurn > 1 then
                 self:seekReplayTurn(state.replayTurn - 1)
             end
@@ -1618,9 +1752,10 @@ function GameController:update()
             elseif not self.replayAtSeekBoundary then
                 self:seekReplayTurn(state.replayTotalTurns)
             end
-        elseif pd.buttonJustPressed(pd.kButtonA)
-            or pd.buttonJustPressed(pd.kButtonB) then
+        elseif pd.buttonJustPressed(pd.kButtonB) then
             self:toggleReplayPause(now)
+        elseif pd.buttonJustPressed(pd.kButtonA) then
+            self:openReplayBranchDialog()
         end
         return nil
     end
@@ -1668,7 +1803,8 @@ function GameController:update()
 
     if state.phase ~= GamePhase.INPUT then self:resetCursorKeyRepeat() end
 
-    if state.phase == GamePhase.INPUT and state.result == nil and not self.replayMode then
+    if state.phase == GamePhase.INPUT and state.result == nil
+        and self:canRecordReplayInput() then
         self.replayController:beginDecision(
             pd.getCurrentTimeMilliseconds(), state.holdValue == 0)
     end

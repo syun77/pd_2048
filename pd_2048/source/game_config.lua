@@ -29,7 +29,7 @@ local Config = {
     REPLAY_FORMAT_VERSION = 2,
     REPLAY_RULES_VERSION = 1,
     REPLAY_RNG_VERSION = "park-miller-v1",
-    SUSPEND_FORMAT_VERSION = 1,
+    SUSPEND_FORMAT_VERSION = 2,
     SUSPEND_RESTORE_STEPS_PER_FRAME = 120,
     SCORE_MULTIPLIER = 100,
 	-- NORMALモードのレベル関連.
@@ -102,6 +102,8 @@ local Config = {
     ROTATION_EVALUATION_VERTICAL_DIRECTION_WEIGHT = 10,
 	---@enum DIRECTION 方向.
     DIRECTION = { NONE = 0, DOWN = 1, LEFT = 2, RIGHT = 3, UP = 4 },
+	---@enum REPLAY_BRANCH_SELECTION リプレイ分岐確認の選択肢.
+    REPLAY_BRANCH_SELECTION = { YES = 1, NO = 2 },
 	---@enum LANGUAGE 言語.
     LANGUAGE = {
         JAPANESE = "ja",

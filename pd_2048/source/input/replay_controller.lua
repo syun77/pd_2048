@@ -252,7 +252,7 @@ function ReplayController.suspendChecksum(state, randomGeneratorState)
     hash = addHash(hash, state.holdAvailable)
     hash = addHash(hash, state.lastRandomBlockValue)
     hash = addHash(hash, state.consecutiveRandomBlockCount)
-    hash = addHash(hash, state.levelRecordEligible)
+    hash = addHash(hash, state.persistentRecordEligible)
     hash = addHash(hash, #(state.undoStates or {}))
     for _, snapshot in ipairs(state.undoStates or {}) do
         local restored = snapshot.state or {}
@@ -579,7 +579,7 @@ function ReplayController:saveSuspend(state, randomGeneratorState, statisticsRun
     self:recordCheckpoint(self.pd.getCurrentTimeMilliseconds(), state.cursorX)
     self.data.suspendVersion = Config.SUSPEND_FORMAT_VERSION
     self.data.savedAt = currentLocalTime(self.pd)
-    self.data.levelRecordEligible = state.levelRecordEligible ~= false
+    self.data.persistentRecordEligible = state.persistentRecordEligible ~= false
     self.data.statisticsRun = statisticsRun
     self.data.checkpointChecksum = ReplayController.suspendChecksum(
         state, randomGeneratorState)

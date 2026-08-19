@@ -35,7 +35,12 @@ function NormalGameScene:exit()
 end
 
 function NormalGameScene:update()
+    local wasReplayMode = self.context.game:isReplayMode()
     local result = self.context.game:update()
+    if wasReplayMode and not self.context.game:isReplayMode()
+        and not self.restoreMenuPending then
+        self.manager:refreshSystemMenu()
+    end
     if self.restoreMenuPending
         and not self.context.game:isSuspendRestoring() then
         self.restoreMenuPending = false
@@ -70,10 +75,7 @@ function NormalGameScene:getSystemMenuItems()
         }
     end
 
-    local state = self.context.game:getState()
-    if state.mode == GameConfig.GAME_MODE.NORMAL
-        and not self.context.game:isReplayMode()
-        and not self.context.game:isSuspendRestoring() then
+    if self.context.game:canSuspendNormalGame() then
         items[#items + 1] = {
             title = "Suspend",
             callback = function()
