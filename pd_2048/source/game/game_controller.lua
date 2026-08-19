@@ -1625,8 +1625,7 @@ function GameController:update()
         return nil
     end
     if self.replayMode and state.result == nil
-        and (pd.buttonJustPressed(pd.kButtonA)
-            or pd.buttonJustPressed(pd.kButtonB)) then
+        and pd.buttonJustPressed(pd.kButtonA) then
         self:toggleReplayPause(now)
         return nil
     end
@@ -1676,7 +1675,9 @@ function GameController:update()
 
     if state.phase == GamePhase.INPUT then
         if self.replayMode then
-            self:updateReplayPlayback(pd.getCurrentTimeMilliseconds())
+            self:updateReplayPlayback(
+                pd.getCurrentTimeMilliseconds(),
+                pd.buttonIsPressed(pd.kButtonB))
         elseif self.autoPlayEnabled then
             local command = self.autoPlayer:poll(nil, {
                 phase = state.phase,
