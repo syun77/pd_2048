@@ -126,7 +126,6 @@ cellY = 54 + (y - 1) * 32
 - 完了したNORMALプレイは、一覧用datastoreの`replayIndex`と、`replay_<ID>`形式の個別datastoreへ分け、新しい順で最大30件保存する。
 - `replayIndex`にはID、互換性判定用バージョン、保存日時、お気に入り状態、サマリーだけを保存する。seed、イベント列、最終チェックサムは個別datastoreへ保存し、再生選択時に読み込む。
 - 31件目の保存時は最も古いお気に入りでないリプレイを自動削除する。お気に入りは自動削除せず、30件すべてがお気に入りなら新しいリプレイを保存しない。
-- 旧一括形式の`replays`および旧単一形式の`lastReplay`は、一覧の初回読み込み時に個別datastoreと`replayIndex`へ移行する。個別データとインデックスの保存がすべて成功するまで旧データを削除しない。
 - リプレイには到達レベル、本体のローカル日時による保存日時、お気に入り状態を含める。
 - TIME ATTACK、CORE RUSH、PRACTICEではリプレイを記録せず、保存済みのNORMALリプレイを上書きしない。
 - 保存済みの互換NORMALリプレイがある場合、タイトルメニューの`REPLAYS`から選択して再生できる。
@@ -354,7 +353,7 @@ REWINDではレベル、累計XP、DROP数、XP内訳、初到達済みの値を
 
 PRACTICEなどのサブメニューで項目数が5件を超える場合は、上下キーの選択移動に合わせてメニューをスクロールし、選択中の項目が可能な限りメニュー中央に表示される。1画面に表示する項目数は5件とし、5件以下の場合はスクロールせず全項目を表示する。上側に画面外の項目がある場合は`▲`、下側に画面外の項目がある場合は`▼`を表示する。また、項目の右端に縦スクロールバーを表示し、つまみの位置で項目のオフセット、つまみの高さで全項目に対する表示項目数の割合を示す。
 
-タイトル画面、TIME ATTACK/PRACTICEサブメニュー、ACHIEVEMENTS画面、STATISTICS画面、SOUND TEST画面の背景には、1-bit向けの幾何学模様アニメーションを表示する。背景はキャッシュ用イメージへ一定間隔で再描画し、毎フレームの計算量を抑える。負荷設定は`MENU_BACKGROUND_LOAD`で`OFF`、`LOW`、`MEDIUM`、`HIGH`から選択でき、Playdateシステムメニューの`BG: ...`から実行中にも切り替えられる。`LOW`はトルシェ風タイル、`MEDIUM`はタイルとモアレ円、`HIGH`はさらにリサージュ線を追加する。
+タイトル画面、TIME ATTACK/PRACTICEサブメニュー、ACHIEVEMENTS画面、STATISTICS画面、SOUND TEST画面では、`MENU_BACKGROUND_LOAD`が`LOW`、`MEDIUM`、`HIGH`のときに1-bit向けの幾何学模様アニメーションを背景へ重ねる。背景はキャッシュ用イメージへ一定間隔で再描画し、毎フレームの計算量を抑える。`LOW`、`MEDIUM`、`HIGH`の順にモアレ円の描画密度と更新頻度が上がり、`HIGH`ではリサージュ線も描画する。初期値は`OFF`である。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合だけ、対象画面のPlaydateシステムメニューに`BG: ...`を追加し、`OFF`、`LOW`、`MEDIUM`、`HIGH`を実行中に切り替えられる。現行設定は`false`のため、この項目は表示しない。
 
 - 初期盤面は`(2,3)=8`、`(4,3)=8`。
 - NEXTの生成列は`2, 2, 4, 8`で、末尾まで進むと先頭へ戻る。
@@ -367,11 +366,9 @@ PRACTICEなどのサブメニューで項目数が5件を超える場合は、�
 - `turnLimit`が1以上の場合、指定手数に達してもクリア条件を満たしていなければ失敗（ゲームオーバー）とする。クリア条件の達成は失敗より優先する。
 - `turnLimit`が1以上の場合、出現ブロック数は指定手数までとする。NEXTが空になった後にHOLDブロックが残っていれば、それを次の操作対象とし、NEXTがない状態ではHOLDを使用できない。
 
-実績定義の正本は`pd_2048/source/assets/achievement/achievements.json`とし、全18件の条件、表示文言、報酬、表示順を管理する。条件と報酬の詳細は`仕様書/実績エディター.md`に従う。達成状態は実績定義とは分離してdatastoreへ保存する。
+実績エディタが扱う定義データは`pd_2048/source/assets/achievement/achievements.json`に保存し、全18件の条件、表示文言、報酬、表示順を保持する。編集データの詳細は`仕様書/実績エディター.md`に従う。アプリケーションはこのJSONを読み込まず、達成判定、達成状態の保存、報酬の適用を行わない。JSON内の報酬はタイトルメニューの表示可否に影響しない。
 
-`UNLOCK_ACHIEVEMENT`で達成済み実績数を判定するときは、判定対象自身を数に含めず、達成済みの他の実績は条件タイプにかかわらず数に含める。実績解除後は、新たに解除される実績がなくなるまで達成数条件を再評価する。
-
-ACHIEVEMENTS画面と実績の読み込み・達成判定・保存・報酬解放は未実装であり、現在のACHIEVEMENTS画面は`NO ACHIEVEMENTS YET`を表示する。
+ACHIEVEMENTS画面は`NO ACHIEVEMENTS YET`を表示し、Bボタンまたはシステムメニューの`Back to Title`でタイトルへ戻る。TIME ATTACKの各モード、CORE RUSH、PRACTICE、ACHIEVEMENTS、STATISTICS、SOUND TESTは常時選択できる。REPLAYSは互換性のある保存済みリプレイが1件以上ある場合だけ表示する。リプレイデータの続きから通常プレイを開始する機能は提供しない。
 
 STATISTICS画面は左右入力で次の3ページを切り替える。統計項目を囲む白い矩形の左右端から内側8pxには、`fillPolygon`で描画した白縁取り・黒塗りの三角形ページ切り替えカーソルを表示する。入力した方向のカーソルは、メニューの上下スクロールカーソルと同様に一時的に外側へ移動してから定位置へ戻す。
 
@@ -397,9 +394,9 @@ NORMALの履歴は、統計対象としてゲームオーバーまで完了し�
 
 NORMALの最高ブロック値は初期配置やランダム出現値ではなく、マージで生成した値だけを対象とする。最大コンボと最高ブロック値はREWIND後も達成済み記録として残す。Auto Playを一度でも有効にしたプレイは、プレイ回数、クリア回数、ベストタイム、NORMALの最高スコア・最高レベル・最高ブロック値・最大コンボ数の記録対象外とする。リプレイ再生も同様に全記録の対象外とする。
 
-ブロック出現総数、マージ総数、DROP総数、HOLD・回転・REWIND使用回数、生涯累計スコアはSTATISTICSへ保存・表示しない。実績条件に必要となった場合は表示統計とは別の内部カウンターとして扱う。
+ブロック出現総数、マージ総数、DROP総数、HOLD・回転・REWIND使用回数、生涯累計スコアは保存・表示せず、実績用の内部カウンターも持たない。
 
-SOUND TEST画面はBGMとSEの試聴画面である。左右キーで`BGM`と`SE`を切り替え、上下キーで項目を選択し、Aボタンで選択中のBGMまたはSEを再生する。Bボタンでタイトル画面へ戻る。BGM再生時は`assets/bgm_db`内の同名JSONを再生中の1曲分だけ読み込み、再生位置と、その時刻に対応する低域・中域・高域の概算dB値を画面右側に縦軸グラフで表示する。詳細な画面仕様は後続で定義する。
+SOUND TEST画面はBGMとSEの試聴画面である。左右キーで`BGM`と`SE`を切り替え、上下キーで項目を選択し、Aボタンで選択中のBGMまたはSEを再生する。Bボタンで再生中のBGMを停止してタイトル画面へ戻る。BGMの再生が終了すると次のBGMを自動選択して再生する。BGM再生時は`assets/bgm_db`内の同名JSONを再生中の1曲分だけ読み込み、再生位置、再生進捗、低域・中域・高域の概算レベルを画面右下の3本の縦棒で表示する。JSONが単一レベル列だけを持つ場合は中域として表示する。
 
 ### 11.2 ゲーム画面
 
@@ -462,14 +459,14 @@ Playdateのシステムメニュー項目は画面遷移時に切り替える。
 
 | 画面 | 項目 |
 |---|---|
-| タイトル | `BG: ...` |
+| タイトル | `SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
 | ゲーム（NORMAL GAME） | `Suspend`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play`。リプレイ再生中は`Suspend`ではなく`Back to Title` |
 | ゲーム（TIME ATTACK） | `Mode Select`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
 | ゲーム（PRACTICE） | `Stage Select`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
 | ゲームオーバー | 現在のモードに応じた戻り項目（`Back to Title`、`Mode Select`、`Stage Select`）と`Retry` |
-| ACHIEVEMENTS、STATISTICS、SOUND TEST | `Back to Title`、`BG: ...` |
+| ACHIEVEMENTS、STATISTICS、SOUND TEST | `Back to Title`。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
 
-- `Auto Play`：自動プレイの有効・無効を切り替える開発・補助機能。製品版では`SHOW_AUTO_PLAY_MENU_ITEM`の初期値を`false`にして非表示にする
+- `Auto Play`：自動プレイの有効・無効を切り替える開発・補助機能。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合だけ表示する。現行設定では`DEBUG_FLAG=true`から`SHOW_AUTO_PLAY_MENU_ITEM=true`となるため表示する
 - `Back to Title`：タイトルへ戻る
 - `Suspend`：現在のNORMALを中断保存し、保存成功後にタイトルへ戻る
 - `Mode Select`：TIME ATTACKのモード選択へ戻る
@@ -478,6 +475,8 @@ Playdateのシステムメニュー項目は画面遷移時に切り替える。
 - `BG: ...`：メニュー背景アニメーションの負荷設定を`OFF`、`LOW`、`MEDIUM`、`HIGH`の順に切り替える
 
 Auto Playは通常の入力と同じDROP、HOLD、左右移動コマンドをゲームコントローラへ渡す。
+
+`DEBUG_FLAG=true`の場合はAuto Playに加えてFPSも画面左上へ表示する。現行設定は`true`である。
 
 ## 15. 実装上の不変条件
 

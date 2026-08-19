@@ -14,11 +14,8 @@ ReplayController.__index = ReplayController
 local Config <const> = GameConfig
 local INDEX_DATASTORE_KEY <const> = "replayIndex"
 local REPLAY_DATASTORE_PREFIX <const> = "replay_"
-local COLLECTION_DATASTORE_KEY <const> = "replays"
-local LEGACY_DATASTORE_KEY <const> = "lastReplay"
 local SUSPEND_DATASTORE_KEY <const> = "normalSuspend"
 local INDEX_VERSION <const> = 1
-local COLLECTION_VERSION <const> = 1
 
 -- 本体のローカル日時をdatastoreへ保存できる単純なtableへ変換する関数.
 ---@param pd playdate Playdate SDKのグローバルオブジェクト
@@ -172,72 +169,11 @@ local function readIndex(pd)
     }
 end
 
--- 旧一括保存形式を読み込む関数.
----@param pd playdate Playdate SDKのグローバルオブジェクト
----@return table[] 互換性のあるリプレイ（新しい順）
-local function readLegacyReplays(pd)
-    local ok, collection = pcall(pd.datastore.read, COLLECTION_DATASTORE_KEY)
-    if ok and type(collection) == "table"
-        and collection.collectionVersion == COLLECTION_VERSION
-        and type(collection.entries) == "table" then
-        local entries = {}
-        for _, data in ipairs(collection.entries) do
-            if isCompatibleReplay(data) then
-                table.insert(entries, data)
-                if #entries >= Config.MAX_REPLAY_COUNT then break end
-            end
-        end
-        return entries
-    end
-
-    local legacyOk, legacyData = pcall(pd.datastore.read, LEGACY_DATASTORE_KEY)
-    if legacyOk and isCompatibleReplay(legacyData) then return { legacyData } end
-    return {}
-end
-
--- 旧一括保存形式を個別ファイルと一覧インデックスへ移行する関数.
----@param pd playdate Playdate SDKのグローバルオブジェクト
----@return table? indexData 移行対象がないか失敗した場合はnil
-local function migrateLegacyReplays(pd)
-    local legacyEntries = readLegacyReplays(pd)
-    if #legacyEntries == 0 then return nil end
-
-    local indexData = {
-        indexVersion = INDEX_VERSION,
-        nextId = #legacyEntries + 1,
-        entries = {},
-    }
-    local writtenKeys = {}
-    for index, data in ipairs(legacyEntries) do
-        local id = string.format("%08d", index)
-        local key = replayDatastoreKey(id)
-        if not writeDatastore(pd, replayDataForStorage(data, id), key) then
-            for _, writtenKey in ipairs(writtenKeys) do
-                deleteDatastore(pd, writtenKey)
-            end
-            return nil
-        end
-        table.insert(writtenKeys, key)
-        table.insert(indexData.entries, indexEntryFromReplay(data, id))
-    end
-
-    if not writeIndex(pd, indexData) then
-        for _, writtenKey in ipairs(writtenKeys) do
-            deleteDatastore(pd, writtenKey)
-        end
-        return nil
-    end
-
-    deleteDatastore(pd, COLLECTION_DATASTORE_KEY)
-    deleteDatastore(pd, LEGACY_DATASTORE_KEY)
-    return indexData
-end
-
--- 一覧インデックスを読み、必要なら旧形式から移行する関数.
+-- 一覧インデックスを読み込む関数.
 ---@param pd playdate Playdate SDKのグローバルオブジェクト
 ---@return table indexData
 local function loadIndex(pd)
-    return readIndex(pd) or migrateLegacyReplays(pd) or {
+    return readIndex(pd) or {
         indexVersion = INDEX_VERSION,
         nextId = 1,
         entries = {},
