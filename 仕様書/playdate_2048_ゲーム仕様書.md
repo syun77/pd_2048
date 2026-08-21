@@ -372,7 +372,7 @@ PRACTICEなどのサブメニューで項目数が5件を超える場合は、�
 
 実績エディタが扱う定義データは`pd_2048/source/assets/achievement/achievements.json`に保存し、全18件の条件、表示文言、報酬、表示順を保持する。編集データの詳細は`仕様書/実績エディター.md`に従う。アプリケーションはこのJSONを読み込まず、達成判定、達成状態の保存、報酬の適用を行わない。JSON内の報酬はタイトルメニューの表示可否に影響しない。
 
-PLAYBOOK画面は見出し以外の内容を表示せず、Bボタンまたはシステムメニューの`Back to Title`でタイトルへ戻る。
+PLAYBOOK画面は`assets/playbook/playbooks.json`に定義された解放済みヒントを配列順に一覧表示する。上下キーで選択し、Aボタンで複数ページのヒント詳細を開く。詳細では画面中央に説明画像、画面下部に選択言語の説明文を表示し、左右キーでページを切り替え、Bボタンで一覧へ戻る。一覧ではBボタンでタイトルへ戻る。`unlockNo=0`は常時表示し、`unlockNo>=1`は同じ番号のPLAYBOOKアンロック報酬を取得した場合に表示する。JSON形式、初期ヒント案、画像制約、アンロック連携、`仕様書/playbook_editor.py`の仕様は`仕様書/プレイブックエディター.md`に従う。現行アプリケーションは一覧・詳細・アンロック・エディタをまだ実装せず、見出しだけを表示する。
 
 ACHIEVEMENTS画面は`NO ACHIEVEMENTS YET`を表示し、Bボタンまたはシステムメニューの`Back to Title`でタイトルへ戻る。TIME ATTACKの各モード、CORE RUSH、PRACTICE、PLAYBOOK、ACHIEVEMENTS、STATISTICS、SOUND TESTは常時選択できる。REPLAYSは互換性のある保存済みリプレイが1件以上ある場合だけ表示する。リプレイデータの続きからプレイを開始する機能は、リプレイ一時停止中の確認ダイアログから使用する。
 
@@ -470,10 +470,13 @@ Playdateのシステムメニュー項目は画面遷移時に切り替える。
 | ゲーム（TIME ATTACK） | `Mode Select`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
 | ゲーム（PRACTICE） | `Stage Select`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
 | ゲームオーバー | 現在のモードに応じた戻り項目（`Back to Title`、`Mode Select`、`Stage Select`）と`Retry` |
-| PLAYBOOK、ACHIEVEMENTS、STATISTICS、SOUND TEST | `Back to Title`。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
+| PLAYBOOK一覧 | `Back to Title`。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
+| PLAYBOOKヒント詳細 | `Back to Playbook`。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
+| ACHIEVEMENTS、STATISTICS、SOUND TEST | `Back to Title`。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
 
 - `Auto Play`：自動プレイの有効・無効を切り替える開発・補助機能。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合だけ表示する。現行設定では`DEBUG_FLAG=true`から`SHOW_AUTO_PLAY_MENU_ITEM=true`となるため表示する
 - `Back to Title`：タイトルへ戻る
+- `Back to Playbook`：PLAYBOOKのヒント一覧へ戻る
 - `Suspend`：現在のNORMALを中断保存し、保存成功後にタイトルへ戻る
 - `Mode Select`：TIME ATTACKのモード選択へ戻る
 - `Stage Select`：PRACTICEのステージ選択へ戻る
