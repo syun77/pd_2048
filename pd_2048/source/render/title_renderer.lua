@@ -131,8 +131,48 @@ function TitleRenderer:drawMenuPage(title)
     gfx.drawLine(100, 94, 300, 94)
 end
 
-function TitleRenderer:drawPlaybook()
-    self:drawMenuPage("PLAYBOOK")
+function TitleRenderer:drawPlaybookList(selectedIndex, hints)
+    if hints == nil or #hints == 0 then
+        self:drawMenuPage("PLAYBOOK")
+        self:drawCenteredText("NO PLAYBOOKS AVAILABLE", 124)
+        return
+    end
+    self:drawTitle(selectedIndex, hints, "PLAYBOOK")
+end
+
+local function drawPlaybookPageArrow(x, centerY, pointsRight)
+    local direction = pointsRight and 1 or -1
+    gfx.fillPolygon(x + direction * 7, centerY,
+        x - direction * 5, centerY - 9,
+        x - direction * 5, centerY + 9)
+end
+
+function TitleRenderer:drawPlaybookDetail(
+    title, pageIndex, pageCount, image, description)
+    self:drawBackground()
+
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillRoundRect(12, 8, 376, 26, 4)
+    gfx.fillRoundRect(12, 38, 376, 138, 4)
+    gfx.fillRect(0, 180, Config.SCREEN_WIDTH, 60)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawTextAligned(title or "PLAYBOOK", Config.SCREEN_CENTER_X,
+        12, kTextAlignment.center)
+    gfx.drawTextAligned(tostring(pageIndex) .. "/" .. tostring(pageCount),
+        378, 12, kTextAlignment.right)
+
+    if image ~= nil then
+        local width, height = image:getSize()
+        image:draw(math.floor(Config.SCREEN_CENTER_X - width * 0.5),
+            math.floor(107 - height * 0.5))
+    else
+        self:drawCenteredText("IMAGE NOT FOUND", 100)
+    end
+
+    if pageIndex > 1 then drawPlaybookPageArrow(24, 107, false) end
+    if pageIndex < pageCount then drawPlaybookPageArrow(376, 107, true) end
+    gfx.drawTextInRect(description or "", 12, 188, 376, 44,
+        nil, "...", kTextAlignment.center)
 end
 
 function TitleRenderer:drawAchievements()
