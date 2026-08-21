@@ -114,6 +114,7 @@ local Config = {
         TITLE = "TITLE",
         GAME = "GAME",
         GAME_OVER = "GAME_OVER",
+        PLAYBOOK = "PLAYBOOK",
         ACHIEVEMENTS = "ACHIEVEMENTS",
         STATISTICS = "STATISTICS",
         SOUND_TEST = "SOUND_TEST",

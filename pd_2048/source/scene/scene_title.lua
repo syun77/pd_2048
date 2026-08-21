@@ -47,6 +47,7 @@ function TitleScene.new(context)
               mode = GameConfig.GAME_MODE.NORMAL },
             { label = "TIME ATTACK", submenu = true, submenuPage = "TIME_ATTACK" },
             { label = "PRACTICE", submenu = true, submenuPage = "PRACTICE" },
+            { label = "PLAYBOOK", scene = GameConfig.SCENE.PLAYBOOK },
             { label = "ACHIEVEMENTS", scene = GameConfig.SCENE.ACHIEVEMENTS },
             { label = "STATISTICS", scene = GameConfig.SCENE.STATISTICS },
             { label = "SOUND TEST", scene = GameConfig.SCENE.SOUND_TEST },

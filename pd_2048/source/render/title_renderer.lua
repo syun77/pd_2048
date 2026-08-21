@@ -131,6 +131,10 @@ function TitleRenderer:drawMenuPage(title)
     gfx.drawLine(100, 94, 300, 94)
 end
 
+function TitleRenderer:drawPlaybook()
+    self:drawMenuPage("PLAYBOOK")
+end
+
 function TitleRenderer:drawAchievements()
     self:drawMenuPage("ACHIEVEMENTS")
     self:drawCenteredText("NO ACHIEVEMENTS YET", 124)

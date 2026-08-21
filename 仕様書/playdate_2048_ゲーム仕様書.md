@@ -348,15 +348,16 @@ REWINDではレベル、累計XP、DROP数、XP内訳、初到達済みの値を
 1. `NORMAL GAME`
 2. `TIME ATTACK`
 3. `PRACTICE`
-4. `ACHIEVEMENTS`
-5. `STATISTICS`
-6. `SOUND TEST`
+4. `PLAYBOOK`
+5. `ACHIEVEMENTS`
+6. `STATISTICS`
+7. `SOUND TEST`
 
 タイトル画面のROOTメニューから`PRACTICE`を選択できる。PRACTICEを選択すると、`assets/practice`内の連番JSONステージ一覧を読み込む。各ステージの`label`をメニュー項目として表示し、クリア済みステージは`assets/images/check.png`を付けて表示する。選択中ステージの英語説明文を画面下部に表示する。決定後は、選択したJSONの盤面・NEXT・クリア目標・説明文を使用する。ステージをクリアしたかどうかはステージIDごとにPlaydateの`datastore`へ保存する。
 
 PRACTICEなどのサブメニューで項目数が5件を超える場合は、上下キーの選択移動に合わせてメニューをスクロールし、選択中の項目が可能な限りメニュー中央に表示される。1画面に表示する項目数は5件とし、5件以下の場合はスクロールせず全項目を表示する。上側に画面外の項目がある場合は`▲`、下側に画面外の項目がある場合は`▼`を表示する。また、項目の右端に縦スクロールバーを表示し、つまみの位置で項目のオフセット、つまみの高さで全項目に対する表示項目数の割合を示す。
 
-タイトル画面、TIME ATTACK/PRACTICEサブメニュー、ACHIEVEMENTS画面、STATISTICS画面、SOUND TEST画面では、`MENU_BACKGROUND_LOAD`が`LOW`、`MEDIUM`、`HIGH`のときに1-bit向けの幾何学模様アニメーションを背景へ重ねる。背景はキャッシュ用イメージへ一定間隔で再描画し、毎フレームの計算量を抑える。`LOW`、`MEDIUM`、`HIGH`の順にモアレ円の描画密度と更新頻度が上がり、`HIGH`ではリサージュ線も描画する。初期値は`OFF`である。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合だけ、対象画面のPlaydateシステムメニューに`BG: ...`を追加し、`OFF`、`LOW`、`MEDIUM`、`HIGH`を実行中に切り替えられる。現行設定は`false`のため、この項目は表示しない。
+タイトル画面、TIME ATTACK/PRACTICEサブメニュー、PLAYBOOK画面、ACHIEVEMENTS画面、STATISTICS画面、SOUND TEST画面では、`MENU_BACKGROUND_LOAD`が`LOW`、`MEDIUM`、`HIGH`のときに1-bit向けの幾何学模様アニメーションを背景へ重ねる。背景はキャッシュ用イメージへ一定間隔で再描画し、毎フレームの計算量を抑える。`LOW`、`MEDIUM`、`HIGH`の順にモアレ円の描画密度と更新頻度が上がり、`HIGH`ではリサージュ線も描画する。初期値は`OFF`である。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合だけ、対象画面のPlaydateシステムメニューに`BG: ...`を追加し、`OFF`、`LOW`、`MEDIUM`、`HIGH`を実行中に切り替えられる。現行設定は`false`のため、この項目は表示しない。
 
 - 初期盤面は`(2,3)=8`、`(4,3)=8`。
 - NEXTの生成列は`2, 2, 4, 8`で、末尾まで進むと先頭へ戻る。
@@ -371,7 +372,9 @@ PRACTICEなどのサブメニューで項目数が5件を超える場合は、�
 
 実績エディタが扱う定義データは`pd_2048/source/assets/achievement/achievements.json`に保存し、全18件の条件、表示文言、報酬、表示順を保持する。編集データの詳細は`仕様書/実績エディター.md`に従う。アプリケーションはこのJSONを読み込まず、達成判定、達成状態の保存、報酬の適用を行わない。JSON内の報酬はタイトルメニューの表示可否に影響しない。
 
-ACHIEVEMENTS画面は`NO ACHIEVEMENTS YET`を表示し、Bボタンまたはシステムメニューの`Back to Title`でタイトルへ戻る。TIME ATTACKの各モード、CORE RUSH、PRACTICE、ACHIEVEMENTS、STATISTICS、SOUND TESTは常時選択できる。REPLAYSは互換性のある保存済みリプレイが1件以上ある場合だけ表示する。リプレイデータの続きからプレイを開始する機能は、リプレイ一時停止中の確認ダイアログから使用する。
+PLAYBOOK画面は見出し以外の内容を表示せず、Bボタンまたはシステムメニューの`Back to Title`でタイトルへ戻る。
+
+ACHIEVEMENTS画面は`NO ACHIEVEMENTS YET`を表示し、Bボタンまたはシステムメニューの`Back to Title`でタイトルへ戻る。TIME ATTACKの各モード、CORE RUSH、PRACTICE、PLAYBOOK、ACHIEVEMENTS、STATISTICS、SOUND TESTは常時選択できる。REPLAYSは互換性のある保存済みリプレイが1件以上ある場合だけ表示する。リプレイデータの続きからプレイを開始する機能は、リプレイ一時停止中の確認ダイアログから使用する。
 
 STATISTICS画面は左右入力で次の3ページを切り替える。統計項目を囲む白い矩形の左右端から内側8pxには、`fillPolygon`で描画した白縁取り・黒塗りの三角形ページ切り替えカーソルを表示する。入力した方向のカーソルは、メニューの上下スクロールカーソルと同様に一時的に外側へ移動してから定位置へ戻す。
 
@@ -467,7 +470,7 @@ Playdateのシステムメニュー項目は画面遷移時に切り替える。
 | ゲーム（TIME ATTACK） | `Mode Select`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
 | ゲーム（PRACTICE） | `Stage Select`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
 | ゲームオーバー | 現在のモードに応じた戻り項目（`Back to Title`、`Mode Select`、`Stage Select`）と`Retry` |
-| ACHIEVEMENTS、STATISTICS、SOUND TEST | `Back to Title`。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
+| PLAYBOOK、ACHIEVEMENTS、STATISTICS、SOUND TEST | `Back to Title`。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
 
 - `Auto Play`：自動プレイの有効・無効を切り替える開発・補助機能。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合だけ表示する。現行設定では`DEBUG_FLAG=true`から`SHOW_AUTO_PLAY_MENU_ITEM=true`となるため表示する
 - `Back to Title`：タイトルへ戻る

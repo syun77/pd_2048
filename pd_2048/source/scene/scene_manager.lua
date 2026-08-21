@@ -40,6 +40,7 @@ function SceneManager:refreshSystemMenu()
         menuItems = nextScene:getSystemMenuItems()
     end
     local isBackgroundScene = self.currentName == GameConfig.SCENE.TITLE
+        or self.currentName == GameConfig.SCENE.PLAYBOOK
         or self.currentName == GameConfig.SCENE.ACHIEVEMENTS
         or self.currentName == GameConfig.SCENE.STATISTICS
         or self.currentName == GameConfig.SCENE.SOUND_TEST
