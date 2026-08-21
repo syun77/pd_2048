@@ -2,18 +2,358 @@
   "version": 1,
   "playbooks": [
     {
-      "id": "playbook_001",
+      "id": "how_to_play",
       "unlockNo": 0,
-      "title": {
-        "ja": "新しいヒント",
-        "en": "NEW HINT"
-      },
+      "title": { "ja": "基本の遊び方", "en": "HOW TO PLAY" },
       "pages": [
         {
           "image": "dummy",
           "description": {
-            "ja": "test",
-            "en": "test"
+            "ja": "左右キーで列を選び、下キーでブロックを落とします。",
+            "en": "Choose a column with Left or Right, then press Down to drop."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "点線のブロックが着地予定位置です。置けない列には落とせません。",
+            "en": "The dotted tile shows the landing spot. You cannot drop in an invalid column."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "同じ数をマージしながら盤面を保ち、より大きなブロックを作りましょう。",
+            "en": "Merge equal values, keep the board playable, and build larger tiles."
+          }
+        }
+      ]
+    },
+    {
+      "id": "merge_rules",
+      "unlockNo": 0,
+      "title": { "ja": "マージのルール", "en": "MERGE RULES" },
+      "pages": [
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "落としたブロックが同じ数に上下左右で触れると、2倍の数へマージします。",
+            "en": "When the dropped tile touches an equal tile vertically or horizontally, they merge into the next value."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "マージでできたブロックを起点に、同じ手の中で次のマージを探します。",
+            "en": "The newly merged tile can immediately start another merge during the same move."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "中央の回転軸は常に空きマスで、配置先にもマージ対象にもなりません。",
+            "en": "The center pivot always stays empty. Tiles cannot land on it or merge through it."
+          }
+        }
+      ]
+    },
+    {
+      "id": "landing_rules",
+      "unlockNo": 0,
+      "title": { "ja": "落下できる場所", "en": "VALID LANDINGS" },
+      "pages": [
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "ブロックは下か左右に別のブロックがあるマスへ接着します。空の列の底へは落ちません。",
+            "en": "A tile must attach above or beside another tile. It does not simply fall to the bottom of an empty column."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "中央列の回転軸の1マス上だけは、周囲にブロックがなくても配置できます。",
+            "en": "The cell directly above the center pivot is a special landing spot and needs no neighboring tile."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "次のブロックを5列のどこにも置けなくなるとゲームオーバーです。",
+            "en": "The game ends when the next tile has no valid landing spot in any of the five columns."
+          }
+        }
+      ]
+    },
+    {
+      "id": "rotation_basics",
+      "unlockNo": 0,
+      "title": { "ja": "盤面の回転", "en": "BOARD ROTATION" },
+      "pages": [
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "落下位置とマージ方向から回転が決まり、盤面が時計回りか反時計回りへ90度回転します。",
+            "en": "Your landing position and merge directions determine whether the board rotates 90 degrees clockwise or counterclockwise."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "左側への落下は反時計回り、右側は時計回りになりやすいですが、マージ結果でも変化します。",
+            "en": "Left-side drops tend to turn counterclockwise and right-side drops clockwise, but merges can change the result."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "回転後に全ブロックを下へ詰める重力はありません。回転した配置がそのまま残ります。",
+            "en": "There is no gravity after rotation. Every tile stays in its rotated position."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "回転後も、直前にできたブロックが同じ数に触れるとマージが続きます。",
+            "en": "After rotation, the most recently merged tile can continue merging if it touches an equal value."
+          }
+        }
+      ]
+    },
+    {
+      "id": "hold_and_rewind",
+      "unlockNo": 0,
+      "title": { "ja": "HOLDとREWIND", "en": "HOLD AND REWIND" },
+      "pages": [
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "Aボタンで現在のブロックをHOLDします。HOLDが空ならNEXTが1つ進みます。",
+            "en": "Press A to HOLD the current tile. If HOLD is empty, the next tile moves forward."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "HOLDにブロックがあれば現在のブロックと交換します。DROP前なら何度でも使えます。",
+            "en": "If HOLD contains a tile, it swaps with the current tile. You may use HOLD repeatedly before dropping."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "Bボタンを長押しすると直前の手をREWINDできます。1回のプレイで3回まで使えます。",
+            "en": "Hold B to REWIND the previous move. You can use it up to three times per run."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "TIME ATTACKとCORE RUSHでは、REWINDしても経過時間は巻き戻りません。",
+            "en": "In TIME ATTACK and CORE RUSH, REWIND does not turn back the elapsed time."
+          }
+        }
+      ]
+    },
+    {
+      "id": "next_planning",
+      "unlockNo": 0,
+      "title": { "ja": "NEXTの読み方", "en": "READING NEXT" },
+      "pages": [
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "NEXTには、このあとに来る6個のブロックが順番に表示されます。",
+            "en": "NEXT shows the next six tiles in the order they will appear."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "次に来る数の着地場所を残し、今使いにくい数はHOLDへ移しましょう。",
+            "en": "Keep a landing spot for upcoming values and move an awkward current tile into HOLD."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "HOLD後の新しいブロックを置けない場合もゲームオーバーになるので注意しましょう。",
+            "en": "Be careful: the game also ends if the new current tile has no valid landing after HOLD."
+          }
+        }
+      ]
+    },
+    {
+      "id": "scoring_and_level",
+      "unlockNo": 0,
+      "title": { "ja": "スコアとレベル", "en": "SCORE AND LEVEL" },
+      "pages": [
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "マージすると、できたブロックの数×100点を獲得します。",
+            "en": "Each merge scores the value of the resulting tile multiplied by 100."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "同じ手で2回以上マージすると、通常の得点にコンボボーナスが加わります。",
+            "en": "Two or more merges in one move add a combo bonus on top of the normal score."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "NORMALではDROP、マージ、初めて作った高い数、コンボでXPを獲得します。",
+            "en": "In NORMAL, drops, merges, new high values, and combos award XP."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "レベルはプレイの成果を示す記録です。上がっても難易度や出現ブロックは変わりません。",
+            "en": "Level records your progress in a run. Leveling up does not change difficulty or tile generation."
+          }
+        }
+      ]
+    },
+    {
+      "id": "making_combos",
+      "unlockNo": 1,
+      "title": { "ja": "コンボの作り方", "en": "MAKING COMBOS" },
+      "pages": [
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "1回のDROP中にマージが続くとコンボになります。次のDROPでコンボ数は0に戻ります。",
+            "en": "Consecutive merges during one drop form a combo. The combo resets when the next drop begins."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "2＋2でできる4の近くに4、その先に8を用意すると、4、8、16へ連続マージできます。",
+            "en": "Place a 4 beside the result of 2+2, then an 8 beyond it, to chain into 4, 8, and 16."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "マージでできる数と、そのブロックが次に触れる同じ数を順番に並べるのが基本です。",
+            "en": "Arrange matching values in the order that each newly merged tile will reach them."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "回転後の移動先にも同じ数を用意すると、回転をまたいでコンボを伸ばせます。",
+            "en": "Place another equal value at the rotated destination to continue the combo through a rotation."
+          }
+        }
+      ]
+    },
+    {
+      "id": "building_big_tiles",
+      "unlockNo": 2,
+      "title": { "ja": "高い数を作る", "en": "BUILDING BIG TILES" },
+      "pages": [
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "大きなブロックを1個だけ作るのではなく、次にマージする同じ数のペアを育てます。",
+            "en": "Do not build only one large tile. Grow a matching pair for the next merge."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "大きなブロックの周囲に作業場所を残し、小さい数は離れた場所でまとめます。",
+            "en": "Keep working space around large tiles and combine smaller values away from them."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "NEXTを先まで確認し、今使わない数はHOLDして、必要なペアを優先して作ります。",
+            "en": "Read ahead in NEXT, HOLD values you do not need yet, and prioritize the pairs you need."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "回転後も大きなブロック同士を近づけられるよう、回転した配置を想像して置きましょう。",
+            "en": "Plan the rotated layout so your large matching tiles can still be brought together."
+          }
+        }
+      ]
+    },
+    {
+      "id": "survival_tactics",
+      "unlockNo": 3,
+      "title": { "ja": "長く生き残る", "en": "SURVIVAL TACTICS" },
+      "pages": [
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "ブロックを固めすぎず、複数の列に着地できる接着面を残しましょう。",
+            "en": "Do not pack tiles too tightly. Preserve attachment points across several columns."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "下・左・右のいずれかの端に4個以上並ぶと危険アイコンが表示されます。早めにマージしましょう。",
+            "en": "A danger icon appears when four or more tiles line the bottom, left, or right edge. Merge them early."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "現在の数だけでなく、NEXTの数にも着地場所があるかを毎手確認しましょう。",
+            "en": "Check every move for landing spots for both the current tile and the upcoming NEXT values."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "危険なDROPや回転をしたら、操作可能なうちにREWINDで立て直せます。",
+            "en": "If a drop or rotation leaves a dangerous board, use REWIND while recovery is still possible."
+          }
+        }
+      ]
+    },
+    {
+      "id": "game_modes",
+      "unlockNo": 0,
+      "title": { "ja": "ゲームモード", "en": "GAME MODES" },
+      "pages": [
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "NORMALではゲームオーバーまでプレイし、スコアと最高到達レベルを競います。",
+            "en": "In NORMAL, play until game over and aim for a high score and level."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "64、256、512 SPRINTでは、目標のブロックを作るまでのクリアタイムを競います。",
+            "en": "In 64, 256, and 512 SPRINT, race to build the target tile as quickly as possible."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "CORE RUSHではマージ後の数×コンボ数を中央へ加算し、2048を超えるとクリアです。",
+            "en": "In CORE RUSH, each merged value times the combo count is added to the center. Pass 2048 to win."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "PRACTICEでは決められた盤面とNEXTを使い、ステージごとの目標達成を目指します。",
+            "en": "PRACTICE uses fixed boards and NEXT sequences. Complete the objective of each stage."
           }
         }
       ]
