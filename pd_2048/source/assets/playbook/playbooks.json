@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "playbooks": [
+    {
+      "id": "playbook_001",
+      "unlockNo": 0,
+      "title": {
+        "ja": "新しいヒント",
+        "en": "NEW HINT"
+      },
+      "pages": [
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "test",
+            "en": "test"
+          }
+        }
+      ]
+    }
+  ]
+}

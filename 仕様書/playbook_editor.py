@@ -211,6 +211,60 @@ def unique_id(base: str, used_ids: set[str]) -> str:
     return candidate
 
 
+class ValidationErrorDialog(tk.Toplevel):
+    """Scrollable in-app dialog for validation failures."""
+
+    def __init__(self, parent: tk.Tk, title: str, errors: list[str]) -> None:
+        super().__init__(parent)
+        self.title(title)
+        self.geometry("760x360")
+        self.minsize(560, 260)
+        self.transient(parent)
+        self.protocol("WM_DELETE_WINDOW", self.close)
+
+        root = ttk.Frame(self, padding=10)
+        root.pack(fill="both", expand=True)
+        root.columnconfigure(0, weight=1)
+        root.rowconfigure(1, weight=1)
+
+        ttk.Label(
+            root,
+            text=f"Validation found {len(errors)} error(s). Fix them and save again.",
+        ).grid(row=0, column=0, sticky="w", pady=(0, 8))
+
+        error_frame = ttk.Frame(root)
+        error_frame.grid(row=1, column=0, sticky="nsew")
+        error_frame.columnconfigure(0, weight=1)
+        error_frame.rowconfigure(0, weight=1)
+        error_text = tk.Text(error_frame, wrap="word", padx=8, pady=8)
+        error_text.grid(row=0, column=0, sticky="nsew")
+        scrollbar = ttk.Scrollbar(
+            error_frame, orient="vertical", command=error_text.yview
+        )
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        error_text.configure(yscrollcommand=scrollbar.set)
+        error_text.insert(
+            "1.0",
+            "\n\n".join(
+                f"{index}. {error}" for index, error in enumerate(errors, start=1)
+            ),
+        )
+        error_text.configure(state="disabled")
+
+        close_button = ttk.Button(root, text="Close", command=self.close)
+        close_button.grid(row=2, column=0, sticky="e", pady=(10, 0))
+        close_button.focus_set()
+        self.bind("<Escape>", lambda _event: self.close())
+        self.grab_set()
+
+    def close(self) -> None:
+        try:
+            self.grab_release()
+        except tk.TclError:
+            pass
+        self.destroy()
+
+
 class PlaybookEditor(tk.Tk):
     def __init__(self, initial_paths: tuple[str, ...] = ()) -> None:
         super().__init__()
@@ -225,6 +279,7 @@ class PlaybookEditor(tk.Tk):
         self.dirty = False
         self._loading = False
         self._preview_image: tk.PhotoImage | None = None
+        self._validation_dialog: ValidationErrorDialog | None = None
 
         self.hint_id_var = tk.StringVar()
         self.unlock_no_var = tk.StringVar()
@@ -876,10 +931,14 @@ class PlaybookEditor(tk.Tk):
         return self._save_to(Path(path_text))
 
     def _save_to(self, path: Path) -> bool:
-        self._commit_forms()
-        errors = validation_errors(self.playbooks, path.parent)
+        try:
+            self._commit_forms()
+            errors = validation_errors(self.playbooks, path.parent)
+        except Exception as exc:
+            errors = [f"Unexpected validation error: {type(exc).__name__}: {exc}"]
         if errors:
             self._show_validation_errors(errors, "Save Failed")
+            self.status_var.set(f"Save blocked: {len(errors)} validation error(s)")
             return False
         payload = {"version": FORMAT_VERSION, "playbooks": self.playbooks}
         try:
@@ -899,8 +958,11 @@ class PlaybookEditor(tk.Tk):
         return True
 
     def validate_dialog(self) -> None:
-        self._commit_forms()
-        errors = validation_errors(self.playbooks, self._image_directory())
+        try:
+            self._commit_forms()
+            errors = validation_errors(self.playbooks, self._image_directory())
+        except Exception as exc:
+            errors = [f"Unexpected validation error: {type(exc).__name__}: {exc}"]
         if errors:
             self._show_validation_errors(errors, "Validation Failed")
             self.status_var.set(f"Validation failed: {len(errors)} error(s)")
@@ -909,11 +971,14 @@ class PlaybookEditor(tk.Tk):
         self.status_var.set("Validation passed")
 
     def _show_validation_errors(self, errors: list[str], title: str) -> None:
-        limit = 20
-        text = "\n".join(f"• {error}" for error in errors[:limit])
-        if len(errors) > limit:
-            text += f"\n\n...and {len(errors) - limit} more error(s)."
-        messagebox.showerror(title, text, parent=self)
+        dialog = self._validation_dialog
+        if dialog is not None:
+            try:
+                if dialog.winfo_exists():
+                    dialog.close()
+            except tk.TclError:
+                pass
+        self._validation_dialog = ValidationErrorDialog(self, title, errors)
 
     def _initial_directory(self) -> Path:
         if self.current_path is not None:
