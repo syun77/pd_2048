@@ -275,5 +275,22 @@ function TitleScene:getCurrentItems()
     return self.practiceItems
 end
 
+function TitleScene:getSystemMenuItems()
+    return {
+        {
+            type = "options",
+            title = "language",
+            options = {
+                GameConfig.LANGUAGE.ENGLISH,
+                GameConfig.LANGUAGE.JAPANESE,
+            },
+            value = self.context.language:get(),
+            callback = function(language)
+                self.context.language:set(language)
+            end,
+        },
+    }
+end
+
 _G.TitleScene = TitleScene
 return TitleScene

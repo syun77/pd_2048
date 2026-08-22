@@ -131,13 +131,16 @@ function TitleRenderer:drawMenuPage(title)
     gfx.drawLine(100, 94, 300, 94)
 end
 
-function TitleRenderer:drawPlaybookList(selectedIndex, hints)
+function TitleRenderer:drawPlaybookList(selectedIndex, hints, languageKey)
+    local title = languageKey == Config.LANGUAGE.JAPANESE
+        and "プレイブック" or "PLAYBOOK"
     if hints == nil or #hints == 0 then
-        self:drawMenuPage("PLAYBOOK")
-        self:drawCenteredText("NO PLAYBOOKS AVAILABLE", 124)
+        self:drawMenuPage(title)
+        self:drawCenteredText(languageKey == Config.LANGUAGE.JAPANESE
+            and "利用できる項目がありません" or "NO PLAYBOOKS AVAILABLE", 124)
         return
     end
-    self:drawTitle(selectedIndex, hints, "PLAYBOOK")
+    self:drawTitle(selectedIndex, hints, title)
 end
 
 local function drawPlaybookPageArrow(x, centerY, pointsRight)
@@ -148,7 +151,7 @@ local function drawPlaybookPageArrow(x, centerY, pointsRight)
 end
 
 function TitleRenderer:drawPlaybookDetail(
-    title, pageIndex, pageCount, image, description)
+    title, pageIndex, pageCount, image, description, languageKey)
     self:drawBackground()
 
     gfx.setColor(gfx.kColorWhite)
@@ -166,7 +169,8 @@ function TitleRenderer:drawPlaybookDetail(
         image:draw(math.floor(Config.SCREEN_CENTER_X - width * 0.5),
             math.floor(107 - height * 0.5))
     else
-        self:drawCenteredText("IMAGE NOT FOUND", 100)
+        self:drawCenteredText(languageKey == Config.LANGUAGE.JAPANESE
+            and "画像が見つかりません" or "IMAGE NOT FOUND", 100)
     end
 
     if pageIndex > 1 then drawPlaybookPageArrow(24, 107, false) end
@@ -175,7 +179,12 @@ function TitleRenderer:drawPlaybookDetail(
         nil, "...", kTextAlignment.center)
 end
 
-function TitleRenderer:drawAchievements()
+function TitleRenderer:drawAchievements(languageKey)
+    if languageKey == Config.LANGUAGE.JAPANESE then
+        self:drawMenuPage("実績")
+        self:drawCenteredText("実績はまだありません", 124)
+        return
+    end
     self:drawMenuPage("ACHIEVEMENTS")
     self:drawCenteredText("NO ACHIEVEMENTS YET", 124)
 end

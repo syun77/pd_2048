@@ -359,6 +359,8 @@ PRACTICEなどのサブメニューで項目数が5件を超える場合は、�
 
 タイトル画面、TIME ATTACK/PRACTICEサブメニュー、PLAYBOOK画面、ACHIEVEMENTS画面、STATISTICS画面、SOUND TEST画面では、`MENU_BACKGROUND_LOAD`が`LOW`、`MEDIUM`、`HIGH`のときに1-bit向けの幾何学模様アニメーションを背景へ重ねる。背景はキャッシュ用イメージへ一定間隔で再描画し、毎フレームの計算量を抑える。`LOW`、`MEDIUM`、`HIGH`の順にモアレ円の描画密度と更新頻度が上がり、`HIGH`ではリサージュ線も描画する。初期値は`OFF`である。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合だけ、対象画面のPlaydateシステムメニューに`BG: ...`を追加し、`OFF`、`LOW`、`MEDIUM`、`HIGH`を実行中に切り替えられる。現行設定は`false`のため、この項目は表示しない。
 
+タイトル画面でPlaydateシステムメニューを開いた場合だけ、オプション項目`language`を表示する。選択肢は`en`と`ja`で、変更した言語は`datastore`へ保存する。保存値がない初回起動時はPlaydate OSが日本語なら`ja`、それ以外なら`en`を使用する。この設定はPLAYBOOKとACHIEVEMENTSの見出し、本文、空表示、各画面から戻るシステムメニュー項目へ反映する。日本語のゲーム内描画には`assets/fonts/k8x12`を使用する。
+
 - 初期盤面は`(2,3)=8`、`(4,3)=8`。
 - NEXTの生成列は`2, 2, 4, 8`で、末尾まで進むと先頭へ戻る。
 - 盤面、マージ、回転、HOLD、UNDO、ゲームオーバー判定は通常ルールを使用する。
@@ -372,9 +374,9 @@ PRACTICEなどのサブメニューで項目数が5件を超える場合は、�
 
 実績エディタが扱う定義データは`pd_2048/source/assets/achievement/achievements.json`に保存し、全18件の条件、表示文言、報酬、表示順を保持する。編集データの詳細は`仕様書/実績エディター.md`に従う。アプリケーションはこのJSONを読み込まず、達成判定、達成状態の保存、報酬の適用を行わない。JSON内の報酬はタイトルメニューの表示可否に影響しない。
 
-PLAYBOOK画面は`assets/playbook/playbooks.json`に定義された解放済みヒントを配列順に一覧表示する。上下キーで選択し、Aボタンで複数ページのヒント詳細を開く。詳細では画面中央に説明画像、画面下部にシステム言語へ対応する説明文を表示し、左右キーでページを切り替え、Bボタンで一覧へ戻る。一覧ではBボタンでタイトルへ戻る。`unlockNo=0`は常時表示し、`unlockNo>=1`は同じ番号のPLAYBOOKアンロック報酬を取得した場合に表示する。JSON形式、初期ヒント案、画像制約、アンロック連携、実装済みの`仕様書/playbook_editor.py`の仕様は`仕様書/プレイブックエディター.md`に従う。現行アプリケーションは一覧・詳細表示を実装済みである。実績のゲーム内達成管理とアンロック番号の永続保存は未実装のため、現時点では`unlockNo=0`のヒントだけを表示する。
+PLAYBOOK画面は`assets/playbook/playbooks.json`に定義された解放済みヒントを配列順に一覧表示する。上下キーで選択し、Aボタンで複数ページのヒント詳細を開く。詳細では画面中央に説明画像、画面下部にタイトルの`language`で選択した言語の説明文を表示し、左右キーでページを切り替え、Bボタンで一覧へ戻る。一覧ではBボタンでタイトルへ戻る。`unlockNo=0`は常時表示し、`unlockNo>=1`は同じ番号のPLAYBOOKアンロック報酬を取得した場合に表示する。JSON形式、初期ヒント案、画像制約、アンロック連携、実装済みの`仕様書/playbook_editor.py`の仕様は`仕様書/プレイブックエディター.md`に従う。現行アプリケーションは一覧・詳細表示を実装済みである。実績のゲーム内達成管理とアンロック番号の永続保存は未実装のため、現時点では`unlockNo=0`のヒントだけを表示する。
 
-ACHIEVEMENTS画面は`NO ACHIEVEMENTS YET`を表示し、Bボタンまたはシステムメニューの`Back to Title`でタイトルへ戻る。TIME ATTACKの各モード、CORE RUSH、PRACTICE、PLAYBOOK、ACHIEVEMENTS、STATISTICS、SOUND TESTは常時選択できる。REPLAYSは互換性のある保存済みリプレイが1件以上ある場合だけ表示する。リプレイデータの続きからプレイを開始する機能は、リプレイ一時停止中の確認ダイアログから使用する。
+ACHIEVEMENTS画面は`en`では`ACHIEVEMENTS`と`NO ACHIEVEMENTS YET`、`ja`では`実績`と`実績はまだありません`を表示する。Bボタンまたは言語に対応するシステムメニュー項目でタイトルへ戻る。TIME ATTACKの各モード、CORE RUSH、PRACTICE、PLAYBOOK、ACHIEVEMENTS、STATISTICS、SOUND TESTは常時選択できる。REPLAYSは互換性のある保存済みリプレイが1件以上ある場合だけ表示する。リプレイデータの続きからプレイを開始する機能は、リプレイ一時停止中の確認ダイアログから使用する。
 
 STATISTICS画面は左右入力で次の3ページを切り替える。統計項目を囲む白い矩形の左右端から内側8pxには、`fillPolygon`で描画した白縁取り・黒塗りの三角形ページ切り替えカーソルを表示する。入力した方向のカーソルは、メニューの上下スクロールカーソルと同様に一時的に外側へ移動してから定位置へ戻す。
 
@@ -465,14 +467,15 @@ Playdateのシステムメニュー項目は画面遷移時に切り替える。
 
 | 画面 | 項目 |
 |---|---|
-| タイトル | `SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
+| タイトル | `language`（`en` / `ja`）。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
 | ゲーム（NORMAL GAME） | `Suspend`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play`。リプレイ再生中とリプレイから分岐したプレイ中は`Suspend`ではなく`Back to Title` |
 | ゲーム（TIME ATTACK） | `Mode Select`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
 | ゲーム（PRACTICE） | `Stage Select`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
 | ゲームオーバー | 現在のモードに応じた戻り項目（`Back to Title`、`Mode Select`、`Stage Select`）と`Retry` |
-| PLAYBOOK一覧 | `Back to Title`。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
-| PLAYBOOKヒント詳細 | `Back to Playbook`。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
-| ACHIEVEMENTS、STATISTICS、SOUND TEST | `Back to Title`。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
+| PLAYBOOK一覧 | `en`では`Back to Title`、`ja`では`タイトルへ`。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
+| PLAYBOOKヒント詳細 | `en`では`Back to Playbook`、`ja`では`プレイブックへ`。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
+| ACHIEVEMENTS | `en`では`Back to Title`、`ja`では`タイトルへ`。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
+| STATISTICS、SOUND TEST | `Back to Title`。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
 
 - `Auto Play`：自動プレイの有効・無効を切り替える開発・補助機能。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合だけ表示する。現行設定では`DEBUG_FLAG=true`から`SHOW_AUTO_PLAY_MENU_ITEM=true`となるため表示する
 - `Back to Title`：タイトルへ戻る
@@ -481,6 +484,7 @@ Playdateのシステムメニュー項目は画面遷移時に切り替える。
 - `Mode Select`：TIME ATTACKのモード選択へ戻る
 - `Stage Select`：PRACTICEのステージ選択へ戻る
 - `Retry`：現在のモードでリスタート
+- `language`：PLAYBOOKとACHIEVEMENTSの表示言語を`en`または`ja`から選択する
 - `BG: ...`：メニュー背景アニメーションの負荷設定を`OFF`、`LOW`、`MEDIUM`、`HIGH`の順に切り替える
 
 Auto Playは通常の入力と同じDROP、HOLD、左右移動コマンドをゲームコントローラへ渡す。

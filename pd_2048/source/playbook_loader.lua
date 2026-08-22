@@ -1,19 +1,10 @@
 import "game_config"
 
-local pd <const> = playdate
-
 ---@class PlaybookLoader PLAYBOOK定義の読み込みとローカライズを行うクラス.
 local PlaybookLoader = {}
 local PLAYBOOK_PATH <const> = "assets/playbook/playbooks.json"
 local IMAGE_DIRECTORY <const> = "assets/playbook"
 local FORMAT_VERSION <const> = 1
-
-local function isJapaneseSystemLanguage()
-    if pd.getSystemLanguage == nil then return false end
-    local language = tostring(pd.getSystemLanguage() or ""):lower()
-    return string.find(language, GameConfig.LANGUAGE.JAPANESE) ~= nil
-        or string.find(language, "japanese") ~= nil
-end
 
 ---@param value any 日英ローカライズ文字列.
 ---@param languageKey LANGUAGE 優先言語.
@@ -31,12 +22,6 @@ function PlaybookLoader.localizedText(value, languageKey)
     local fallback = value[fallbackKey]
     if type(fallback) == "string" then return fallback end
     return ""
-end
-
-function PlaybookLoader.systemLanguageKey()
-    return isJapaneseSystemLanguage()
-        and GameConfig.LANGUAGE.JAPANESE
-        or GameConfig.LANGUAGE.ENGLISH
 end
 
 local function isUnlocked(unlockNo, unlockedNumbers)
@@ -83,8 +68,9 @@ local function normalizeHint(hint, languageKey, unlockedNumbers)
 end
 
 ---@param unlockedNumbers table|nil 取得済みアンロック番号の集合.
+---@param languageKey LANGUAGE 表示言語.
 ---@return table[] 表示可能なPLAYBOOKヒント.
-function PlaybookLoader.loadVisible(unlockedNumbers)
+function PlaybookLoader.loadVisible(unlockedNumbers, languageKey)
     local ok, data = pcall(json.decodeFile, PLAYBOOK_PATH)
     if not ok or type(data) ~= "table" or data.version ~= FORMAT_VERSION
         or type(data.playbooks) ~= "table" then
@@ -92,7 +78,9 @@ function PlaybookLoader.loadVisible(unlockedNumbers)
         return {}
     end
 
-    local languageKey = PlaybookLoader.systemLanguageKey()
+    if languageKey ~= GameConfig.LANGUAGE.JAPANESE then
+        languageKey = GameConfig.LANGUAGE.ENGLISH
+    end
     local hints = {}
     for _, hint in ipairs(data.playbooks) do
         local normalized = normalizeHint(hint, languageKey, unlockedNumbers)

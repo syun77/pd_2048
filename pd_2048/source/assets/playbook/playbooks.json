@@ -23,7 +23,7 @@
         {
           "image": "dummy",
           "description": {
-            "ja": "同じ数をマージしながら盤面を保ち、より大きなブロックを作りましょう。",
+            "ja": "同じ数をマージしながらボードを保ち、より大きなブロックを作りましょう。",
             "en": "Merge equal values, keep the board playable, and build larger tiles."
           }
         }
@@ -88,12 +88,12 @@
     {
       "id": "rotation_basics",
       "unlockNo": 0,
-      "title": { "ja": "盤面の回転", "en": "BOARD ROTATION" },
+      "title": { "ja": "ボードの回転", "en": "BOARD ROTATION" },
       "pages": [
         {
           "image": "dummy",
           "description": {
-            "ja": "落下位置とマージ方向から回転が決まり、盤面が時計回りか反時計回りへ90度回転します。",
+            "ja": "落下位置とマージ方向から回転が決まり、ボードが時計回りか反時計回りへ90度回転します。",
             "en": "Your landing position and merge directions determine whether the board rotates 90 degrees clockwise or counterclockwise."
           }
         },
@@ -352,7 +352,7 @@
         {
           "image": "dummy",
           "description": {
-            "ja": "PRACTICEでは決められた盤面とNEXTを使い、ステージごとの目標達成を目指します。",
+            "ja": "PRACTICEでは決められたボードとNEXTを使い、ステージごとの目標達成を目指します。",
             "en": "PRACTICE uses fixed boards and NEXT sequences. Complete the objective of each stage."
           }
         }

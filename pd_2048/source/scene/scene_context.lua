@@ -3,6 +3,7 @@
 ---@field renderer GameRenderer ゲーム描画クラス.
 ---@field titleRenderer TitleRenderer タイトルメニューの描画.
 ---@field menuBackground MenuBackgroundRenderer メニューバックグラウンド描画クラス.
+---@field language LanguageManager 表示言語の管理クラス.
 ---@field sound Sound サウンド管理.
 ---@field systemMenu SystemMenuController システムメニューコントローラー.
 local SceneContext = {}

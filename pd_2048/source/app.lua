@@ -6,6 +6,7 @@ import "render/game_renderer"
 import "render/overlay_renderer"
 import "render/title_renderer"
 import "render/menu_background_renderer"
+import "language_manager"
 import "system_menu_controller"
 import "scene/scene_manager"
 import "scene/scene_context"
@@ -30,6 +31,8 @@ local Config <const> = GameConfig
 ---@field renderer GameRenderer ゲーム描画クラス.
 ---@field sceneContext SceneContext シーンコンテキスト.
 ---@field sceneManager SceneManager シーンマネージャ.
+---@field defaultFont playdate.graphics.font 既定の英語フォント.
+---@field japaneseFont playdate.graphics.font|nil 日本語表示用フォント.
 local App = {}
 App.__index = App
 
@@ -50,6 +53,9 @@ function App.new()
         end,
     })
     self.menuBackgroundRenderer = MenuBackgroundRenderer.new()
+    self.language = LanguageManager.new()
+    self.defaultFont = gfx.getFont()
+    self.japaneseFont = gfx.font.new("assets/fonts/k8x12")
     self.titleRenderer = TitleRenderer.new({
         state = self.game:getState(),
         menuRenderer = self.overlayRenderer,
@@ -72,6 +78,7 @@ function App.new()
         renderer = self.renderer,
         titleRenderer = self.titleRenderer,
         menuBackground = self.menuBackgroundRenderer,
+        language = self.language,
         sound = sound,
         systemMenu = SystemMenuController.new(pd.getSystemMenu()),
     })
@@ -113,6 +120,10 @@ end
 -- 描画.
 function App:draw()
     local state = self.game:getState()
+	-- 選択言語に応じて日本語グリフを含むフォントへ切り替える.
+    local font = self.language:get() == Config.LANGUAGE.JAPANESE
+        and self.japaneseFont or self.defaultFont
+    if font ~= nil then gfx.setFont(font) end
 	-- 画面全体をクリア.
 	-- フレームレートを上げるには Dirty Rect での実装が必要.
     gfx.clear(gfx.kColorWhite)

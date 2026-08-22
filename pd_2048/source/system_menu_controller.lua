@@ -15,7 +15,10 @@ end
 function SystemMenuController:setItems(items)
     self.menu:removeAllMenuItems()
     for _, item in ipairs(items or {}) do
-        if item.type == "checkmark" then
+        if item.type == "options" then
+            self.menu:addOptionsMenuItem(
+                item.title, item.options, item.value, item.callback)
+        elseif item.type == "checkmark" then
             self.menu:addCheckmarkMenuItem(item.title, item.value == true, item.callback)
         else
             self.menu:addMenuItem(item.title, item.callback)

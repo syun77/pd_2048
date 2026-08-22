@@ -27,7 +27,7 @@ end
 function PlaybookScene:enter()
     self.context.sound:playMenuBgm()
     self.screen = "LIST"
-    self.hints = PlaybookLoader.loadVisible(nil)
+    self.hints = PlaybookLoader.loadVisible(nil, self.context.language:get())
     self.selectedIndex = 1
     self.pageIndex = 1
     self.imageCache = {}
@@ -126,33 +126,35 @@ end
 function PlaybookScene:draw()
     if self.screen == "LIST" then
         self.context.titleRenderer:drawPlaybookList(
-            self.selectedIndex, self.hints)
+            self.selectedIndex, self.hints, self.context.language:get())
         return
     end
     local hint = self:getCurrentHint()
     local page = self:getCurrentPage()
     if hint == nil or page == nil then
         self.context.titleRenderer:drawPlaybookList(
-            self.selectedIndex, self.hints)
+            self.selectedIndex, self.hints, self.context.language:get())
         return
     end
     self.context.titleRenderer:drawPlaybookDetail(
         hint.title, self.pageIndex, #hint.pages,
-        self:getCurrentImage(), page.description)
+        self:getCurrentImage(), page.description, self.context.language:get())
 end
 
 function PlaybookScene:getSystemMenuItems()
     if self.screen == "DETAIL" then
         return {
             {
-                title = "Back to Playbook",
+                title = self.context.language:get() == GameConfig.LANGUAGE.JAPANESE
+                    and "プレイブックへ" or "Back to Playbook",
                 callback = function() self:showList() end,
             },
         }
     end
     return {
         {
-            title = "Back to Title",
+            title = self.context.language:get() == GameConfig.LANGUAGE.JAPANESE
+                and "タイトルへ" or "Back to Title",
             callback = function()
                 self.manager:change(GameConfig.SCENE.TITLE)
             end,

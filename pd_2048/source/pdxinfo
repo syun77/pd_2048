@@ -5,3 +5,5 @@ bundleID=jp.2dgames.kurukuru512
 version=1.0.0
 buildNumber=1
 imagePath=assets/launcher
+menuTitleFont=/System/Fonts/Roobert-20-Medium-extended
+menuMessageFont=/System/Fonts/Roobert-11-Medium-extended

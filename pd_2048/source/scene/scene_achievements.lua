@@ -22,13 +22,14 @@ function AchievementsScene:update()
 end
 
 function AchievementsScene:draw()
-    self.context.titleRenderer:drawAchievements()
+    self.context.titleRenderer:drawAchievements(self.context.language:get())
 end
 
 function AchievementsScene:getSystemMenuItems()
     return {
         {
-            title = "Back to Title",
+            title = self.context.language:get() == GameConfig.LANGUAGE.JAPANESE
+                and "タイトルへ" or "Back to Title",
             callback = function()
                 self.manager:change(GameConfig.SCENE.TITLE)
             end,
