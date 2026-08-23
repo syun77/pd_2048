@@ -227,31 +227,24 @@
       },
       "pages": [
         {
-          "image": "dummy",
+          "image": "combo_1",
           "description": {
             "ja": "1回のDROP中にマージが続くとコンボになります。 次のDROPでコンボ数は0に戻ります。",
             "en": "Consecutive merges during one drop form a combo. The combo resets when the next drop begins."
           }
         },
         {
-          "image": "dummy",
+          "image": "combo_2",
           "description": {
             "ja": "2＋2でできる4の近くに4、その先に8を配置で、 4、8、16へ連続マージできます。",
             "en": "Place a 4 beside the result of 2+2, then an 8 beyond it, to chain into 4, 8, and 16."
           }
         },
         {
-          "image": "dummy",
+          "image": "combo_3",
           "description": {
             "ja": "マージでできる数と、そのブロックが次に接する 同じ数を順番に並べるのが基本です。",
             "en": "Arrange matching values in the order that each newly merged tile will reach them."
-          }
-        },
-        {
-          "image": "dummy",
-          "description": {
-            "ja": "回転後の移動先にも同じ数を用意すると、 回転をまたいでコンボを伸ばせます。",
-            "en": "Place another equal value at the rotated destination to continue the combo through a rotation."
           }
         }
       ]
