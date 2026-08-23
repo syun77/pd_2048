@@ -23,6 +23,7 @@ DEFAULT_SAVE_FILENAME = "achievements.json"
 WINDOW_TITLE = "2048 Achievement Editor"
 DEFAULT_STATUS = "Ready"
 DEFAULT_JSON_INDENT = 2
+FORMAT_VERSION = 1
 ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 OPTION_ID_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
 
@@ -843,6 +844,7 @@ class AchievementEditor(tk.Tk):
             validate_definitions(self.definitions)
             validate_achievements(self.achievements, self.definitions)
             payload = {
+                "version": FORMAT_VERSION,
                 "definitions": self.definitions,
                 "achievements": self.achievements,
             }
@@ -1005,6 +1007,11 @@ class AchievementEditor(tk.Tk):
 
 def normalize_file_payload(data: object) -> tuple[dict, list[dict]]:
     if isinstance(data, dict) and isinstance(data.get("achievements"), list):
+        version = data.get("version", FORMAT_VERSION)
+        if type(version) is not int or version != FORMAT_VERSION:
+            raise ValueError(
+                f"JSON version must be {FORMAT_VERSION}; received {version!r}."
+            )
         raw_items = data["achievements"]
         definitions = normalize_definitions(data.get("definitions"))
     elif isinstance(data, list):

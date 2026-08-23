@@ -1,4 +1,5 @@
 {
+  "version": 1,
   "definitions": {
     "categories": [
       {
@@ -91,15 +92,15 @@
   },
   "achievements": [
     {
-      "id": "achievement_5",
+      "id": "unlock_5_achievements",
       "category": "SYSTEM",
       "name": {
         "ja": "実績x5",
         "en": "5 Achievements"
       },
       "description": {
-        "ja": "実績を5つ達成した (この実績は含まない)",
-        "en": "Unlocked 5 achievements (excluding this one)"
+        "ja": "実績を5個達成した",
+        "en": "Unlocked 5 achievements."
       },
       "condition": {
         "type": "UNLOCK_ACHIEVEMENT",
@@ -117,22 +118,22 @@
       "progressVisible": true
     },
     {
-      "id": "achievement_10",
+      "id": "unlock_11_achievements",
       "category": "SYSTEM",
       "name": {
-        "ja": "実績x10",
-        "en": "10 Achievements"
+        "ja": "実績x11",
+        "en": "11 Achievements"
       },
       "description": {
-        "ja": "実績を10達成した (この実績は含まない)",
-        "en": "Unlocked 10 achievements (excluding this one)"
+        "ja": "実績を11個達成した",
+        "en": "Unlocked 11 achievements."
       },
       "condition": {
         "type": "UNLOCK_ACHIEVEMENT",
         "scope": "LIFETIME",
         "operator": ">=",
         "params": {
-          "value": 10
+          "value": 11
         }
       },
       "reward": {
@@ -143,22 +144,22 @@
       "progressVisible": true
     },
     {
-      "id": "achievement_15",
+      "id": "unlock_17_achievements",
       "category": "SYSTEM",
       "name": {
-        "ja": "実績x15",
-        "en": "15 Achievements"
+        "ja": "実績x17",
+        "en": "17 Achievements"
       },
       "description": {
-        "ja": "実績を15達成した (この実績は含まない)",
-        "en": "Unlocked 15 achievements (excluding this one)"
+        "ja": "実績を17個達成した",
+        "en": "Unlocked 17 achievements."
       },
       "condition": {
         "type": "UNLOCK_ACHIEVEMENT",
         "scope": "LIFETIME",
         "operator": ">=",
         "params": {
-          "value": 15
+          "value": 17
         }
       },
       "reward": {
@@ -455,7 +456,7 @@
       "progressVisible": false
     },
     {
-      "id": "time64",
+      "id": "clear_sprint64_under_2m",
       "category": "TIME_ATTACK",
       "name": {
         "ja": "64 SPRINT",
@@ -463,7 +464,7 @@
       },
       "description": {
         "ja": "64 SPRINT を 2分以内でクリアした",
-        "en": "Cleared 64 SPRINT in within 2 minutes."
+        "en": "Cleared 64 SPRINT within 2 minutes."
       },
       "condition": {
         "type": "CLEAR_TIME_MINUTE",
@@ -482,7 +483,7 @@
       "progressVisible": false
     },
     {
-      "id": "time256",
+      "id": "clear_sprint256_under_4m",
       "category": "TIME_ATTACK",
       "name": {
         "ja": "256 SPRINT",
@@ -490,7 +491,7 @@
       },
       "description": {
         "ja": "256 SPRINT を 4分以内でクリアした",
-        "en": "Cleared 256 SPRINT in within 4 minutes."
+        "en": "Cleared 256 SPRINT within 4 minutes."
       },
       "condition": {
         "type": "CLEAR_TIME_MINUTE",
@@ -509,7 +510,7 @@
       "progressVisible": false
     },
     {
-      "id": "time512",
+      "id": "clear_sprint512_under_8m",
       "category": "TIME_ATTACK",
       "name": {
         "ja": "512 SPRINT",
@@ -517,7 +518,7 @@
       },
       "description": {
         "ja": "512 SPRINT を 8分以内でクリアした",
-        "en": "Cleared 512 SPRINT in within 8 minutes."
+        "en": "Cleared 512 SPRINT within 8 minutes."
       },
       "condition": {
         "type": "CLEAR_TIME_MINUTE",
@@ -536,7 +537,7 @@
       "progressVisible": false
     },
     {
-      "id": "corerush",
+      "id": "clear_core_rush_under_3m",
       "category": "CORE_RUSH",
       "name": {
         "ja": "CORE RUSH 2048",
@@ -544,7 +545,7 @@
       },
       "description": {
         "ja": "CORE RUSH 2048 を 3分以内でクリアした",
-        "en": "Cleared CORE RUSH 2048 in within 3 minutes."
+        "en": "Cleared CORE RUSH 2048 within 3 minutes."
       },
       "condition": {
         "type": "CLEAR_TIME_MINUTE",
