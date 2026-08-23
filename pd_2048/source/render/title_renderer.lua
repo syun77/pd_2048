@@ -201,7 +201,11 @@ function TitleRenderer:drawAchievements(selectedIndex, items, languageKey)
         gfx.setColor(gfx.kColorWhite)
         gfx.fillRoundRect(listX, rowY, listWidth, rowHeight - 2, 3)
         gfx.setColor(gfx.kColorBlack)
-        gfx.drawTextAligned(items[index].label, Config.SCREEN_CENTER_X,
+        if items[index].unlocked and self.practiceClearedImage ~= nil then
+            self.practiceClearedImage:draw(listX + 8,
+                rowY + math.floor((rowHeight - 2 - 16) * 0.5))
+        end
+        gfx.drawTextAligned(items[index].label, Config.SCREEN_CENTER_X + 6,
             rowY + 5, kTextAlignment.center)
         if index == selectedIndex then
             gfx.setColor(gfx.kColorXOR)

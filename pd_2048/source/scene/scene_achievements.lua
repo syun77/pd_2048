@@ -42,9 +42,9 @@ function AchievementsScene:enter()
                 description, math.min(current, target), target)
         end
         table.insert(self.items, {
-            label = string.format("No.%02d  [%s]  %s",
-                definition.displayNo, unlocked and "X" or " ", name),
+            label = string.format("No.%02d  %s", definition.displayNo, name),
             description = description,
+            unlocked = unlocked,
         })
     end
     MenuSelectionController.reset(self.menuSelectionController)
