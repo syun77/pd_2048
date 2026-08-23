@@ -26,23 +26,25 @@ DEFAULT_JSON_INDENT = 2
 ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 OPTION_ID_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
 
-CATEGORIES = ["SYSTEM", "NORMAL", "TIME_ATTACK", "CORE_RUSH", "PRACTICE"]
+CATEGORIES = ["SYSTEM", "NORMAL", "TIME_ATTACK", "CORE_RUSH", "PRACTICE", "MAIN_GAME"]
 CONDITION_TYPES = [
-    "MERGE_COUNT",
+    "UNLOCK_ACHIEVEMENT",
+    "PRACTICE_CLEAR_COUNT",
     "TILE_VALUE",
-    "SCORE",
     "COMBO",
     "LEVEL",
-    "CLEAR_MODE",
-    "PRACTICE_CLEAR_COUNT",
-    "NO_REWIND_CLEAR",
-    "PLAY_COUNT",
-    "TOTAL_SCORE",
-    "BEST_TIME_MS",
+    "CLEAR_TIME_MINUTE",
 ]
 SCOPES = ["RUN", "LIFETIME"]
 OPERATORS = [">=", "==", "<=", ">", "<"]
-REWARD_TYPES = ["NONE", "BGM_UNLOCK", "THEME_UNLOCK", "TITLE_BADGE", "SOUND_UNLOCK"]
+REWARD_TYPES = [
+    "NONE",
+    "SOUND_UNLOCK",
+    "TIMEATTACK_UNLOCK",
+    "REPLAY_UNLOCK",
+    "EXTEND_PLAY",
+    "PLAYBOOK_UNLOCK",
+]
 DEFINITION_KINDS = [
     ("categories", "Category"),
     ("conditionTypes", "Condition Type"),
@@ -56,19 +58,15 @@ DEFINITION_LABELS = {
         "TIME_ATTACK": "Time Attack",
         "CORE_RUSH": "Core Rush",
         "PRACTICE": "Practice",
+        "MAIN_GAME": "Main Game",
     },
     "conditionTypes": {
-        "MERGE_COUNT": "Merge Count",
+        "UNLOCK_ACHIEVEMENT": "Unlocked Achievements",
+        "PRACTICE_CLEAR_COUNT": "Practice Clear Count",
         "TILE_VALUE": "Tile Value",
-        "SCORE": "Score",
         "COMBO": "Combo",
         "LEVEL": "Level",
-        "CLEAR_MODE": "Clear Mode",
-        "PRACTICE_CLEAR_COUNT": "Practice Clear Count",
-        "NO_REWIND_CLEAR": "No Rewind Clear",
-        "PLAY_COUNT": "Play Count",
-        "TOTAL_SCORE": "Total Score",
-        "BEST_TIME_MS": "Best Time",
+        "CLEAR_TIME_MINUTE": "Clear Time (Minutes)",
     },
     "scopes": {
         "RUN": "Run",
@@ -76,25 +74,35 @@ DEFINITION_LABELS = {
     },
     "rewardTypes": {
         "NONE": "None",
-        "BGM_UNLOCK": "BGM Unlock",
-        "THEME_UNLOCK": "Theme Unlock",
-        "TITLE_BADGE": "Title Badge",
         "SOUND_UNLOCK": "Sound Unlock",
+        "TIMEATTACK_UNLOCK": "Time Attack Unlock",
+        "REPLAY_UNLOCK": "Replay Unlock",
+        "EXTEND_PLAY": "Extend Play Unlock",
+        "PLAYBOOK_UNLOCK": "Playbook Unlock",
     },
 }
 
 PARAM_HINTS = {
-    "MERGE_COUNT": "count=1",
+    "UNLOCK_ACHIEVEMENT": "value=5",
+    "PRACTICE_CLEAR_COUNT": "all=true",
     "TILE_VALUE": "value=2048",
-    "SCORE": "score=10000",
-    "COMBO": "combo=3",
-    "LEVEL": "level=10",
-    "CLEAR_MODE": "mode=NORMAL",
-    "PRACTICE_CLEAR_COUNT": "count=10",
-    "NO_REWIND_CLEAR": "mode=NORMAL",
-    "PLAY_COUNT": "count=10",
-    "TOTAL_SCORE": "score=100000",
-    "BEST_TIME_MS": "mode=TIME_ATTACK,target=64,timeMs=60000",
+    "COMBO": "value=4",
+    "LEVEL": "value=5",
+    "CLEAR_TIME_MINUTE": "mode=TIME_ATTACK,value=2",
+}
+
+SUPPORTED_DEFINITION_IDS = {
+    "categories": set(CATEGORIES),
+    "conditionTypes": set(CONDITION_TYPES),
+    "scopes": set(SCOPES),
+    "rewardTypes": set(REWARD_TYPES),
+}
+TIME_ATTACK_MODES = {"TIME_ATTACK", "TIME_ATTACK_256", "TIME_ATTACK_512"}
+REWARD_IDS = {
+    "SOUND_UNLOCK": {"soundtest"},
+    "TIMEATTACK_UNLOCK": {"sprint64", "sprint256", "sprint512", "corerush2048"},
+    "REPLAY_UNLOCK": {"replay"},
+    "EXTEND_PLAY": {"extend"},
 }
 
 
@@ -167,14 +175,14 @@ def localized(ja: str = "", en: str = "") -> dict:
 def default_achievement(sequence: int = 1) -> dict:
     return {
         "id": f"achievement_{sequence:03d}",
-        "category": "SYSTEM",
+        "category": "NORMAL",
         "name": localized("NEW ACHIEVEMENT", "NEW ACHIEVEMENT"),
         "description": localized("", ""),
         "condition": {
-            "type": "MERGE_COUNT",
-            "scope": "LIFETIME",
+            "type": "TILE_VALUE",
+            "scope": "RUN",
             "operator": ">=",
-            "params": {"count": 1},
+            "params": {"value": 64},
         },
         "reward": {"type": "NONE", "id": ""},
         "hidden": False,
@@ -912,12 +920,6 @@ class AchievementEditor(tk.Tk):
         if not self._apply_form_to_selected(show_error=True):
             return
         item = default_achievement(len(self.achievements) + 1)
-        item["category"] = definition_ids(self.definitions, "categories")[0]
-        item["condition"]["type"] = definition_ids(self.definitions, "conditionTypes")[0]
-        item["condition"]["scope"] = definition_ids(self.definitions, "scopes")[0]
-        item["reward"]["type"] = definition_ids(self.definitions, "rewardTypes")[0]
-        if item["reward"]["type"] != "NONE":
-            item["reward"]["id"] = "TODO"
         self.achievements.append(item)
         self.selected_index = len(self.achievements) - 1
         self._load_form(self.selected_index)
@@ -1036,9 +1038,112 @@ def validate_definitions(definitions: dict) -> None:
                 raise ValueError(f"{label}: internal name must match {OPTION_ID_PATTERN.pattern}: {item_id}")
             if item_id in ids:
                 raise ValueError(f"{label}: duplicate internal name: {item_id}")
+            if item_id not in SUPPORTED_DEFINITION_IDS[kind]:
+                supported = ", ".join(sorted(SUPPORTED_DEFINITION_IDS[kind]))
+                raise ValueError(f"{label}: unsupported internal name {item_id}. Supported: {supported}")
             if item_label == "":
                 raise ValueError(f"{label}: display name is required for {item_id}.")
             ids.add(item_id)
+
+
+def _require_exact_params(item_id: str, params: dict, expected: set[str]) -> None:
+    actual = set(params)
+    if actual == expected:
+        return
+    missing = sorted(expected - actual)
+    unexpected = sorted(actual - expected)
+    details = []
+    if missing:
+        details.append(f"missing {', '.join(missing)}")
+    if unexpected:
+        details.append(f"unexpected {', '.join(unexpected)}")
+    raise ValueError(f"{item_id}: invalid condition params ({'; '.join(details)}).")
+
+
+def _require_positive_number(item_id: str, params: dict, key: str) -> None:
+    value = params.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+        raise ValueError(f"{item_id}: condition param {key} must be a positive number.")
+
+
+def _require_positive_integer(item_id: str, params: dict, key: str) -> None:
+    value = params.get(key)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(f"{item_id}: condition param {key} must be a positive integer.")
+
+
+def _validate_condition_semantics(item: dict) -> None:
+    item_id = item["id"]
+    category = item["category"]
+    condition = item["condition"]
+    condition_type = condition["type"]
+    scope = condition["scope"]
+    operator = condition["operator"]
+    params = condition["params"]
+
+    expected_category_scope = {
+        "UNLOCK_ACHIEVEMENT": ("SYSTEM", "LIFETIME"),
+        "PRACTICE_CLEAR_COUNT": ("PRACTICE", "LIFETIME"),
+        "TILE_VALUE": ("NORMAL", "RUN"),
+        "COMBO": ("MAIN_GAME", "RUN"),
+        "LEVEL": ("NORMAL", "RUN"),
+    }
+    if condition_type in expected_category_scope:
+        expected_category, expected_scope = expected_category_scope[condition_type]
+        if category != expected_category or scope != expected_scope:
+            raise ValueError(
+                f"{item_id}: {condition_type} requires category={expected_category} "
+                f"and scope={expected_scope}."
+            )
+
+    if condition_type in {"UNLOCK_ACHIEVEMENT", "TILE_VALUE", "COMBO", "LEVEL"}:
+        _require_exact_params(item_id, params, {"value"})
+        _require_positive_integer(item_id, params, "value")
+        return
+
+    if condition_type == "PRACTICE_CLEAR_COUNT":
+        if set(params) == {"all"}:
+            if params["all"] is not True or operator != "==":
+                raise ValueError(
+                    f"{item_id}: all-stage PRACTICE condition requires all=true and operator ==."
+                )
+            return
+        _require_exact_params(item_id, params, {"count"})
+        _require_positive_integer(item_id, params, "count")
+        return
+
+    if condition_type == "CLEAR_TIME_MINUTE":
+        _require_exact_params(item_id, params, {"mode", "value"})
+        _require_positive_number(item_id, params, "value")
+        mode = params["mode"]
+        if not isinstance(mode, str):
+            raise ValueError(f"{item_id}: condition param mode must be a mode name.")
+        if category == "TIME_ATTACK" and mode not in TIME_ATTACK_MODES:
+            raise ValueError(f"{item_id}: TIME_ATTACK clear time requires a TIME ATTACK mode.")
+        if category == "CORE_RUSH" and mode != "CORE_RUSH":
+            raise ValueError(f"{item_id}: CORE_RUSH clear time requires mode=CORE_RUSH.")
+        if category not in {"TIME_ATTACK", "CORE_RUSH"} or scope != "RUN":
+            raise ValueError(
+                f"{item_id}: CLEAR_TIME_MINUTE requires a timed-mode category and scope=RUN."
+            )
+
+
+def _validate_reward_semantics(item: dict) -> None:
+    item_id = item["id"]
+    reward_type = item["reward"]["type"]
+    reward_id = item["reward"]["id"]
+    if reward_type == "NONE":
+        if reward_id != "":
+            raise ValueError(f"{item_id}: reward id must be empty when reward type is NONE.")
+        return
+    if reward_type == "PLAYBOOK_UNLOCK":
+        if re.fullmatch(r"[0-9]+", reward_id) is None or int(reward_id) < 1:
+            raise ValueError(f"{item_id}: PLAYBOOK_UNLOCK reward id must be a positive integer.")
+        return
+    allowed_ids = REWARD_IDS.get(reward_type, set())
+    if reward_id not in allowed_ids:
+        allowed = ", ".join(sorted(allowed_ids))
+        raise ValueError(f"{item_id}: {reward_type} reward id must be one of {allowed}.")
 
 
 def validate_achievement(item: dict, definitions: dict | None = None) -> None:
@@ -1062,11 +1167,13 @@ def validate_achievement(item: dict, definitions: dict | None = None) -> None:
         raise ValueError(f"{item['id']}: condition operator is invalid.")
     if not isinstance(condition["params"], dict):
         raise ValueError(f"{item['id']}: condition params must be an object.")
+    _validate_condition_semantics(item)
     reward_type_ids = definition_ids(definitions, "rewardTypes")
     if item["reward"]["type"] not in reward_type_ids:
         raise ValueError(f"{item['id']}: reward type is invalid.")
     if item["reward"]["type"] != "NONE" and item["reward"]["id"] == "":
         raise ValueError(f"{item['id']}: reward id is required when reward type is not NONE.")
+    _validate_reward_semantics(item)
 
 
 def validate_achievements(achievements: list[dict], definitions: dict | None = None) -> None:

@@ -28,52 +28,28 @@
     ],
     "conditionTypes": [
       {
-        "id": "MERGE_COUNT",
-        "label": "マージ回数"
-      },
-      {
-        "id": "TILE_VALUE",
-        "label": "生成したタイルの値"
-      },
-      {
-        "id": "SCORE",
-        "label": "スコア"
-      },
-      {
-        "id": "COMBO",
-        "label": "コンボ数"
-      },
-      {
-        "id": "CLEAR_MODE",
-        "label": "クリアしたモード"
+        "id": "UNLOCK_ACHIEVEMENT",
+        "label": "実績達成数"
       },
       {
         "id": "PRACTICE_CLEAR_COUNT",
         "label": "PRACTICEクリア数"
       },
       {
-        "id": "NO_REWIND_CLEAR",
-        "label": "巻き戻しなしのクリア"
+        "id": "TILE_VALUE",
+        "label": "生成したタイルの値"
       },
       {
-        "id": "PLAY_COUNT",
-        "label": "プレイ回数"
-      },
-      {
-        "id": "TOTAL_SCORE",
-        "label": "トータルスコア"
-      },
-      {
-        "id": "CLEAR_TIME_MINUTE",
-        "label": "クリア時間"
+        "id": "COMBO",
+        "label": "コンボ数"
       },
       {
         "id": "LEVEL",
         "label": "到達レベル"
       },
       {
-        "id": "UNLOCK_ACHIEVEMENT",
-        "label": "実勢達成数"
+        "id": "CLEAR_TIME_MINUTE",
+        "label": "クリア時間"
       }
     ],
     "scopes": [
@@ -108,8 +84,8 @@
         "label": "リプレイデータの続きからプレイ"
       },
       {
-        "id": "HINT_UNLOCK",
-        "label": "ヒントの開放"
+        "id": "PLAYBOOK_UNLOCK",
+        "label": "PLAYBOOKの開放"
       }
     ]
   },
@@ -368,8 +344,8 @@
         }
       },
       "reward": {
-        "type": "HINT_UNLOCK",
-        "id": "hint3"
+        "type": "PLAYBOOK_UNLOCK",
+        "id": "3"
       },
       "hidden": false,
       "progressVisible": false
@@ -420,8 +396,8 @@
         }
       },
       "reward": {
-        "type": "HINT_UNLOCK",
-        "id": "hint1"
+        "type": "PLAYBOOK_UNLOCK",
+        "id": "1"
       },
       "hidden": false,
       "progressVisible": false
@@ -446,8 +422,8 @@
         }
       },
       "reward": {
-        "type": "HINT_UNLOCK",
-        "id": "hint2"
+        "type": "PLAYBOOK_UNLOCK",
+        "id": "2"
       },
       "hidden": false,
       "progressVisible": false
@@ -494,6 +470,7 @@
         "scope": "RUN",
         "operator": "<=",
         "params": {
+          "mode": "TIME_ATTACK",
           "value": 2
         }
       },
@@ -520,6 +497,7 @@
         "scope": "RUN",
         "operator": "<=",
         "params": {
+          "mode": "TIME_ATTACK_256",
           "value": 4
         }
       },
@@ -546,6 +524,7 @@
         "scope": "RUN",
         "operator": "<=",
         "params": {
+          "mode": "TIME_ATTACK_512",
           "value": 8
         }
       },
@@ -572,6 +551,7 @@
         "scope": "RUN",
         "operator": "<=",
         "params": {
+          "mode": "CORE_RUSH",
           "value": 3
         }
       },
