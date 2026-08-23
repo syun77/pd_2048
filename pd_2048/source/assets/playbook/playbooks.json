@@ -165,14 +165,14 @@
       },
       "pages": [
         {
-          "image": "dummy",
+          "image": "next_1",
           "description": {
             "ja": "NEXTには、このあとに来る6個のブロックが順番に表示されます。",
             "en": "NEXT shows the next six tiles in the order they will appear."
           }
         },
         {
-          "image": "dummy",
+          "image": "next_2",
           "description": {
             "ja": "次に来る数の着地場所を残し、 今使いにくい数はHOLDへ移しましょう。",
             "en": "Keep a landing spot for upcoming values and move an awkward current tile into HOLD."
@@ -189,28 +189,28 @@
       },
       "pages": [
         {
-          "image": "dummy",
+          "image": "score_1",
           "description": {
             "ja": "マージすると、できたブロックの数×100点を 獲得します。",
             "en": "Each merge scores the value of the resulting tile multiplied by 100."
           }
         },
         {
-          "image": "dummy",
+          "image": "score_2",
           "description": {
             "ja": "同じ手で2回以上マージすると、通常の得点に コンボボーナスが加わります。",
             "en": "Two or more merges in one move add a combo bonus on top of the normal score."
           }
         },
         {
-          "image": "dummy",
+          "image": "score_3",
           "description": {
             "ja": "NORMALではDROP、マージ、初めて作った高い数、 コンボでXPを獲得します。",
             "en": "In NORMAL, drops, merges, new high values, and combos award XP."
           }
         },
         {
-          "image": "dummy",
+          "image": "score_4",
           "description": {
             "ja": "レベルはプレイの成果を示す記録です。 難易度や出現ブロックは変わりません。",
             "en": "Level records your progress in a run. Leveling up does not change difficulty or tile generation."
