@@ -29,13 +29,6 @@
             "ja": "同じ数をマージしながらボードを保ち、 より大きなブロックを作りましょう。",
             "en": "Merge equal values, keep the board playable, and build larger tiles."
           }
-        },
-        {
-          "image": "howto_4",
-          "description": {
-            "ja": "最上段がブロックで埋まると\nゲームオーバーとなります。",
-            "en": "If the top row fills up with tiles,\nthe game ends."
-          }
         }
       ]
     },
@@ -79,21 +72,21 @@
       },
       "pages": [
         {
-          "image": "dummy",
+          "image": "landing_1",
           "description": {
             "ja": "ブロックは下か左右に別のブロックがあるマスへ接着します。空の列の底へは落ちません。",
             "en": "A tile must attach above or beside another tile. It does not simply fall to the bottom of an empty column."
           }
         },
         {
-          "image": "dummy",
+          "image": "howto_2",
           "description": {
             "ja": "中央列の回転軸の1マス上だけは、 周囲にブロックがなくても配置できます。",
             "en": "The cell directly above the center pivot is a special landing spot and needs no neighboring tile."
           }
         },
         {
-          "image": "dummy",
+          "image": "howto_4",
           "description": {
             "ja": "次のブロックを5列のどこにも置けなくなると ゲームオーバーです。",
             "en": "The game ends when the next tile has no valid landing spot in any of the five columns."
