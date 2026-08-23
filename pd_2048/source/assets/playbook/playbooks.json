@@ -103,31 +103,24 @@
       },
       "pages": [
         {
-          "image": "dummy",
+          "image": "rotate_1",
           "description": {
             "ja": "落下位置とマージ方向から回転が決まり、ボードが時計回りか反時計回りへ90度回転します。",
             "en": "Your landing position and merge directions determine whether the board rotates 90 degrees clockwise or counterclockwise."
           }
         },
         {
-          "image": "dummy",
+          "image": "rotate_2",
           "description": {
             "ja": "左側への落下は反時計回り、右側は時計回りになりやすいですが、マージ結果でも変化します。",
             "en": "Left-side drops tend to turn counterclockwise and right-side drops clockwise, but merges can change the result."
           }
         },
         {
-          "image": "dummy",
+          "image": "rotate_3",
           "description": {
             "ja": "回転後に全ブロックを下へ詰める重力はなく、 回転した配置がそのまま残ります。",
             "en": "There is no gravity after rotation. Every tile stays in its rotated position."
-          }
-        },
-        {
-          "image": "dummy",
-          "description": {
-            "ja": "回転後も、直前にできたブロックが 同じ数に触れるとマージが続きます。",
-            "en": "After rotation, the most recently merged tile can continue merging if it touches an equal value."
           }
         }
       ]
@@ -141,31 +134,24 @@
       },
       "pages": [
         {
-          "image": "dummy",
+          "image": "hold_1",
           "description": {
             "ja": "Aボタンで現在のブロックをHOLDします。 HOLDが空ならNEXTが1つ進みます。",
             "en": "Press A to HOLD the current tile. If HOLD is empty, the next tile moves forward."
           }
         },
         {
-          "image": "dummy",
+          "image": "hold_2",
           "description": {
             "ja": "HOLDにブロックがあれば現在のブロックと 交換します。DROP前なら何度でも使えます。",
             "en": "If HOLD contains a tile, it swaps with the current tile. You may use HOLD repeatedly before dropping."
           }
         },
         {
-          "image": "dummy",
+          "image": "hold_3",
           "description": {
             "ja": "Bボタンを長押しすると直前の手をREWIND できます。1回のプレイで3回まで使えます。",
             "en": "Hold B to REWIND the previous move. You can use it up to three times per run."
-          }
-        },
-        {
-          "image": "dummy",
-          "description": {
-            "ja": "TIME ATTACKとCORE RUSHは、 REWINDで経過時間は巻き戻りません。",
-            "en": "In TIME ATTACK and CORE RUSH, REWIND does not turn back the elapsed time."
           }
         }
       ]
