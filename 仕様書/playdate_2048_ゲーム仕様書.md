@@ -483,7 +483,8 @@ Playdateのシステムメニュー項目は画面遷移時に切り替える。
 
 | 画面 | 項目 |
 |---|---|
-| タイトル | `language`（`en` / `ja`）。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
+| タイトルのルート（モード選択） | `language`（`en` / `ja`）、`Reset Save Data`。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
+| タイトルのサブメニュー | `language`（`en` / `ja`）。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合のみ`BG: ...` |
 | ゲーム（NORMAL GAME） | `Suspend`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play`。リプレイ再生中とリプレイから分岐したプレイ中は`Suspend`ではなく`Back to Title` |
 | ゲーム（TIME ATTACK） | `Mode Select`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
 | ゲーム（PRACTICE） | `Stage Select`、`Retry`。`SHOW_AUTO_PLAY_MENU_ITEM`が`true`の場合のみ`Auto Play` |
@@ -501,6 +502,7 @@ Playdateのシステムメニュー項目は画面遷移時に切り替える。
 - `Stage Select`：PRACTICEのステージ選択へ戻る
 - `Retry`：現在のモードでリスタート
 - `language`：PLAYBOOKとACHIEVEMENTSの表示言語を`en`または`ja`から選択する
+- `Reset Save Data`：ゲーム内の`RESET SAVE DATA?`確認画面を開く。初期選択は`NO`とし、`YES`を確定した場合だけ、言語設定、ハイスコア、レベル記録、PRACTICE進捗、統計、実績と報酬、中断データ、保存済みリプレイを削除してゲームを再起動する。`NO`の確定またはBボタンでキャンセルする
 - `BG: ...`：メニュー背景アニメーションの負荷設定を`OFF`、`LOW`、`MEDIUM`、`HIGH`の順に切り替える
 
 Auto Playは通常の入力と同じDROP、HOLD、左右移動コマンドをゲームコントローラへ渡す。

@@ -125,6 +125,12 @@ function TitleRenderer:drawTitle(selectedIndex, menuItems, title, notice)
     end
 end
 
+---@param selectedIndex integer YES/NOの選択番号.
+function TitleRenderer:drawSaveDataResetConfirmation(selectedIndex)
+    self.menuRenderer:drawMenu(Config.SCREEN_CENTER_X, Config.SCREEN_CENTER_Y,
+        { "RESET SAVE DATA?", "YES", "NO" }, selectedIndex + 1)
+end
+
 function TitleRenderer:drawMenuPage(title)
     self:drawBackground()
     self:drawCenteredText(title, 78)

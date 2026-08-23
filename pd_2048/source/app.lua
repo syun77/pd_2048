@@ -4,6 +4,7 @@ import "game_config"
 import "game/game_controller"
 import "game/achievement_store"
 import "game/achievement_manager"
+import "game/save_data_reset"
 import "achievement_definition_loader"
 import "render/game_renderer"
 import "render/overlay_renderer"
@@ -110,6 +111,11 @@ function App.new()
         language = self.language,
         sound = sound,
         systemMenu = SystemMenuController.new(pd.getSystemMenu()),
+        resetSaveData = function()
+            if not SaveDataReset.reset(pd) then return false end
+            pd.restart()
+            return true
+        end,
     })
 	
 	-- 各種シーンを登録.

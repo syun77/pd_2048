@@ -4,7 +4,7 @@ local gfx <const> = playdate.graphics
 local PANEL_X <const> = 8
 local PANEL_Y <const> = 4
 local PANEL_WIDTH <const> = 384
-local PANEL_HEIGHT <const> = 42
+local PANEL_HEIGHT <const> = 26
 
 ---@class AchievementNotificationRenderer
 local AchievementNotificationRenderer = {}
@@ -28,11 +28,9 @@ function AchievementNotificationRenderer:draw()
     gfx.fillRoundRect(PANEL_X, PANEL_Y, PANEL_WIDTH, PANEL_HEIGHT, 4)
     gfx.setColor(gfx.kColorBlack)
     gfx.drawRoundRect(PANEL_X, PANEL_Y, PANEL_WIDTH, PANEL_HEIGHT, 4)
-    gfx.drawTextAligned("ACHIEVEMENT UNLOCKED", 200, 7,
-        kTextAlignment.center)
     local detail = string.format("No. %02d  %s",
         notification.displayNo, notification.displayName)
-    gfx.drawTextAligned(detail, 200, 23, kTextAlignment.center)
+    gfx.drawTextAligned(detail, 200, 9, kTextAlignment.center)
     gfx.setImageDrawMode(previousDrawMode)
     if previousFont ~= nil then gfx.setFont(previousFont) end
 end

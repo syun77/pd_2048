@@ -69,6 +69,8 @@ function TitleScene.new(context)
         },
         practiceItems = {},
         notice = nil,
+        resetConfirmationActive = false,
+        resetConfirmationSelection = 2,
     }, TitleScene)
 end
 
@@ -192,6 +194,8 @@ function TitleScene:enter(params)
         or self.selectedByPage[self.page]
         or 1
     self:clampSelectedIndex()
+    self.resetConfirmationActive = false
+    self.resetConfirmationSelection = 2
     MenuSelectionController.reset(self.menuSelectionController)
 end
 
@@ -213,6 +217,38 @@ end
 
 -- 更新.
 function TitleScene:update()
+    if self.resetConfirmationActive then
+        if pd.buttonJustPressed(pd.kButtonUp)
+            or pd.buttonJustPressed(pd.kButtonDown)
+            or pd.buttonJustPressed(pd.kButtonLeft)
+            or pd.buttonJustPressed(pd.kButtonRight) then
+            self.resetConfirmationSelection = self.resetConfirmationSelection == 1
+                and 2 or 1
+            self.context.sound:play_se("pi")
+            return
+        end
+        if pd.buttonJustPressed(pd.kButtonB) then
+            self.resetConfirmationActive = false
+            self.context.sound:play_se("cancel")
+            return
+        end
+        if pd.buttonJustPressed(pd.kButtonA) then
+            if self.resetConfirmationSelection == 1 then
+                self.context.sound:play_se("decide")
+                if not self.context.resetSaveData() then
+                    self.resetConfirmationActive = false
+                    self.notice = "RESET FAILED"
+                    self.context.sound:play_se("error")
+                end
+            else
+                self.resetConfirmationActive = false
+                self.context.sound:play_se("cancel")
+            end
+            return
+        end
+        return
+    end
+
     local items = self:getCurrentItems()
     -- 選択項目.
     local previousIndex = self.selectedIndex
@@ -224,6 +260,7 @@ function TitleScene:update()
         self.selectedByPage.ROOT = self.selectedIndex
         MenuSelectionController.reset(self.menuSelectionController)
         self.context.sound:play_se("cancel")
+        self.manager:refreshSystemMenu()
         return
     end
     if self.page == "REPLAYS"
@@ -288,6 +325,7 @@ function TitleScene:update()
             self.selectedIndex = 1
             self.selectedByPage[self.page] = self.selectedIndex
             MenuSelectionController.reset(self.menuSelectionController)
+            self.manager:refreshSystemMenu()
             return
         end
         if item.mode ~= nil then
@@ -306,6 +344,10 @@ function TitleScene:draw()
     local title = self.page == "ROOT" and nil or self.page
     self.context.titleRenderer:drawTitle(
         self.selectedIndex, items, title, self.notice)
+    if self.resetConfirmationActive then
+        self.context.titleRenderer:drawSaveDataResetConfirmation(
+            self.resetConfirmationSelection)
+    end
 end
 
 -- 選択している項目リストを取得.
@@ -318,7 +360,7 @@ function TitleScene:getCurrentItems()
 end
 
 function TitleScene:getSystemMenuItems()
-    return {
+    local items = {
         {
             type = "options",
             title = "language",
@@ -332,6 +374,16 @@ function TitleScene:getSystemMenuItems()
             end,
         },
     }
+    if self.page == "ROOT" then
+        table.insert(items, {
+            title = "Init Data",
+            callback = function()
+                self.resetConfirmationActive = true
+                self.resetConfirmationSelection = 2
+            end,
+        })
+    end
+    return items
 end
 
 _G.TitleScene = TitleScene
