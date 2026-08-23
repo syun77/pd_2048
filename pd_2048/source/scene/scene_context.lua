@@ -1,7 +1,6 @@
 ---@class SceneContext シーン間で共有する依存関係をまとめるコンテキスト。
 ---@field game GameController ゲームコントローラー.
----@field achievementStore AchievementStore 実績達成状態と報酬の永続管理.
----@field achievementDefinitions table[] 実行可能な実績定義.
+---@field achievementManager AchievementManager 実績判定と通知キューの管理.
 ---@field renderer GameRenderer ゲーム描画クラス.
 ---@field titleRenderer TitleRenderer タイトルメニューの描画.
 ---@field menuBackground MenuBackgroundRenderer メニューバックグラウンド描画クラス.

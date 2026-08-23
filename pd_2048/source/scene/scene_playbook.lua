@@ -28,7 +28,7 @@ function PlaybookScene:enter()
     self.context.sound:playMenuBgm()
     self.screen = "LIST"
     self.hints = PlaybookLoader.loadVisible(
-        self.context.achievementStore:getPlaybookUnlockNumbers(),
+        self.context.achievementManager:getPlaybookUnlockNumbers(),
         self.context.language:get())
     self.selectedIndex = 1
     self.pageIndex = 1

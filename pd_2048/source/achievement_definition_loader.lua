@@ -76,11 +76,18 @@ local function hasExactKeys(value, expected)
     return true
 end
 
-local function localizedText(value)
+---@param value any 日英ローカライズ文字列.
+---@param languageKey string|nil 優先言語。省略時は英語.
+---@return string
+function AchievementDefinitionLoader.localizedText(value, languageKey)
     if type(value) == "string" and value ~= "" then return value end
     if type(value) ~= "table" then return "" end
-    if type(value.en) == "string" and value.en ~= "" then return value.en end
-    if type(value.ja) == "string" then return value.ja end
+    local primaryKey = languageKey == "ja" and "ja" or "en"
+    local fallbackKey = primaryKey == "ja" and "en" or "ja"
+    if type(value[primaryKey]) == "string" and value[primaryKey] ~= "" then
+        return value[primaryKey]
+    end
+    if type(value[fallbackKey]) == "string" then return value[fallbackKey] end
     return ""
 end
 
@@ -163,8 +170,9 @@ local function normalize(item, displayNo, seenIds)
     if not SUPPORTED.category[item.category] then
         return nil, "unsupported category"
     end
-    local name = localizedText(item.name)
+    local name = AchievementDefinitionLoader.localizedText(item.name)
     if name == "" then return nil, "name is empty" end
+    local description = AchievementDefinitionLoader.localizedText(item.description)
     if type(item.hidden) ~= "boolean"
         or type(item.progressVisible) ~= "boolean" then
         return nil, "display flags must be boolean"
@@ -180,6 +188,8 @@ local function normalize(item, displayNo, seenIds)
         displayNo = displayNo,
         name = item.name,
         displayName = name,
+        description = item.description,
+        displayDescription = description,
         category = item.category,
         condition = item.condition,
         reward = item.reward,

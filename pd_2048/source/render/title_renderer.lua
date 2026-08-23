@@ -179,14 +179,67 @@ function TitleRenderer:drawPlaybookDetail(
         nil, "...", kTextAlignment.center)
 end
 
-function TitleRenderer:drawAchievements(languageKey)
-    if languageKey == Config.LANGUAGE.JAPANESE then
-        self:drawMenuPage("実績")
-        self:drawCenteredText("実績はまだありません", 124)
+function TitleRenderer:drawAchievements(selectedIndex, items, languageKey)
+    self:drawBackground()
+    local title = languageKey == Config.LANGUAGE.JAPANESE
+        and "実績" or "ACHIEVEMENTS"
+    if items == nil or #items == 0 then
+        self:drawCenteredText(title, 10)
+        gfx.drawLine(100, 30, 300, 30)
+        self:drawCenteredText(languageKey == Config.LANGUAGE.JAPANESE
+            and "実績データがありません" or "NO ACHIEVEMENT DATA", 112)
         return
     end
-    self:drawMenuPage("ACHIEVEMENTS")
-    self:drawCenteredText("NO ACHIEVEMENTS YET", 124)
+
+    local visibleCount = 5
+    local firstIndex = math.max(1, math.min(#items - visibleCount + 1,
+        selectedIndex - math.floor(visibleCount * 0.5)))
+    local lastIndex = math.min(#items, firstIndex + visibleCount - 1)
+    local listX, listY, listWidth, rowHeight = 40, 40, 320, 27
+    for index = firstIndex, lastIndex do
+        local rowY = listY + (index - firstIndex) * rowHeight
+        gfx.setColor(gfx.kColorWhite)
+        gfx.fillRoundRect(listX, rowY, listWidth, rowHeight - 2, 3)
+        gfx.setColor(gfx.kColorBlack)
+        gfx.drawTextAligned(items[index].label, Config.SCREEN_CENTER_X,
+            rowY + 5, kTextAlignment.center)
+        if index == selectedIndex then
+            gfx.setColor(gfx.kColorXOR)
+            gfx.fillRoundRect(listX + 2, rowY + 2,
+                listWidth - 4, rowHeight - 6, 3)
+        end
+    end
+    gfx.setColor(gfx.kColorBlack)
+    if firstIndex > 1 then
+        gfx.fillPolygon(200, 34, 193, 39, 207, 39)
+    end
+    if lastIndex < #items then
+        gfx.fillPolygon(200, 181, 193, 176, 207, 176)
+    end
+    local barX = 366
+    local barHeight = visibleCount * rowHeight - 2
+    local thumbHeight = math.max(4,
+        math.floor(barHeight * visibleCount / #items))
+    local maxFirst = math.max(1, #items - visibleCount + 1)
+    local thumbY = listY
+    if maxFirst > 1 then
+        thumbY += math.floor((barHeight - thumbHeight)
+            * (firstIndex - 1) / (maxFirst - 1))
+    end
+    gfx.drawRect(barX, listY, 5, barHeight)
+    gfx.fillRect(barX + 1, thumbY + 1, 3, thumbHeight - 2)
+
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillRect(0, 0, Config.SCREEN_WIDTH, 34)
+    gfx.fillRect(0, 184, Config.SCREEN_WIDTH, 56)
+    gfx.setColor(gfx.kColorBlack)
+    self:drawCenteredText(title, 6)
+    gfx.drawLine(100, 28, 300, 28)
+    local selected = items[selectedIndex]
+    if selected ~= nil then
+        gfx.drawTextInRect(selected.description or "", 12, 190, 376, 44,
+            nil, "...", kTextAlignment.center)
+    end
 end
 
 local function statisticsTimeText(timeMs)

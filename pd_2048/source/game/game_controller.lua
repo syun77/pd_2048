@@ -37,6 +37,7 @@ local GameResult <const> = Config.GAME_RESULT
 ---@field replaySeekActive boolean リプレイの高速再構築中か.
 ---@field replayAtSeekBoundary boolean 手送り後の安定状態か.
 ---@field replayPlaybackError boolean リプレイ再生エラーが発生したか.
+---@field achievementManager AchievementManager|nil 実績判定管理.
 ---@field isReplayUnlocked fun(): boolean リプレイ機能報酬が解放済みか.
 ---@field isReplayExtendUnlocked fun(): boolean リプレイ分岐報酬が解放済みか.
 local GameController = {}
@@ -46,6 +47,7 @@ function GameController.new(dependencies)
     local self = setmetatable({}, GameController)
     self.state = GameState.new()
     self.sound = dependencies.sound
+    self.achievementManager = dependencies.achievementManager
     self.isReplayUnlocked = dependencies.isReplayUnlocked
         or function() return false end
     self.isReplayExtendUnlocked = dependencies.isReplayExtendUnlocked
@@ -124,6 +126,48 @@ end
 function GameController:canWritePersistentProgress()
     return self.state.persistentRecordEligible
         and not self.replayMode and not self.suspendRestoreActive
+end
+
+function GameController:emitAchievementProgress(mergedTile)
+    if self.achievementManager == nil then return end
+    local state = self.state
+    self.achievementManager:emit({
+        type = "RUN_PROGRESS",
+        mode = state.mode,
+        mergedTile = mergedTile,
+        combo = state.combo,
+        level = state.level,
+        eligible = self:canWritePersistentProgress(),
+    })
+end
+
+function GameController:getAllPracticeStageIds()
+    local allStageIds = {}
+    for _, stage in ipairs(PracticeStageLoader.loadAll()) do
+        local stageId = self:getPracticeStageId(stage)
+        if stageId ~= nil then allStageIds[stageId] = true end
+    end
+    return allStageIds
+end
+
+function GameController:emitPracticeAchievementProgress()
+    if self.achievementManager == nil then return end
+    self.achievementManager:emit({
+        type = "PRACTICE_CLEARED",
+        allStageIds = self:getAllPracticeStageIds(),
+        clearedIds = self.state.practiceClearedStages,
+        eligible = self:canWritePersistentProgress(),
+    })
+end
+
+function GameController:syncLifetimeAchievements()
+    if self.achievementManager == nil then return end
+    self.achievementManager:emit({
+        type = "PRACTICE_CLEARED",
+        allStageIds = self:getAllPracticeStageIds(),
+        clearedIds = self.state.practiceClearedStages,
+        eligible = true,
+    })
 end
 
 function GameController:canSuspendNormalGame()
@@ -617,6 +661,7 @@ end
 function GameController:finishTurn()
     local state = self.state
     self:applyLevelProgress(LevelProgress.recordCombo(state))
+    self:emitAchievementProgress(nil)
     if state.timeAttackVictoryPending then
         self:beginVictory()
         return
@@ -713,6 +758,7 @@ end
 function GameController:beginPracticeVictory()
     local state = self.state
     self:markPracticeStageCleared()
+    self:emitPracticeAchievementProgress()
     state.practiceCompleteUntil = pd.getCurrentTimeMilliseconds()
         + Config.CORE_RUSH_COMPLETE_DISPLAY_MS
     state.timerStartedAt = nil
@@ -942,6 +988,7 @@ function GameController:finishMerge()
     state.activeMergeX, state.activeMergeY = state.mergeTargetX, state.mergeTargetY
     self:addCoreRushValue(state.mergeValue)
     self:updatePracticeObjective()
+    self:emitAchievementProgress(state.mergeValue)
     self:startResolve(state.mergeNextAction)
 end
 
@@ -949,6 +996,7 @@ function GameController:finishDrop()
     local state = self.state
     state.board:set(state.pendingDropX, state.pendingDropY, state.pendingDropValue)
     self:applyLevelProgress(LevelProgress.recordDrop(state))
+    self:emitAchievementProgress(nil)
     state.pendingDropValue = 0
     state.activeMergeX, state.activeMergeY = state.pendingDropX, state.pendingDropY
     self:addRotationEvaluation(Config.ROTATION_EVALUATION_DROP_POSITION_WEIGHT
@@ -1210,6 +1258,9 @@ function GameController:start(mode, practiceStage, options)
 	    self.sound:playGameBgm()
 	    -- 開始SEの再生
 	    self.sound:play_se("start")
+    end
+    if self.achievementManager ~= nil then
+        self.achievementManager:startRun(state.mode)
     end
 end
 
@@ -1798,6 +1849,14 @@ function GameController:update()
         if pd.getCurrentTimeMilliseconds() >= state.coreRushCompleteUntil then
             state.coreRushCompleteUntil = 0
             state.result = GameResult.VICTORY
+            if self.achievementManager ~= nil then
+                self.achievementManager:emit({
+                    type = "MODE_CLEARED",
+                    mode = state.mode,
+                    elapsedTimeMs = state.elapsedTimeMs,
+                    eligible = self:canWritePersistentProgress(),
+                })
+            end
             if self:isCoreRush() then self:saveCoreRushBestTime()
             elseif self:isTimeAttack() then self:saveTimeAttackBestTime() end
             self:finishReplayRecordingIfNeeded()

@@ -3,11 +3,13 @@ import "game_context"
 import "game_config"
 import "game/game_controller"
 import "game/achievement_store"
+import "game/achievement_manager"
 import "achievement_definition_loader"
 import "render/game_renderer"
 import "render/overlay_renderer"
 import "render/title_renderer"
 import "render/menu_background_renderer"
+import "render/achievement_notification_renderer"
 import "language_manager"
 import "system_menu_controller"
 import "scene/scene_manager"
@@ -29,6 +31,8 @@ local Config <const> = GameConfig
 ---@field game GameController ゲームコントローラー.
 ---@field achievementStore AchievementStore 実績達成状態と報酬の永続管理.
 ---@field achievementDefinitions table[] 実行可能な実績定義.
+---@field achievementManager AchievementManager 実績判定と通知キューの管理.
+---@field achievementNotificationRenderer AchievementNotificationRenderer 実績通知描画.
 ---@field overlayRenderer OverlayRenderer オーバーレイ描画クラス.
 ---@field menuBackgroundRenderer MenuBackgroundRenderer メニューバックグラウンド描画クラス.
 ---@field titleRenderer TitleRenderer タイトルメニューの描画.
@@ -50,15 +54,19 @@ function App.new()
     self.sound = sound
     self.achievementStore = AchievementStore.new(pd)
     self.achievementDefinitions = AchievementDefinitionLoader.load()
+    self.achievementManager = AchievementManager.new(
+        self.achievementDefinitions, self.achievementStore)
     self.game = GameController.new({
         sound = sound,
+        achievementManager = self.achievementManager,
         isReplayUnlocked = function()
-            return self.achievementStore:isReplayUnlocked()
+            return self.achievementManager:hasReward("REPLAY_UNLOCK", "replay")
         end,
         isReplayExtendUnlocked = function()
-            return self.achievementStore:isReplayExtendUnlocked()
+            return self.achievementManager:hasReward("EXTEND_PLAY", "extend")
         end,
     })
+    self.game:syncLifetimeAchievements()
     self.overlayRenderer = OverlayRenderer.new({
         state = self.game:getState(),
         sound = sound,
@@ -73,6 +81,9 @@ function App.new()
     self.language = LanguageManager.new()
     self.defaultFont = gfx.getFont()
     self.japaneseFont = gfx.font.new("assets/fonts/k8x12")
+    self.achievementNotificationRenderer =
+        AchievementNotificationRenderer.new(
+            self.achievementManager, self.defaultFont)
     self.titleRenderer = TitleRenderer.new({
         state = self.game:getState(),
         menuRenderer = self.overlayRenderer,
@@ -92,8 +103,7 @@ function App.new()
 	-- シーンコンテキストを生成.
     self.sceneContext = SceneContext.new({
         game = self.game,
-        achievementStore = self.achievementStore,
-        achievementDefinitions = self.achievementDefinitions,
+        achievementManager = self.achievementManager,
         renderer = self.renderer,
         titleRenderer = self.titleRenderer,
         menuBackground = self.menuBackgroundRenderer,
@@ -125,6 +135,7 @@ end
 -- 更新.
 function App:update()
     self.sceneManager:update()
+    self.achievementManager:update(pd.getCurrentTimeMilliseconds())
 end
 
 -- OSからゲーム終了または低バッテリースリープを通知されたとき、
@@ -166,6 +177,7 @@ function App:draw()
         gfx.fillRect(0, 0, 400, 240)
         gfx.setColor(previousColor)
     end
+    self.achievementNotificationRenderer:draw()
 end
 
 _G.App = App

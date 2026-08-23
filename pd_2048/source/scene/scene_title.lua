@@ -108,7 +108,8 @@ function TitleScene:refreshTimeAttackItems()
     for _, item in ipairs(TIME_ATTACK_MODE_ITEMS) do
         local unlockId = GameConfig.TIME_ATTACK_UNLOCK_ID_BY_MODE[item.mode]
         if unlockId ~= nil
-            and self.context.achievementStore:isTimeAttackUnlocked(unlockId) then
+            and self.context.achievementManager:hasReward(
+                "TIMEATTACK_UNLOCK", unlockId) then
             table.insert(self.timeAttackItems, item)
         end
     end
@@ -147,7 +148,7 @@ function TitleScene:enter(params)
         })
     end
     self:refreshReplayItems()
-    if self.context.achievementStore:isReplayUnlocked()
+    if self.context.achievementManager:hasReward("REPLAY_UNLOCK", "replay")
         and #self.replayItems > 0 then
         table.insert(self.menuItems, 2, {
             label = "REPLAYS",
@@ -156,7 +157,8 @@ function TitleScene:enter(params)
             submenuPage = "REPLAYS",
         })
     end
-    if self.context.achievementStore:isSoundTestUnlocked() then
+    if self.context.achievementManager:hasReward(
+        "SOUND_UNLOCK", "soundtest") then
         table.insert(self.menuItems, {
             label = "SOUND TEST",
             soundTestMenu = true,
@@ -181,7 +183,8 @@ function TitleScene:enter(params)
         self.page = "ROOT"
     end
     if self.page == "REPLAYS"
-        and (not self.context.achievementStore:isReplayUnlocked()
+        and (not self.context.achievementManager:hasReward(
+                "REPLAY_UNLOCK", "replay")
             or #self.replayItems == 0) then
         self.page = "ROOT"
     end
