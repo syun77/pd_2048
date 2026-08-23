@@ -359,7 +359,7 @@ PRACTICEなどのサブメニューで項目数が5件を超える場合は、�
 
 タイトル画面、TIME ATTACK/PRACTICEサブメニュー、PLAYBOOK画面、ACHIEVEMENTS画面、STATISTICS画面、SOUND TEST画面では、`MENU_BACKGROUND_LOAD`が`LOW`、`MEDIUM`、`HIGH`のときに1-bit向けの幾何学模様アニメーションを背景へ重ねる。背景はキャッシュ用イメージへ一定間隔で再描画し、毎フレームの計算量を抑える。`LOW`、`MEDIUM`、`HIGH`の順にモアレ円の描画密度と更新頻度が上がり、`HIGH`ではリサージュ線も描画する。初期値は`OFF`である。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合だけ、対象画面のPlaydateシステムメニューに`BG: ...`を追加し、`OFF`、`LOW`、`MEDIUM`、`HIGH`を実行中に切り替えられる。現行設定は`false`のため、この項目は表示しない。
 
-タイトル画面でPlaydateシステムメニューを開いた場合だけ、オプション項目`language`を表示する。選択肢は`en`と`ja`で、変更した言語は`datastore`へ保存する。保存値がない初回起動時はPlaydate OSが日本語なら`ja`、それ以外なら`en`を使用する。この設定はPLAYBOOKとACHIEVEMENTSの見出し、本文、空表示、各画面から戻るシステムメニュー項目へ反映する。日本語のゲーム内描画には`assets/fonts/k8x12`を使用する。
+タイトル画面でPlaydateシステムメニューを開いた場合だけ、オプション項目`language`を表示する。選択肢は`en`と`ja`で、変更した言語は`datastore`へ保存する。保存値がない初回起動時はPlaydate OSが日本語なら`ja`、それ以外なら`en`を使用する。この設定はPLAYBOOKとACHIEVEMENTSの見出し、本文、空表示、各画面から戻るシステムメニュー項目へ反映する。`ja`選択時のPLAYBOOKとACHIEVEMENTSのゲーム内描画には`assets/fonts/k8x12`を使用する。タイトル、ゲーム、ゲームオーバー、STATISTICS、SOUND TESTなど、それ以外の画面は言語設定にかかわらずPlaydateのデフォルトフォントを使用する。
 
 - 初期盤面は`(2,3)=8`、`(4,3)=8`。
 - NEXTの生成列は`2, 2, 4, 8`で、末尾まで進むと先頭へ戻る。

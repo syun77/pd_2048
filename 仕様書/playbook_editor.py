@@ -14,7 +14,7 @@ import struct
 import sys
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, ttk
 
 
 EDITOR_DIR = Path(__file__).resolve().parent
@@ -209,6 +209,66 @@ def unique_id(base: str, used_ids: set[str]) -> str:
         candidate = f"{base}_{suffix}"
         suffix += 1
     return candidate
+
+
+class EditorMessageDialog(tk.Toplevel):
+    """Tk-only modal message dialog that avoids macOS native alerts."""
+
+    def __init__(
+        self,
+        parent: tk.Tk,
+        title: str,
+        message: str,
+        buttons: tuple[tuple[str, str], ...],
+        default_value: str,
+        cancel_value: str | None,
+    ) -> None:
+        super().__init__(parent)
+        self.result: str | None = None
+        self.title(title)
+        self.resizable(False, False)
+        self.transient(parent)
+        self.protocol("WM_DELETE_WINDOW", lambda: self.close(cancel_value))
+
+        root = ttk.Frame(self, padding=14)
+        root.pack(fill="both", expand=True)
+        ttk.Label(
+            root,
+            text=message,
+            justify="left",
+            wraplength=520,
+        ).pack(fill="x", pady=(0, 14))
+
+        actions = ttk.Frame(root)
+        actions.pack(anchor="e")
+        default_button: ttk.Button | None = None
+        for index, (label, value) in enumerate(buttons):
+            button = ttk.Button(
+                actions,
+                text=label,
+                command=lambda selected=value: self.close(selected),
+            )
+            button.grid(row=0, column=index, padx=(6 if index else 0, 0))
+            if value == default_value:
+                default_button = button
+
+        self.bind("<Escape>", lambda _event: self.close(cancel_value))
+        self.bind("<Return>", lambda _event: self.close(default_value))
+        self.grab_set()
+        if default_button is not None:
+            self.after_idle(default_button.focus_set)
+
+    def show(self) -> str | None:
+        self.wait_window()
+        return self.result
+
+    def close(self, result: str | None) -> None:
+        self.result = result
+        try:
+            self.grab_release()
+        except tk.TclError:
+            pass
+        self.destroy()
 
 
 class ValidationErrorDialog(tk.Toplevel):
@@ -635,6 +695,18 @@ class PlaybookEditor(tk.Tk):
                 self.page_listbox.insert(tk.END, self._page_label(index, page))
         self._refresh_page_selection()
 
+    def _reload_pages(self, selected_index: int | None) -> None:
+        """Reload the page list and form without handling transient selections."""
+        was_loading = self._loading
+        self._loading = True
+        try:
+            self.selected_page_index = selected_index
+            self._refresh_page_list()
+            self._load_page_fields()
+        finally:
+            self._loading = was_loading
+        self._update_image_preview()
+
     def _refresh_hint_selection(self) -> None:
         self.hint_listbox.selection_clear(0, tk.END)
         index = self.selected_hint_index
@@ -723,20 +795,18 @@ class PlaybookEditor(tk.Tk):
         except OSError:
             selected_directory = path.parent
         if self.current_path is not None and selected_directory != base_directory:
-            messagebox.showerror(
+            self._show_message(
                 "Invalid Image",
                 "The image must be in the same folder as playbooks.json.",
-                parent=self,
             )
             return
         if path.suffix.lower() != ".png":
-            messagebox.showerror("Invalid Image", "Select a PNG image.", parent=self)
+            self._show_message("Invalid Image", "Select a PNG image.")
             return
         if not IMAGE_PATTERN.fullmatch(path.stem):
-            messagebox.showerror(
+            self._show_message(
                 "Invalid Image",
                 f"Image filename must match {IMAGE_PATTERN.pattern}.",
-                parent=self,
             )
             return
         if self.current_path is None:
@@ -774,10 +844,10 @@ class PlaybookEditor(tk.Tk):
         if hint is None or index is None:
             return
         if len(self.playbooks) <= 1:
-            messagebox.showinfo("Delete", "At least one hint is required.", parent=self)
+            self._show_message("Delete", "At least one hint is required.")
             return
-        if not messagebox.askyesno(
-            "Delete Hint", f"Delete {hint.get('id') or '(no id)'}?", parent=self
+        if not self._confirm_delete(
+            "Delete Hint", f"Delete {hint.get('id') or '(no id)'}?"
         ):
             return
         del self.playbooks[index]
@@ -830,15 +900,12 @@ class PlaybookEditor(tk.Tk):
         if hint is None or index is None:
             return
         if len(hint["pages"]) <= 1:
-            messagebox.showinfo("Delete", "At least one page is required.", parent=self)
+            self._show_message("Delete", "At least one page is required.")
             return
-        if not messagebox.askyesno(
-            "Delete Page", f"Delete page {index + 1}?", parent=self
-        ):
+        if not self._confirm_delete("Delete Page", f"Delete page {index + 1}?"):
             return
         del hint["pages"][index]
-        self._refresh_page_list()
-        self._load_page(min(index, len(hint["pages"]) - 1))
+        self._reload_pages(min(index, len(hint["pages"]) - 1))
         self._mark_changed()
 
     def move_page(self, direction: int) -> None:
@@ -891,7 +958,7 @@ class PlaybookEditor(tk.Tk):
                 payload = json.load(handle)
             playbooks = parse_payload(payload)
         except (OSError, json.JSONDecodeError, ValueError) as exc:
-            messagebox.showerror("Open Failed", str(exc), parent=self)
+            self._show_message("Open Failed", str(exc))
             return
         self.current_path = path
         self.working_directory = path.parent
@@ -946,7 +1013,7 @@ class PlaybookEditor(tk.Tk):
                 json.dump(payload, handle, ensure_ascii=False, indent=JSON_INDENT)
                 handle.write("\n")
         except OSError as exc:
-            messagebox.showerror("Save Failed", str(exc), parent=self)
+            self._show_message("Save Failed", str(exc))
             return False
         self.current_path = path
         self.working_directory = path.parent
@@ -967,8 +1034,29 @@ class PlaybookEditor(tk.Tk):
             self._show_validation_errors(errors, "Validation Failed")
             self.status_var.set(f"Validation failed: {len(errors)} error(s)")
             return
-        messagebox.showinfo("Validation", "PLAYBOOK data is valid.", parent=self)
+        self._show_message("Validation", "PLAYBOOK data is valid.")
         self.status_var.set("Validation passed")
+
+    def _show_message(self, title: str, message: str) -> None:
+        EditorMessageDialog(
+            self,
+            title,
+            message,
+            (("OK", "ok"),),
+            default_value="ok",
+            cancel_value="ok",
+        ).show()
+
+    def _confirm_delete(self, title: str, message: str) -> bool:
+        result = EditorMessageDialog(
+            self,
+            title,
+            message,
+            (("Delete", "delete"), ("Cancel", "cancel")),
+            default_value="cancel",
+            cancel_value="cancel",
+        ).show()
+        return result == "delete"
 
     def _show_validation_errors(self, errors: list[str], title: str) -> None:
         dialog = self._validation_dialog
@@ -1022,14 +1110,19 @@ class PlaybookEditor(tk.Tk):
     def _confirm_discard(self) -> bool:
         if not self.dirty:
             return True
-        result = messagebox.askyesnocancel(
-            "Unsaved Changes", "Save changes before continuing?", parent=self
-        )
-        if result is None:
+        result = EditorMessageDialog(
+            self,
+            "Unsaved Changes",
+            "Save changes before continuing?",
+            (("Save", "save"), ("Discard", "discard"), ("Cancel", "cancel")),
+            default_value="save",
+            cancel_value="cancel",
+        ).show()
+        if result == "cancel":
             return False
-        if result:
+        if result == "save":
             return self.save_file()
-        return True
+        return result == "discard"
 
     def _close(self) -> None:
         if self._confirm_discard():

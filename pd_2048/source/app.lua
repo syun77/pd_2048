@@ -120,9 +120,14 @@ end
 -- 描画.
 function App:draw()
     local state = self.game:getState()
-	-- 選択言語に応じて日本語グリフを含むフォントへ切り替える.
-    local font = self.language:get() == Config.LANGUAGE.JAPANESE
-        and self.japaneseFont or self.defaultFont
+	-- 日本語を描画するメニューだけ日本語フォントへ切り替える.
+    local currentScene = self.sceneManager.currentName
+    local usesJapaneseFont = currentScene == Config.SCENE.PLAYBOOK
+        or currentScene == Config.SCENE.ACHIEVEMENTS
+    local font = usesJapaneseFont
+        and self.language:get() == Config.LANGUAGE.JAPANESE
+        and self.japaneseFont
+        or self.defaultFont
     if font ~= nil then gfx.setFont(font) end
 	-- 画面全体をクリア.
 	-- フレームレートを上げるには Dirty Rect での実装が必要.
