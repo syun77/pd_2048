@@ -156,8 +156,8 @@ function TitleRenderer:drawPlaybookDetail(
 
     gfx.setColor(gfx.kColorWhite)
     gfx.fillRoundRect(12, 8, 376, 26, 4)
-    gfx.fillRoundRect(12, 38, 376, 138, 4)
-    gfx.fillRect(0, 180, Config.SCREEN_WIDTH, 60)
+    gfx.fillRoundRect(12, 38, 376, 114, 4)
+    gfx.fillRect(0, 156, Config.SCREEN_WIDTH, 84)
     gfx.setColor(gfx.kColorBlack)
     gfx.drawTextAligned(title or "PLAYBOOK", Config.SCREEN_CENTER_X,
         12, kTextAlignment.center)
@@ -167,15 +167,15 @@ function TitleRenderer:drawPlaybookDetail(
     if image ~= nil then
         local width, height = image:getSize()
         image:draw(math.floor(Config.SCREEN_CENTER_X - width * 0.5),
-            math.floor(107 - height * 0.5))
+            math.floor(95 - height * 0.5))
     else
         self:drawCenteredText(languageKey == Config.LANGUAGE.JAPANESE
-            and "画像が見つかりません" or "IMAGE NOT FOUND", 100)
+            and "画像が見つかりません" or "IMAGE NOT FOUND", 88)
     end
 
-    if pageIndex > 1 then drawPlaybookPageArrow(24, 107, false) end
-    if pageIndex < pageCount then drawPlaybookPageArrow(376, 107, true) end
-    gfx.drawTextInRect(description or "", 12, 188, 376, 44,
+    if pageIndex > 1 then drawPlaybookPageArrow(24, 95, false) end
+    if pageIndex < pageCount then drawPlaybookPageArrow(376, 95, true) end
+    gfx.drawTextInRect(description or "", 12, 164, 376, 68,
         nil, "...", kTextAlignment.center)
 end
 
