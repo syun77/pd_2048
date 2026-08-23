@@ -291,26 +291,26 @@
       "id": "survival_tactics",
       "unlockNo": 0,
       "title": {
-        "ja": "長く生き残る",
-        "en": "SURVIVAL TACTICS"
+        "ja": "孤立ブロックを作らない",
+        "en": "AVOID ISOLATED TILES"
       },
       "pages": [
         {
-          "image": "dummy",
+          "image": "isolated_1",
           "description": {
             "ja": "積み方のコツはブロックを孤立させないことです。\n孤立するとボードの利用可能なマスを圧迫します。",
             "en": "The key to stacking is to keep tiles connected. Isolated tiles reduce the usable space on the board."
           }
         },
         {
-          "image": "dummy",
+          "image": "isolated_2",
           "description": {
             "ja": "孤立の原因の多くは、接続先のブロックが、\nマージによって接続が断たれることにあります。",
             "en": "Tiles often become isolated when the tile they are attached to merges and breaks the connection."
           }
         },
         {
-          "image": "dummy",
+          "image": "isolated_3",
           "description": {
             "ja": "やむなく接続が断たれても中間に昇順で並ぶように\nブロックを配置することで孤立を回避できます。",
             "en": "Even if a connection must break, placing tiles between them in ascending order can prevent isolation."
