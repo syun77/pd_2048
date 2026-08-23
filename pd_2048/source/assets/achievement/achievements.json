@@ -106,6 +106,10 @@
       {
         "id": "EXTEND_PLAY",
         "label": "リプレイデータの続きからプレイ"
+      },
+      {
+        "id": "HINT_UNLOCK",
+        "label": "ヒントの開放"
       }
     ]
   },
@@ -364,8 +368,8 @@
         }
       },
       "reward": {
-        "type": "NONE",
-        "id": ""
+        "type": "HINT_UNLOCK",
+        "id": "hint3"
       },
       "hidden": false,
       "progressVisible": false
@@ -416,8 +420,8 @@
         }
       },
       "reward": {
-        "type": "NONE",
-        "id": ""
+        "type": "HINT_UNLOCK",
+        "id": "hint1"
       },
       "hidden": false,
       "progressVisible": false
@@ -442,8 +446,8 @@
         }
       },
       "reward": {
-        "type": "NONE",
-        "id": ""
+        "type": "HINT_UNLOCK",
+        "id": "hint2"
       },
       "hidden": false,
       "progressVisible": false

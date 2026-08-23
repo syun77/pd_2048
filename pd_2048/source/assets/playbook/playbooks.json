@@ -220,7 +220,7 @@
     },
     {
       "id": "making_combos",
-      "unlockNo": 0,
+      "unlockNo": 1,
       "title": {
         "ja": "コンボの作り方",
         "en": "MAKING COMBOS"
@@ -250,46 +250,8 @@
       ]
     },
     {
-      "id": "building_big_tiles",
-      "unlockNo": 0,
-      "title": {
-        "ja": "高い数を作る",
-        "en": "BUILDING BIG TILES"
-      },
-      "pages": [
-        {
-          "image": "dummy",
-          "description": {
-            "ja": "大きなブロックを1個だけ作るのではなく、 次にマージする同じ数のペアを育てます。",
-            "en": "Do not build only one large tile. Grow a matching pair for the next merge."
-          }
-        },
-        {
-          "image": "dummy",
-          "description": {
-            "ja": "大きなブロックの周囲に作業場所を残し、 小さい数は離れた場所でまとめます。",
-            "en": "Keep working space around large tiles and combine smaller values away from them."
-          }
-        },
-        {
-          "image": "dummy",
-          "description": {
-            "ja": "NEXTを先まで確認し、今使わない数はHOLDして、 必要なペアを優先して作ります。",
-            "en": "Read ahead in NEXT, HOLD values you do not need yet, and prioritize the pairs you need."
-          }
-        },
-        {
-          "image": "dummy",
-          "description": {
-            "ja": "回転後も大きなブロック同士を近づけられるよう、 回転した配置を想像して置きましょう。",
-            "en": "Plan the rotated layout so your large matching tiles can still be brought together."
-          }
-        }
-      ]
-    },
-    {
       "id": "survival_tactics",
-      "unlockNo": 0,
+      "unlockNo": 2,
       "title": {
         "ja": "孤立ブロックを作らない",
         "en": "AVOID ISOLATED TILES"
@@ -320,28 +282,28 @@
     },
     {
       "id": "survival_tactics2",
-      "unlockNo": 0,
+      "unlockNo": 3,
       "title": {
-        "ja": "長く生き残る2",
-        "en": "SURVIVAL TACTICS2"
+        "ja": "長く生き残る",
+        "en": "SURVIVAL TACTICS"
       },
       "pages": [
         {
-          "image": "dummy",
+          "image": "survival_1",
           "description": {
-            "ja": "初期ブロックは中央セルの左右ありますが、\n中央セルの上下にはあまり積まない方が良いです。",
+            "ja": "初期ブロックは中央セルの左右にありますが、\n中央セルの上下にはあまり積まない方が良いです。",
             "en": "The initial tiles sit to the left and right of the center pivot. Avoid stacking above or below it when possible."
           }
         },
         {
-          "image": "dummy",
+          "image": "survival_1",
           "description": {
             "ja": "理由は孤立ブロックとほぼ同じなので、\nボードの利用可能なマスを消費するためです。",
             "en": "Tiles there behave much like isolated tiles and use up playable space on the board."
           }
         },
         {
-          "image": "dummy",
+          "image": "survival_3",
           "description": {
             "ja": "ただ中央セルの真上は回転が発生しないので、\n真上配置はタイル順を調整することが可能です。",
             "en": "Placing a tile directly above the pivot does not rotate the board, so you can use that spot to adjust the tile order."
