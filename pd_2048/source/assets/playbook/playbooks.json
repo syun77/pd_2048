@@ -10,21 +10,21 @@
       },
       "pages": [
         {
-          "image": "dummy",
+          "image": "howto_1",
           "description": {
             "ja": "左右キーで列を選び、下キーで ブロックを落とします。",
             "en": "Choose a column with Left or Right, then press Down to drop."
           }
         },
         {
-          "image": "dummy",
+          "image": "howto_2",
           "description": {
             "ja": "点線のブロックが着地予定位置です。 置けない列には落とせません。",
             "en": "The dotted tile shows the landing spot. You cannot drop in an invalid column."
           }
         },
         {
-          "image": "dummy",
+          "image": "howto_3",
           "description": {
             "ja": "同じ数をマージしながらボードを保ち、 より大きなブロックを作りましょう。",
             "en": "Merge equal values, keep the board playable, and build larger tiles."
@@ -41,21 +41,21 @@
       },
       "pages": [
         {
-          "image": "dummy",
+          "image": "howto_3",
           "description": {
             "ja": "落としたブロックが同じ数に上下左右で触れると、 2倍の数へマージします。",
             "en": "When the dropped tile touches an equal tile vertically or horizontally, they merge into the next value."
           }
         },
         {
-          "image": "dummy",
+          "image": "merge_2",
           "description": {
             "ja": "マージでできたブロックを起点に、 同じ手の中で次のマージを探します。",
             "en": "The newly merged tile can immediately start another merge during the same move."
           }
         },
         {
-          "image": "dummy",
+          "image": "merge_3",
           "description": {
             "ja": "中央の回転軸は常に空きマスで、 配置先にもマージ対象にもなりません。",
             "en": "The center pivot always stays empty. Tiles cannot land on it or merge through it."

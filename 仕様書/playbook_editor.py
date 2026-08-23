@@ -25,6 +25,8 @@ FORMAT_VERSION = 1
 JSON_INDENT = 2
 MAX_IMAGE_WIDTH = 360
 MAX_IMAGE_HEIGHT = 128
+PREVIEW_MAX_WIDTH = 460
+PREVIEW_MAX_HEIGHT = MAX_IMAGE_HEIGHT
 ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 IMAGE_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
@@ -483,16 +485,22 @@ class PlaybookEditor(tk.Tk):
             row=1, column=1, sticky="w", pady=(0, 4)
         )
 
-        self.preview_label = tk.Label(
+        preview_frame = tk.Frame(
             page_form,
-            text="No image selected",
-            width=46,
-            height=9,
+            height=PREVIEW_MAX_HEIGHT + 2,
             relief="sunken",
             borderwidth=1,
+        )
+        preview_frame.grid(
+            row=2, column=0, columnspan=2, sticky="ew", pady=(0, 8)
+        )
+        preview_frame.grid_propagate(False)
+        self.preview_label = tk.Label(
+            preview_frame,
+            text="No image selected",
             anchor="center",
         )
-        self.preview_label.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0, 8))
+        self.preview_label.pack(fill="both", expand=True)
 
         ttk.Label(page_form, text="Description JA").grid(
             row=3, column=0, sticky="nw", padx=(0, 8), pady=3
@@ -767,7 +775,11 @@ class PlaybookEditor(tk.Tk):
         try:
             width, height = read_png_size(image_path)
             source = tk.PhotoImage(file=str(image_path))
-            factor = max(1, (width + 459) // 460, (height + 219) // 220)
+            factor = max(
+                1,
+                (width + PREVIEW_MAX_WIDTH - 1) // PREVIEW_MAX_WIDTH,
+                (height + PREVIEW_MAX_HEIGHT - 1) // PREVIEW_MAX_HEIGHT,
+            )
             self._preview_image = source.subsample(factor, factor) if factor > 1 else source
         except (OSError, ValueError, tk.TclError) as exc:
             self.image_status_var.set(f"Cannot preview: {exc}")
