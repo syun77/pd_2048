@@ -2,6 +2,7 @@ import "CoreLibs/graphics"
 import "game_context"
 import "game_config"
 import "game/game_controller"
+import "game/achievement_store"
 import "render/game_renderer"
 import "render/overlay_renderer"
 import "render/title_renderer"
@@ -25,6 +26,7 @@ local Config <const> = GameConfig
 ---@class App アプリケーションクラス.
 ---@field sound Sound サウンド管理.
 ---@field game GameController ゲームコントローラー.
+---@field achievementStore AchievementStore 実績達成状態と報酬の永続管理.
 ---@field overlayRenderer OverlayRenderer オーバーレイ描画クラス.
 ---@field menuBackgroundRenderer MenuBackgroundRenderer メニューバックグラウンド描画クラス.
 ---@field titleRenderer TitleRenderer タイトルメニューの描画.
@@ -44,6 +46,7 @@ function App.new()
     local sound = gameContext.sound
 
     self.sound = sound
+    self.achievementStore = AchievementStore.new(pd)
     self.game = GameController.new({ sound = sound })
     self.overlayRenderer = OverlayRenderer.new({
         state = self.game:getState(),
@@ -75,6 +78,7 @@ function App.new()
 	-- シーンコンテキストを生成.
     self.sceneContext = SceneContext.new({
         game = self.game,
+        achievementStore = self.achievementStore,
         renderer = self.renderer,
         titleRenderer = self.titleRenderer,
         menuBackground = self.menuBackgroundRenderer,

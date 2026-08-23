@@ -148,6 +148,12 @@ local Config = {
 }
 
 Config.NEXT_QUEUE_COUNT = Config.NEXT_PREVIEW_COUNT + 1
+Config.TIME_ATTACK_UNLOCK_ID_BY_MODE = {
+    [Config.GAME_MODE.TIME_ATTACK] = "sprint64",
+    [Config.GAME_MODE.TIME_ATTACK_256] = "sprint256",
+    [Config.GAME_MODE.TIME_ATTACK_512] = "sprint512",
+    [Config.GAME_MODE.CORE_RUSH] = "corerush2048",
+}
 Config.BOARD_X = 100 + 32
 Config.BOARD_Y = 54
 Config.NEXT_BOX_X = 343 - 24

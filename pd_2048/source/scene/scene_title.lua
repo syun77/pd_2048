@@ -7,6 +7,17 @@ import "practice_stage_loader"
 
 local pd <const> = playdate
 
+local TIME_ATTACK_MODE_ITEMS <const> = {
+    { label = "64 SPRINT", scene = GameConfig.SCENE.GAME,
+      mode = GameConfig.GAME_MODE.TIME_ATTACK },
+    { label = "256 SPRINT", scene = GameConfig.SCENE.GAME,
+      mode = GameConfig.GAME_MODE.TIME_ATTACK_256 },
+    { label = "512 SPRINT", scene = GameConfig.SCENE.GAME,
+      mode = GameConfig.GAME_MODE.TIME_ATTACK_512 },
+    { label = "2048 CORE RUSH", scene = GameConfig.SCENE.GAME,
+      mode = GameConfig.GAME_MODE.CORE_RUSH },
+}
+
 local TitleScene = {}
 TitleScene.__index = TitleScene
 
@@ -45,23 +56,13 @@ function TitleScene.new(context)
         menuItems = {
             { label = "NORMAL GAME", scene = GameConfig.SCENE.GAME,
               mode = GameConfig.GAME_MODE.NORMAL },
-            { label = "TIME ATTACK", submenu = true, submenuPage = "TIME_ATTACK" },
             { label = "PRACTICE", submenu = true, submenuPage = "PRACTICE" },
             { label = "PLAYBOOK", scene = GameConfig.SCENE.PLAYBOOK },
             { label = "ACHIEVEMENTS", scene = GameConfig.SCENE.ACHIEVEMENTS },
             { label = "STATISTICS", scene = GameConfig.SCENE.STATISTICS },
             { label = "SOUND TEST", scene = GameConfig.SCENE.SOUND_TEST },
         },
-        timeAttackItems = {
-            { label = "64 SPRINT", scene = GameConfig.SCENE.GAME,
-              mode = GameConfig.GAME_MODE.TIME_ATTACK },
-            { label = "256 SPRINT", scene = GameConfig.SCENE.GAME,
-              mode = GameConfig.GAME_MODE.TIME_ATTACK_256 },
-            { label = "512 SPRINT", scene = GameConfig.SCENE.GAME,
-              mode = GameConfig.GAME_MODE.TIME_ATTACK_512 },
-            { label = "2048 CORE RUSH", scene = GameConfig.SCENE.GAME,
-              mode = GameConfig.GAME_MODE.CORE_RUSH },
-        },
+        timeAttackItems = {},
         replayItems = {},
         normalItems = {
             { label = "CONTINUE", continueSuspend = true },
@@ -103,6 +104,17 @@ function TitleScene:refreshReplayItems()
     end
 end
 
+function TitleScene:refreshTimeAttackItems()
+    self.timeAttackItems = {}
+    for _, item in ipairs(TIME_ATTACK_MODE_ITEMS) do
+        local unlockId = GameConfig.TIME_ATTACK_UNLOCK_ID_BY_MODE[item.mode]
+        if unlockId ~= nil
+            and self.context.achievementStore:isTimeAttackUnlocked(unlockId) then
+            table.insert(self.timeAttackItems, item)
+        end
+    end
+end
+
 -- 開始.
 function TitleScene:enter(params)
 	-- メニュー用BGMを再生.
@@ -121,7 +133,19 @@ function TitleScene:enter(params)
         normalItem.submenuPage = nil
     end
     for index = #self.menuItems, 1, -1 do
-        if self.menuItems[index].replayMenu then table.remove(self.menuItems, index) end
+        local item = self.menuItems[index]
+        if item.replayMenu or item.timeAttackMenu then
+            table.remove(self.menuItems, index)
+        end
+    end
+    self:refreshTimeAttackItems()
+    if #self.timeAttackItems > 0 then
+        table.insert(self.menuItems, 2, {
+            label = "TIME ATTACK",
+            timeAttackMenu = true,
+            submenu = true,
+            submenuPage = "TIME_ATTACK",
+        })
     end
     self:refreshReplayItems()
     if #self.replayItems > 0 then
@@ -146,6 +170,9 @@ function TitleScene:enter(params)
         })
     end
     self.page = params ~= nil and params.page or "ROOT"
+    if self.page == "TIME_ATTACK" and #self.timeAttackItems == 0 then
+        self.page = "ROOT"
+    end
     self.selectedIndex = params ~= nil and params.selectedIndex
         or self.selectedByPage[self.page]
         or 1
