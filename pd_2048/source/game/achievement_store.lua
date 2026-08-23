@@ -91,6 +91,12 @@ function AchievementStore.new(pd)
     return setmetatable({ pd = pd, data = normalize(data) }, AchievementStore)
 end
 
+function AchievementStore:save()
+    self.data.version = FORMAT_VERSION
+    local ok, result = pcall(self.pd.datastore.write, self.data, DATASTORE_KEY)
+    return ok and result ~= false
+end
+
 ---@param rewardType string
 ---@param rewardId string|integer
 ---@return boolean
@@ -124,11 +130,88 @@ function AchievementStore:unlockReward(rewardType, rewardId)
     local group = self.data.rewards[groupName]
     if group[key] == true then return true end
     group[key] = true
-    self.data.version = FORMAT_VERSION
-    local ok, result = pcall(self.pd.datastore.write, self.data, DATASTORE_KEY)
-    local saved = ok and result ~= false
+    local saved = self:save()
     if not saved then group[key] = nil end
     return saved
+end
+
+---@param entries table[] 達成IDと報酬を持つ新規達成候補.
+---@return boolean, string[] 保存成功か, 今回新規保存した実績IDの配列.
+function AchievementStore:unlockAchievements(entries)
+    if type(entries) ~= "table" then return false, {} end
+    local previousData = self.data
+    local pendingData = normalize(previousData)
+    local newIds = {}
+    local seenIds = {}
+
+    for _, entry in ipairs(entries) do
+        local achievementId = type(entry) == "table" and entry.id or nil
+        local rewardType = type(entry) == "table" and entry.rewardType or nil
+        if type(achievementId) ~= "string" or achievementId == ""
+            or type(rewardType) ~= "string" then
+            return false, {}
+        end
+        if seenIds[achievementId] then return false, {} end
+        local groupName = nil
+        local rewardKey = nil
+        if rewardType ~= "NONE" then
+            groupName = REWARD_GROUP_BY_TYPE[rewardType]
+            rewardKey = normalizedRewardId(rewardType, entry.rewardId)
+            if groupName == nil or rewardKey == nil then return false, {} end
+        end
+        if pendingData.unlockedIds[achievementId] ~= true then
+            pendingData.unlockedIds[achievementId] = true
+            if groupName ~= nil then
+                pendingData.rewards[groupName][rewardKey] = true
+            end
+            table.insert(newIds, achievementId)
+        end
+        seenIds[achievementId] = true
+    end
+
+    if #newIds == 0 then return true, newIds end
+    self.data = pendingData
+    if self:save() then return true, newIds end
+    self.data = previousData
+    return false, {}
+end
+
+---@param achievementId string
+---@param rewardType string
+---@param rewardId string|integer
+---@return boolean, boolean 保存成功か, 新規達成か.
+function AchievementStore:unlockAchievement(achievementId, rewardType, rewardId)
+    local saved, newIds = self:unlockAchievements({ {
+        id = achievementId,
+        rewardType = rewardType,
+        rewardId = rewardId,
+    } })
+    return saved, #newIds > 0
+end
+
+---@param achievementId string
+---@return boolean
+function AchievementStore:isAchievementUnlocked(achievementId)
+    return self.data.unlockedIds[achievementId] == true
+end
+
+---@return table<string, boolean>
+function AchievementStore:getUnlockedAchievementIds()
+    return copyUnlockedSet(self.data.unlockedIds)
+end
+
+---@return integer
+function AchievementStore:getUnlockedAchievementCount()
+    local count = 0
+    for _, unlocked in pairs(self.data.unlockedIds) do
+        if unlocked == true then count += 1 end
+    end
+    return count
+end
+
+---@return table<integer, boolean>
+function AchievementStore:getPlaybookUnlockNumbers()
+    return copyUnlockedSet(self.data.rewards.playbook, nil, true)
 end
 
 ---@param rewardId string
@@ -141,6 +224,18 @@ end
 ---@return boolean
 function AchievementStore:unlockTimeAttack(rewardId)
     return self:unlockReward("TIMEATTACK_UNLOCK", rewardId)
+end
+
+function AchievementStore:isReplayUnlocked()
+    return self:isRewardUnlocked("REPLAY_UNLOCK", "replay")
+end
+
+function AchievementStore:isReplayExtendUnlocked()
+    return self:isRewardUnlocked("EXTEND_PLAY", "extend")
+end
+
+function AchievementStore:isSoundTestUnlocked()
+    return self:isRewardUnlocked("SOUND_UNLOCK", "soundtest")
 end
 
 _G.AchievementStore = AchievementStore

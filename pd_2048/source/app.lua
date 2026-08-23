@@ -3,6 +3,7 @@ import "game_context"
 import "game_config"
 import "game/game_controller"
 import "game/achievement_store"
+import "achievement_definition_loader"
 import "render/game_renderer"
 import "render/overlay_renderer"
 import "render/title_renderer"
@@ -27,6 +28,7 @@ local Config <const> = GameConfig
 ---@field sound Sound サウンド管理.
 ---@field game GameController ゲームコントローラー.
 ---@field achievementStore AchievementStore 実績達成状態と報酬の永続管理.
+---@field achievementDefinitions table[] 実行可能な実績定義.
 ---@field overlayRenderer OverlayRenderer オーバーレイ描画クラス.
 ---@field menuBackgroundRenderer MenuBackgroundRenderer メニューバックグラウンド描画クラス.
 ---@field titleRenderer TitleRenderer タイトルメニューの描画.
@@ -47,12 +49,24 @@ function App.new()
 
     self.sound = sound
     self.achievementStore = AchievementStore.new(pd)
-    self.game = GameController.new({ sound = sound })
+    self.achievementDefinitions = AchievementDefinitionLoader.load()
+    self.game = GameController.new({
+        sound = sound,
+        isReplayUnlocked = function()
+            return self.achievementStore:isReplayUnlocked()
+        end,
+        isReplayExtendUnlocked = function()
+            return self.achievementStore:isReplayExtendUnlocked()
+        end,
+    })
     self.overlayRenderer = OverlayRenderer.new({
         state = self.game:getState(),
         sound = sound,
         isRewindAvailable = function()
             return self.game:isRewindAvailable()
+        end,
+        isReplayBranchUnlocked = function()
+            return self.game:isReplayBranchUnlocked()
         end,
     })
     self.menuBackgroundRenderer = MenuBackgroundRenderer.new()
@@ -79,6 +93,7 @@ function App.new()
     self.sceneContext = SceneContext.new({
         game = self.game,
         achievementStore = self.achievementStore,
+        achievementDefinitions = self.achievementDefinitions,
         renderer = self.renderer,
         titleRenderer = self.titleRenderer,
         menuBackground = self.menuBackgroundRenderer,

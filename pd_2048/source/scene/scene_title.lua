@@ -60,7 +60,6 @@ function TitleScene.new(context)
             { label = "PLAYBOOK", scene = GameConfig.SCENE.PLAYBOOK },
             { label = "ACHIEVEMENTS", scene = GameConfig.SCENE.ACHIEVEMENTS },
             { label = "STATISTICS", scene = GameConfig.SCENE.STATISTICS },
-            { label = "SOUND TEST", scene = GameConfig.SCENE.SOUND_TEST },
         },
         timeAttackItems = {},
         replayItems = {},
@@ -134,7 +133,7 @@ function TitleScene:enter(params)
     end
     for index = #self.menuItems, 1, -1 do
         local item = self.menuItems[index]
-        if item.replayMenu or item.timeAttackMenu then
+        if item.replayMenu or item.timeAttackMenu or item.soundTestMenu then
             table.remove(self.menuItems, index)
         end
     end
@@ -148,12 +147,20 @@ function TitleScene:enter(params)
         })
     end
     self:refreshReplayItems()
-    if #self.replayItems > 0 then
+    if self.context.achievementStore:isReplayUnlocked()
+        and #self.replayItems > 0 then
         table.insert(self.menuItems, 2, {
             label = "REPLAYS",
             replayMenu = true,
             submenu = true,
             submenuPage = "REPLAYS",
+        })
+    end
+    if self.context.achievementStore:isSoundTestUnlocked() then
+        table.insert(self.menuItems, {
+            label = "SOUND TEST",
+            soundTestMenu = true,
+            scene = GameConfig.SCENE.SOUND_TEST,
         })
     end
     self.practiceItems = {}
@@ -171,6 +178,11 @@ function TitleScene:enter(params)
     end
     self.page = params ~= nil and params.page or "ROOT"
     if self.page == "TIME_ATTACK" and #self.timeAttackItems == 0 then
+        self.page = "ROOT"
+    end
+    if self.page == "REPLAYS"
+        and (not self.context.achievementStore:isReplayUnlocked()
+            or #self.replayItems == 0) then
         self.page = "ROOT"
     end
     self.selectedIndex = params ~= nil and params.selectedIndex

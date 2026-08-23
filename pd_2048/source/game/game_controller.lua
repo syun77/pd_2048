@@ -37,6 +37,8 @@ local GameResult <const> = Config.GAME_RESULT
 ---@field replaySeekActive boolean リプレイの高速再構築中か.
 ---@field replayAtSeekBoundary boolean 手送り後の安定状態か.
 ---@field replayPlaybackError boolean リプレイ再生エラーが発生したか.
+---@field isReplayUnlocked fun(): boolean リプレイ機能報酬が解放済みか.
+---@field isReplayExtendUnlocked fun(): boolean リプレイ分岐報酬が解放済みか.
 local GameController = {}
 GameController.__index = GameController
 
@@ -44,6 +46,10 @@ function GameController.new(dependencies)
     local self = setmetatable({}, GameController)
     self.state = GameState.new()
     self.sound = dependencies.sound
+    self.isReplayUnlocked = dependencies.isReplayUnlocked
+        or function() return false end
+    self.isReplayExtendUnlocked = dependencies.isReplayExtendUnlocked
+        or function() return false end
     self.cursorController = CursorController.new()
     self.autoPlayer = AutoPlayer.new()
     self.autoPlayEnabled = false
@@ -107,6 +113,10 @@ function GameController:isReplayBranchedPlay()
     return self.state.replayBranchedPlay
 end
 
+function GameController:isReplayBranchUnlocked()
+    return self.isReplayExtendUnlocked()
+end
+
 function GameController:isPersistentRecordEligible()
     return self.state.persistentRecordEligible
 end
@@ -161,6 +171,7 @@ function GameController:toggleReplayFavorite(id)
 end
 
 function GameController:startReplay(id)
+    if not self.isReplayUnlocked() then return false end
     local data = ReplayController.load(pd, id)
     if data == nil or data.mode ~= Config.GAME_MODE.NORMAL then return false end
     self:start(Config.GAME_MODE.NORMAL, nil,
@@ -1350,7 +1361,8 @@ end
 
 function GameController:openReplayBranchDialog()
     local state = self.state
-    if not self.replayMode or not state.replayPaused or state.result ~= nil
+    if not self:isReplayBranchUnlocked()
+        or not self.replayMode or not state.replayPaused or state.result ~= nil
         or self.replayPlaybackError or self.suspendRestoreActive then
         return false
     end
@@ -1380,7 +1392,8 @@ end
 
 function GameController:branchReplayToPlayer(now)
     local state = self.state
-    if not self.replayMode or not state.replayPaused
+    if not self:isReplayBranchUnlocked()
+        or not self.replayMode or not state.replayPaused
         or not state.replayBranchDialogOpen or state.result ~= nil
         or self.replayPlaybackError or self.suspendRestoreActive then
         return false
@@ -1755,7 +1768,9 @@ function GameController:update()
         elseif pd.buttonJustPressed(pd.kButtonB) then
             self:toggleReplayPause(now)
         elseif pd.buttonJustPressed(pd.kButtonA) then
-            self:openReplayBranchDialog()
+            if not self:openReplayBranchDialog() then
+                self.sound:play_se("error")
+            end
         end
         return nil
     end

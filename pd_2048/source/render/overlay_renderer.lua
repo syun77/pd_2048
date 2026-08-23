@@ -12,6 +12,7 @@ local GamePhase <const> = Config.GAME_PHASE
 ---@field state GameState ゲーム状態.
 ---@field sound Sound サウンド管理.
 ---@field isRewindAvailable fun(): boolean リワインドが可能かどうかを返す関数.
+---@field isReplayBranchUnlocked fun(): boolean リプレイ分岐報酬が解放済みか.
 ---@field menuScrollLastOffset integer? 前回のスクロールオフセット.
 
 ---@class OverlayRenderer オーバーレイ描画クラス.
@@ -29,6 +30,8 @@ function OverlayRenderer.new(dependencies)
         state = dependencies.state,
         sound = dependencies.sound,
         isRewindAvailable = dependencies.isRewindAvailable,
+        isReplayBranchUnlocked = dependencies.isReplayBranchUnlocked
+            or function() return false end,
         menuScrollLastOffset = nil,
         menuScrollUpAnimationOffset = 0,
         menuScrollDownAnimationOffset = 0,
@@ -197,10 +200,16 @@ end
 function OverlayRenderer:drawReplayPause()
     gfx.fillRect(105, 74, 190, 92)
     gfx.setImageDrawMode(gfx.kDrawModeInverted)
-    self:drawCenteredText("PAUSED", 80)
-    self:drawCenteredText("LEFT/RIGHT: STEP", 100)
-    self:drawCenteredText("A: PLAY FROM HERE", 120)
-    self:drawCenteredText("B: RESUME", 140)
+    if self.isReplayBranchUnlocked() then
+        self:drawCenteredText("PAUSED", 80)
+        self:drawCenteredText("LEFT/RIGHT: STEP", 100)
+        self:drawCenteredText("A: PLAY FROM HERE", 120)
+        self:drawCenteredText("B: RESUME", 140)
+    else
+        self:drawCenteredText("PAUSED", 90)
+        self:drawCenteredText("LEFT/RIGHT: STEP", 112)
+        self:drawCenteredText("B: RESUME", 134)
+    end
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 end
 
