@@ -29,6 +29,13 @@
             "ja": "同じ数をマージしながらボードを保ち、 より大きなブロックを作りましょう。",
             "en": "Merge equal values, keep the board playable, and build larger tiles."
           }
+        },
+        {
+          "image": "howto_4",
+          "description": {
+            "ja": "最上段がブロックで埋まると\nゲームオーバーとなります。",
+            "en": "If the top row fills up with tiles,\nthe game ends."
+          }
         }
       ]
     },
