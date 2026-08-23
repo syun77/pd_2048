@@ -319,29 +319,53 @@
         {
           "image": "dummy",
           "description": {
-            "ja": "ブロックを固めすぎず、複数の列に着地できる 接着面を残しましょう。",
-            "en": "Do not pack tiles too tightly. Preserve attachment points across several columns."
+            "ja": "積み方のコツはブロックを孤立させないことです。\n孤立するとボードの利用可能なマスを圧迫します。",
+            "en": "The key to stacking is to keep tiles connected. Isolated tiles reduce the usable space on the board."
           }
         },
         {
           "image": "dummy",
           "description": {
-            "ja": "下・左・右の端に4個以上並ぶと危険アイコンが 表示されます。早めにマージしましょう。",
-            "en": "A danger icon appears when four or more tiles line the bottom, left, or right edge. Merge them early."
+            "ja": "孤立の原因の多くは、接続先のブロックが、\nマージによって接続が断たれることにあります。",
+            "en": "Tiles often become isolated when the tile they are attached to merges and breaks the connection."
           }
         },
         {
           "image": "dummy",
           "description": {
-            "ja": "現在の数だけでなく、NEXTの数にも着地場所が あるかを毎手確認しましょう。",
-            "en": "Check every move for landing spots for both the current tile and the upcoming NEXT values."
+            "ja": "やむなく接続が断たれても中間に昇順で並ぶように\nブロックを配置することで孤立を回避できます。",
+            "en": "Even if a connection must break, placing tiles between them in ascending order can prevent isolation."
+          }
+        }
+      ]
+    },
+    {
+      "id": "survival_tactics2",
+      "unlockNo": 0,
+      "title": {
+        "ja": "長く生き残る2",
+        "en": "SURVIVAL TACTICS2"
+      },
+      "pages": [
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "初期ブロックは中央セルの左右ありますが、\n中央セルの上下にはあまり積まない方が良いです。",
+            "en": "The initial tiles sit to the left and right of the center pivot. Avoid stacking above or below it when possible."
           }
         },
         {
           "image": "dummy",
           "description": {
-            "ja": "危険なDROPや回転をしたら、操作可能なうちに REWINDで立て直せます。",
-            "en": "If a drop or rotation leaves a dangerous board, use REWIND while recovery is still possible."
+            "ja": "理由は孤立ブロックとほぼ同じなので、\nボードの利用可能なマスを消費するためです。",
+            "en": "Tiles there behave much like isolated tiles and use up playable space on the board."
+          }
+        },
+        {
+          "image": "dummy",
+          "description": {
+            "ja": "ただ中央セルの真上は回転が発生しないので、\n真上配置はタイル順を調整することが可能です。",
+            "en": "Placing a tile directly above the pivot does not rotate the board, so you can use that spot to adjust the tile order."
           }
         }
       ]
