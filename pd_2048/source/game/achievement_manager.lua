@@ -2,7 +2,6 @@ import "game_config"
 import "achievement_definition_loader"
 
 local Config <const> = GameConfig
-local NOTIFICATION_DURATION_MS <const> = 3000
 
 ---@class AchievementManager
 ---@field definitions table[] 実行可能な実績定義.
@@ -239,7 +238,8 @@ end
 
 function AchievementManager:update(now)
     if self.activeNotification ~= nil
-        and now - self.activeNotificationStartedAt >= NOTIFICATION_DURATION_MS then
+        and now - self.activeNotificationStartedAt
+            >= Config.ACHIEVEMENT_NOTIFICATION_DURATION_MS then
         self.activeNotification = nil
         self.activeNotificationStartedAt = nil
     end

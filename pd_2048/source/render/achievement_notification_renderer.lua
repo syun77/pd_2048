@@ -20,7 +20,10 @@ function AchievementNotificationRenderer:draw()
     if notification == nil then return end
 
     local previousFont = gfx.getFont()
-    if self.englishFont ~= nil then gfx.setFont(self.englishFont) end
+    local previousDrawMode = gfx.getImageDrawMode()
+    local notificationFont = self.englishFont or gfx.getSystemFont()
+    if notificationFont ~= nil then gfx.setFont(notificationFont) end
+    gfx.setImageDrawMode(gfx.kDrawModeCopy)
     gfx.setColor(gfx.kColorWhite)
     gfx.fillRoundRect(PANEL_X, PANEL_Y, PANEL_WIDTH, PANEL_HEIGHT, 4)
     gfx.setColor(gfx.kColorBlack)
@@ -29,8 +32,8 @@ function AchievementNotificationRenderer:draw()
         kTextAlignment.center)
     local detail = string.format("No. %02d  %s",
         notification.displayNo, notification.displayName)
-    gfx.drawTextInRect(detail, PANEL_X + 8, 23, PANEL_WIDTH - 16, 16,
-        nil, "...", kTextAlignment.center)
+    gfx.drawTextAligned(detail, 200, 23, kTextAlignment.center)
+    gfx.setImageDrawMode(previousDrawMode)
     if previousFont ~= nil then gfx.setFont(previousFont) end
 end
 

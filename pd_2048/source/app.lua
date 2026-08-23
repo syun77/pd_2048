@@ -79,7 +79,7 @@ function App.new()
     })
     self.menuBackgroundRenderer = MenuBackgroundRenderer.new()
     self.language = LanguageManager.new()
-    self.defaultFont = gfx.getFont()
+    self.defaultFont = gfx.getSystemFont()
     self.japaneseFont = gfx.font.new("assets/fonts/k8x12")
     self.achievementNotificationRenderer =
         AchievementNotificationRenderer.new(
