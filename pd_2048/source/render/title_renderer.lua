@@ -58,6 +58,14 @@ function TitleRenderer:drawCenteredText(text, y)
     gfx.drawTextAligned(text, Config.SCREEN_CENTER_X, y, kTextAlignment.center)
 end
 
+local function statisticsTimeText(timeMs)
+    if timeMs == nil then return "--:--.--" end
+    local centiseconds = math.floor(timeMs / 10)
+    local minutes = math.floor(centiseconds / 6000)
+    local seconds = math.floor(centiseconds / 100) % 60
+    return string.format("%02d:%02d.%02d", minutes, seconds, centiseconds % 100)
+end
+
 -- PRACTICEモードの説明文を描画.
 ---@param menuItems any[] 項目リスト.
 ---@param selectedIndex integer 選択番号.
@@ -120,6 +128,16 @@ function TitleRenderer:drawTitle(selectedIndex, menuItems, title, notice)
 			gfx.setColor(gfx.kColorBlack)
             self:drawCenteredText(item.footer, 220)
         end
+    elseif title == "TIME_ATTACK" then
+        local item = menuItems[selectedIndex]
+        local timedMode = item ~= nil and StatisticsStore.timedModeFor(
+            self.state.statistics, item.mode) or nil
+		-- 選択中モードのベストタイムを画面最下部に表示.
+		gfx.setColor(gfx.kColorWhite)
+		gfx.fillRect(0, 216, Config.SCREEN_WIDTH, 24)
+		gfx.setColor(gfx.kColorBlack)
+        self:drawCenteredText("BEST TIME " .. statisticsTimeText(
+            timedMode ~= nil and timedMode.bestTimeMs or nil), 220)
     elseif notice ~= nil then
         self:drawCenteredText(notice, 220)
     end
@@ -250,14 +268,6 @@ function TitleRenderer:drawAchievements(selectedIndex, items, languageKey)
         gfx.drawTextInRect(selected.description or "", 12, 190, 376, 44,
             nil, "...", kTextAlignment.center)
     end
-end
-
-local function statisticsTimeText(timeMs)
-    if timeMs == nil then return "--:--.--" end
-    local centiseconds = math.floor(timeMs / 10)
-    local minutes = math.floor(centiseconds / 6000)
-    local seconds = math.floor(centiseconds / 100) % 60
-    return string.format("%02d:%02d.%02d", minutes, seconds, centiseconds % 100)
 end
 
 local function playTimeText(timeMs)
@@ -452,17 +462,21 @@ function TitleRenderer:drawStatistics(
     else
 		-- TIME ATTACK.
         local timed = statistics.timeAttack
-        local modeX <const> = 72
-        local bestX <const> = 206
-        local clearX <const> = 320
+        local modeX <const> = 56
+        local scoreX <const> = 132
+        local timeX <const> = 232
+        local clearX <const> = 336
         drawStatisticsPanel(52, 143)
         gfx.drawTextAligned("MODE", modeX, 60, kTextAlignment.left)
-        gfx.drawTextAligned("BEST", bestX, 60, kTextAlignment.center)
+        gfx.drawTextAligned("SCORE", scoreX, 60, kTextAlignment.center)
+        gfx.drawTextAligned("TIME", timeX, 60, kTextAlignment.center)
         gfx.drawTextAligned("CLEAR", clearX, 60, kTextAlignment.center)
         local function drawTimed(label, value, y)
             gfx.drawTextAligned(label, modeX, y, kTextAlignment.left)
+            gfx.drawTextAligned(tostring(value.highScore),
+                scoreX, y, kTextAlignment.center)
             gfx.drawTextAligned(statisticsTimeText(value.bestTimeMs),
-                bestX, y, kTextAlignment.center)
+                timeX, y, kTextAlignment.center)
             gfx.drawTextAligned(string.format("%d/%d", value.clears, value.plays),
                 clearX, y, kTextAlignment.center)
         end

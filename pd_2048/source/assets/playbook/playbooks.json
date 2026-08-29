@@ -320,28 +320,28 @@
       },
       "pages": [
         {
-          "image": "dummy",
+          "image": "mode_1",
           "description": {
             "ja": "NORMALではゲームオーバーまでプレイし、スコアと最高到達レベルを競います。",
             "en": "In NORMAL, play until game over and aim for a high score and level."
           }
         },
         {
-          "image": "dummy",
+          "image": "mode_2",
           "description": {
             "ja": "64、256、512 SPRINTでは、目標のブロックを 作るまでのクリアタイムを競います。",
             "en": "In 64, 256, and 512 SPRINT, race to build the target tile as quickly as possible."
           }
         },
         {
-          "image": "dummy",
+          "image": "mode_3",
           "description": {
             "ja": "CORE RUSHではマージ後の数×コンボ数 を中央へ加算し、2048を超えるとクリアです。",
             "en": "In CORE RUSH, each merged value times the combo count is added to the center. Pass 2048 to win."
           }
         },
         {
-          "image": "dummy",
+          "image": "mode_4",
           "description": {
             "ja": "PRACTICEでは決められたボードとNEXTを使い、 ステージごとの目標達成を目指します。",
             "en": "PRACTICE uses fixed boards and NEXT sequences. Complete the objective of each stage."

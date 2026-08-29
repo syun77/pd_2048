@@ -438,12 +438,12 @@ end
 
 function GameController:saveCurrentModeHighScore()
     local state = self.state
-    if state.mode == Config.GAME_MODE.NORMAL
-        and self:canWritePersistentProgress()
-        and state.score > state.normalHighScore then
+    if not self:canWritePersistentProgress() then return end
+    if not StatisticsStore.recordHighScore(
+        state.statistics, state.mode, state.score) then return end
+    self.statisticsDirty = true
+    if state.mode == Config.GAME_MODE.NORMAL then
         state.normalHighScore = state.score
-        state.statistics.normal.highScore = state.score
-        self.statisticsDirty = true
         pd.datastore.write(state.normalHighScore, "highScore")
     end
 end
@@ -481,6 +481,7 @@ function GameController:saveTimeAttackBestTime()
     local state = self.state
     if not self:canWritePersistentProgress() or not self:isTimeAttack()
         or state.result ~= GameResult.VICTORY then return end
+    self:saveCurrentModeHighScore()
     self:recordStatisticsResult()
 end
 
@@ -492,6 +493,7 @@ function GameController:saveCoreRushBestTime()
         state.coreRushBestTimeMs = state.elapsedTimeMs
         pd.datastore.write(state.coreRushBestTimeMs, "coreRushBestTimeMs")
     end
+    self:saveCurrentModeHighScore()
     self:recordStatisticsResult()
 end
 
@@ -785,9 +787,9 @@ function GameController:beginTimeUp()
     state.remainingTimeMs = 0
     state.timeoutPending = false
     state.result = GameResult.TIME_UP
+    self:saveCurrentModeHighScore()
     self:recordStatisticsResult()
     state.phase = GamePhase.INPUT
-    self:saveCurrentModeHighScore()
     self.sound:play_se("gameover")
     self.sound:stop_bgm(1.0)
 end
@@ -1171,7 +1173,9 @@ function GameController:start(mode, practiceStage, options)
     state.coreRushCompleteUntil = 0
     state.coreRushVictoryPending = false
     state.timeAttackVictoryPending = false
-    state.highScore = state.normalHighScore
+    local timedMode = StatisticsStore.timedModeFor(state.statistics, state.mode)
+    state.highScore = timedMode ~= nil and timedMode.highScore
+        or state.normalHighScore
     state.elapsedTimeMs = 0
     state.remainingTimeMs = nil
     state.timerStartedAt = nil

@@ -490,8 +490,8 @@
         "en": "256 SPRINT"
       },
       "description": {
-        "ja": "256 SPRINT を 4分以内でクリアした",
-        "en": "Cleared 256 SPRINT within 4 minutes."
+        "ja": "256 SPRINT を 5分以内でクリアした",
+        "en": "Cleared 256 SPRINT within 5 minutes."
       },
       "condition": {
         "type": "CLEAR_TIME_MINUTE",
@@ -499,7 +499,7 @@
         "operator": "<=",
         "params": {
           "mode": "TIME_ATTACK_256",
-          "value": 4
+          "value": 5
         }
       },
       "reward": {

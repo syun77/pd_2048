@@ -2,7 +2,7 @@ import "game_config"
 
 local Config <const> = GameConfig
 local DATASTORE_KEY <const> = "statistics"
-local FORMAT_VERSION <const> = 2
+local FORMAT_VERSION <const> = 3
 local NORMAL_HISTORY_LIMIT <const> = 30
 
 ---@class StatisticsStore 統計情報の保存データ.
@@ -32,6 +32,7 @@ local NORMAL_HISTORY_LIMIT <const> = 30
 ---@class StatisticsStore.TimedModeStatistics 各タイムアタックモードの統計情報.
 ---@field plays integer プレイ回数.
 ---@field clears integer クリア回数.
+---@field highScore integer ハイスコア.
 ---@field bestTimeMs integer|nil ベストタイム（ミリ秒）.
 local StatisticsStore = {}
 
@@ -48,7 +49,7 @@ end
 -- TIME ATTACKモードの新しい統計情報のデータを作成する.
 ---@return StatisticsStore 新しい統計情報のデータ.
 local function newTimedMode()
-    return { plays = 0, clears = 0, bestTimeMs = nil }
+    return { plays = 0, clears = 0, highScore = 0, bestTimeMs = nil }
 end
 
 -- 新しい統計情報のデータを作成する.
@@ -81,6 +82,7 @@ local function normalizeTimedMode(target, source)
     source = type(source) == "table" and source or {}
     target.plays = nonNegativeInteger(source.plays)
     target.clears = math.min(target.plays, nonNegativeInteger(source.clears))
+    target.highScore = nonNegativeInteger(source.highScore)
     target.bestTimeMs = optionalTime(source.bestTimeMs)
 end
 
@@ -173,6 +175,22 @@ function StatisticsStore.timedModeFor(statistics, mode)
         return statistics.timeAttack.coreRush
     end
     return nil
+end
+
+-- 対象モードのハイスコアを更新する.
+---@param statistics StatisticsStore 統計情報のデータ.
+---@param mode GAME_MODE ゲームモード.
+---@param score integer 今回のスコア.
+---@return boolean ハイスコアを更新した場合はtrue.
+function StatisticsStore.recordHighScore(statistics, mode, score)
+    local modeStatistics = mode == Config.GAME_MODE.NORMAL
+        and statistics.normal
+        or StatisticsStore.timedModeFor(statistics, mode)
+    if modeStatistics == nil then return false end
+    score = nonNegativeInteger(score)
+    if score <= modeStatistics.highScore then return false end
+    modeStatistics.highScore = score
+    return true
 end
 
 -- 統計情報のプレイ回数を記録する.

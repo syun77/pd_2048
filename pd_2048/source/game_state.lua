@@ -57,7 +57,7 @@ local Config <const> = GameConfig
 ---@field rewindHoldTriggered boolean HOLD巻き戻しがトリガーされたかどう
 ---■スコア関連.
 ---@field score integer 現在のスコア
----@field highScore integer ハイスコア
+---@field highScore integer 現在のモードのハイスコア
 ---@field normalHighScore integer ノーマルモードのハイスコア
 ---@field statistics table 累計統計情報
 ---■レベル関連.
