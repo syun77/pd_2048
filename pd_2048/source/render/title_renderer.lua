@@ -132,12 +132,16 @@ function TitleRenderer:drawTitle(selectedIndex, menuItems, title, notice)
         local item = menuItems[selectedIndex]
         local timedMode = item ~= nil and StatisticsStore.timedModeFor(
             self.state.statistics, item.mode) or nil
-		-- 選択中モードのベストタイムを画面最下部に表示.
+		-- 選択中モードの記録を画面最下部に表示.
 		gfx.setColor(gfx.kColorWhite)
 		gfx.fillRect(0, 216, Config.SCREEN_WIDTH, 24)
 		gfx.setColor(gfx.kColorBlack)
-        self:drawCenteredText("BEST TIME " .. statisticsTimeText(
-            timedMode ~= nil and timedMode.bestTimeMs or nil), 220)
+        gfx.drawTextAligned("HIGH SCORE " .. tostring(
+            timedMode ~= nil and timedMode.highScore or 0),
+            12, 220, kTextAlignment.left)
+        gfx.drawTextAligned("BEST TIME " .. statisticsTimeText(
+            timedMode ~= nil and timedMode.bestTimeMs or nil),
+            Config.SCREEN_WIDTH - 12, 220, kTextAlignment.right)
     elseif notice ~= nil then
         self:drawCenteredText(notice, 220)
     end

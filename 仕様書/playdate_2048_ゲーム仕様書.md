@@ -345,7 +345,7 @@ REWINDではレベル、累計XP、DROP数、XP内訳、初到達済みの値を
 
 上下キーで選択し、Aボタンで決定する。
 
-TIME ATTACKサブメニューの画面最下部には、選択中の64・256・512 SPRINTまたはCORE RUSHに対応する種目別ベストタイムを`BEST TIME MM:SS.CC`の形式で表示する。未記録の場合は`BEST TIME --:--.--`と表示する。
+TIME ATTACKサブメニューの画面最下部には、選択中の64・256・512 SPRINTまたはCORE RUSHに対応する種目別ハイスコアとベストタイムを横並びで表示する。左側は`HIGH SCORE N`、右側は`BEST TIME MM:SS.CC`の形式とし、ベストタイム未記録の場合は`BEST TIME --:--.--`と表示する。
 
 1. `NORMAL GAME`
 2. `TIME ATTACK`
