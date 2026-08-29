@@ -130,6 +130,11 @@ function GameController:canWritePersistentProgress()
         and not self.replayMode and not self.suspendRestoreActive
 end
 
+function GameController:canUnlockAchievements()
+    return self.state.achievementEligible
+        and not self.replayMode and not self.suspendRestoreActive
+end
+
 function GameController:emitAchievementProgress(mergedTile)
     if self.achievementManager == nil then return end
     local state = self.state
@@ -139,7 +144,7 @@ function GameController:emitAchievementProgress(mergedTile)
         mergedTile = mergedTile,
         combo = state.combo,
         level = state.level,
-        eligible = self:canWritePersistentProgress(),
+        eligible = self:canUnlockAchievements(),
     })
 end
 
@@ -158,7 +163,7 @@ function GameController:emitPracticeAchievementProgress()
         type = "PRACTICE_CLEARED",
         allStageIds = self:getAllPracticeStageIds(),
         clearedIds = self.state.practiceClearedStages,
-        eligible = self:canWritePersistentProgress(),
+        eligible = self:canUnlockAchievements(),
     })
 end
 
@@ -298,7 +303,10 @@ function GameController:setAutoPlayEnabled(value)
     end
     self.autoPlayEnabled = value
     self.autoPlayer:reset()
-    if value then state.persistentRecordEligible = false end
+    if value then
+        state.persistentRecordEligible = false
+        state.achievementEligible = false
+    end
 end
 
 function GameController:isAutoPlayEnabled()
@@ -1154,6 +1162,7 @@ function GameController:start(mode, practiceStage, options)
         state.persistentRecordEligible = not self.autoPlayEnabled
             and not self.replayMode
     end
+    state.achievementEligible = state.persistentRecordEligible
     self.statisticsRunStarted = false
     self.statisticsResultRecorded = false
     self.statisticsLastTickMs = nil
@@ -1525,6 +1534,7 @@ function GameController:branchReplayToPlayer(now)
     state.replayBranchSelection = Config.REPLAY_BRANCH_SELECTION.NO
     state.replayBranchedPlay = true
     state.persistentRecordEligible = false
+    state.achievementEligible = true
     self.autoPlayEnabled = false
     self.autoPlayer:reset()
     self:resetCursorKeyRepeat()
@@ -1902,7 +1912,7 @@ function GameController:update()
                     type = "MODE_CLEARED",
                     mode = state.mode,
                     elapsedTimeMs = state.elapsedTimeMs,
-                    eligible = self:canWritePersistentProgress(),
+                    eligible = self:canUnlockAchievements(),
                 })
             end
             if self:isCoreRush() then self:saveCoreRushBestTime()

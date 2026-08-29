@@ -72,6 +72,7 @@ local Config <const> = GameConfig
 ---@field normalBestLevel integer ノーマルモードの最高レベル
 ---@field levelNewBest boolean レベルアップ時に新記録かどうか
 ---@field persistentRecordEligible boolean 永続記録の対象ランかどうか
+---@field achievementEligible boolean 実績開放の対象ランかどうか
 ---■コンボ関連.
 ---@field combo integer 現在のコンボ数
 ---@field comboBonusScore integer 現在のコンボボーナススコア
@@ -148,6 +149,7 @@ function GameState.new()
         normalBestLevel = 1,
         levelNewBest = false,
         persistentRecordEligible = true,
+        achievementEligible = true,
         timeAttackBestTimeMs = nil,
         coreRushBestTimeMs = nil,
         coreRushValue = 0,
