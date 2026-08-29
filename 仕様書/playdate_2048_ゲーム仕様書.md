@@ -344,6 +344,8 @@ REWINDではレベル、累計XP、DROP数、XP内訳、初到達済みの値を
 
 ### 11.1 タイトルメニュー
 
+ROOTメニュー上部に`KURU KURU 512`を表示する。表示位置は`TITLE_ROOT_TITLE_X`と`TITLE_ROOT_TITLE_Y`で調整する。ROOTメニューは`TITLE_MENU_MAX_VISIBLE_ITEMS=5`に従って1画面に最大5件を表示し、項目数が5件を超える場合は選択移動に合わせてスクロールする。
+
 上下キーで選択し、Aボタンで決定する。
 
 TIME ATTACKサブメニューの画面最下部には、選択中の64・256・512 SPRINTまたはCORE RUSHに対応する種目別ハイスコアとベストタイムを横並びで表示する。左側は`HIGH SCORE N`、右側は`BEST TIME MM:SS.CC`の形式とし、ベストタイム未記録の場合は`BEST TIME --:--.--`と表示する。

@@ -409,7 +409,10 @@ end
 -- 描画.
 function TitleScene:draw()
     local items = self:getCurrentItems()
-    local title = self.page == "ROOT" and nil or self.page
+    local title = nil
+    if self.page ~= "ROOT" then
+        title = self.page
+    end
     self.context.titleRenderer:drawTitle(
         self.selectedIndex, items, title, self.notice)
     if self.resetConfirmationActive then

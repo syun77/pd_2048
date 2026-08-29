@@ -97,7 +97,12 @@ function TitleRenderer:drawTitle(selectedIndex, menuItems, title, notice)
                 or nil,
         })
     end
-    if title ~= nil then self:drawCenteredText(title, 42) end
+    if title == nil then
+        gfx.drawTextAligned("KURU KURU 512", Config.TITLE_ROOT_TITLE_X,
+            Config.TITLE_ROOT_TITLE_Y, kTextAlignment.center)
+    else
+        self:drawCenteredText(title, 42)
+    end
     local menuCenterY = Config.TITLE_MENU_CENTER_Y
     if title == "PRACTICE" then
         menuCenterY = Config.TITLE_PRACTICE_MENU_CENTER_Y
@@ -107,8 +112,8 @@ function TitleRenderer:drawTitle(selectedIndex, menuItems, title, notice)
         menuCenterY = Config.TITLE_SUBMENU_CENTER_Y
     end
     self.menuRenderer:drawMenu(Config.SCREEN_CENTER_X, menuCenterY,
-        labels, selectedIndex, gfx.kColorWhite, title == nil and nil or 5,
-        itemOptions)
+        labels, selectedIndex, gfx.kColorWhite,
+        Config.TITLE_MENU_MAX_VISIBLE_ITEMS, itemOptions)
     if title == "PRACTICE" then
 		-- PRACTICEモードの説明文の描画.
 		-- 背景枠の描画.
@@ -280,7 +285,7 @@ local function playTimeText(timeMs)
     return string.format("%d:%02d", hours, totalMinutes % 60)
 end
 
-local STATISTICS_PANEL_WIDTH <const> = 320
+local STATISTICS_PANEL_WIDTH <const> = 360
 local STATISTICS_PANEL_X <const> =
     (Config.SCREEN_WIDTH - STATISTICS_PANEL_WIDTH) / 2
 

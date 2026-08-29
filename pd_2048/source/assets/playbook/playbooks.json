@@ -348,6 +348,37 @@
           }
         }
       ]
+    },
+    {
+      "id": "cheat_code_1",
+      "unlockNo": 4,
+      "title": {
+        "ja": "シークレットコマンド",
+        "en": "CHEAT CODE"
+      },
+      "pages": [
+        {
+          "image": "cheat_1",
+          "description": {
+            "ja": "NORMALモードにカーソルを合わせて、\n上上下下左右左右BAを押します。",
+            "en": "Place the cursor on NORMAL mode, then press\nUp, Up, Down, Down, Left, Right,\nLeft, Right, B, A."
+          }
+        },
+        {
+          "image": "cheat_2",
+          "description": {
+            "ja": "すると256ブロックが配置された状態で\nゲームが開始します。",
+            "en": "The game will start with a 256 block\nalready placed on the board."
+          }
+        },
+        {
+          "image": "cheat_2",
+          "description": {
+            "ja": "このモードでも実績は解除可能なので、\nどうしても達成できない場合に使うと良いです。",
+            "en": "Achievements can still be unlocked in this mode,\nso use it if you're having trouble earning them."
+          }
+        }
+      ]
     }
   ]
 }

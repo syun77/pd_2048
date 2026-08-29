@@ -53,6 +53,9 @@ local Config = {
         [2048] = 150,
     },
 	-- メニューの基準Y座標.
+    TITLE_ROOT_TITLE_X = 200, -- ルート見出しの中心X座標.
+    TITLE_ROOT_TITLE_Y = 12, -- ルート見出しのY座標.
+    TITLE_MENU_MAX_VISIBLE_ITEMS = 5, -- タイトルメニューの最大表示件数.
     TITLE_MENU_CENTER_Y = 132, -- メニューの基準Y座標.
     TITLE_SUBMENU_CENTER_Y = 132, -- サブメニューの基準Y座標.
     TITLE_PRACTICE_MENU_CENTER_Y = 108, -- PRACTICEモードのメニューの基準Y座標.

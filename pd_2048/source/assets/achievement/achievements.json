@@ -449,8 +449,8 @@
         }
       },
       "reward": {
-        "type": "NONE",
-        "id": ""
+        "type": "PLAYBOOK_UNLOCK",
+        "id": "4"
       },
       "hidden": false,
       "progressVisible": false
