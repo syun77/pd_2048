@@ -100,6 +100,9 @@ function TitleRenderer:drawTitle(selectedIndex, menuItems, title, notice)
     if title == nil then
         gfx.drawTextAligned("KURU KURU 512", Config.TITLE_ROOT_TITLE_X,
             Config.TITLE_ROOT_TITLE_Y, kTextAlignment.center)
+    elseif title == "TIME_ATTACK" then
+        gfx.drawTextAligned("TIME ATTACK", Config.TITLE_TIME_ATTACK_TITLE_X,
+            Config.TITLE_TIME_ATTACK_TITLE_Y, kTextAlignment.center)
     else
         self:drawCenteredText(title, 42)
     end

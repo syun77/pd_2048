@@ -58,6 +58,8 @@ local Config = {
     TITLE_MENU_MAX_VISIBLE_ITEMS = 5, -- タイトルメニューの最大表示件数.
     TITLE_MENU_CENTER_Y = 132, -- メニューの基準Y座標.
     TITLE_SUBMENU_CENTER_Y = 132, -- サブメニューの基準Y座標.
+    TITLE_TIME_ATTACK_TITLE_X = 200, -- TIME ATTACK見出しの中心X座標.
+    TITLE_TIME_ATTACK_TITLE_Y = 12, -- TIME ATTACK見出しのY座標.
     TITLE_PRACTICE_MENU_CENTER_Y = 108, -- PRACTICEモードのメニューの基準Y座標.
     TITLE_REPLAY_MENU_CENTER_Y = 108, -- リプレイ画面のメニューの基準Y座標.
 	-- PRACTICEモードの説明文の描画位置.

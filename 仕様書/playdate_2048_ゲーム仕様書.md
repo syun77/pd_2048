@@ -348,7 +348,7 @@ ROOTメニュー上部に`KURU KURU 512`を表示する。表示位置は`TITLE_
 
 上下キーで選択し、Aボタンで決定する。
 
-TIME ATTACKサブメニューの画面最下部には、選択中の64・256・512 SPRINTまたはCORE RUSHに対応する種目別ハイスコアとベストタイムを横並びで表示する。左側は`HIGH SCORE N`、右側は`BEST TIME MM:SS.CC`の形式とし、ベストタイム未記録の場合は`BEST TIME --:--.--`と表示する。
+TIME ATTACKサブメニューの見出しは`TIME ATTACK`と表示し、`TITLE_TIME_ATTACK_TITLE_X`と`TITLE_TIME_ATTACK_TITLE_Y`で描画位置を調整する。内部ページIDには`TIME_ATTACK`を使用する。画面最下部には、選択中の64・256・512 SPRINTまたはCORE RUSHに対応する種目別ハイスコアとベストタイムを横並びで表示する。左側は`HIGH SCORE N`、右側は`BEST TIME MM:SS.CC`の形式とし、ベストタイム未記録の場合は`BEST TIME --:--.--`と表示する。
 
 1. `NORMAL GAME`
 2. `TIME ATTACK`
