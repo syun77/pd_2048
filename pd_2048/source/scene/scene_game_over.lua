@@ -63,12 +63,7 @@ function GameOverScene:update()
     if playdate.buttonJustPressed(playdate.kButtonA) then
         self.context.sound:play_se("decide")
         if self.selectedIndex == 1 then
-            if self.context.game:isReplayMode() then
-                self.context.game:restartReplay()
-            else
-                local state = self.context.game:getState()
-                self.context.game:start(state.mode)
-            end
+            self.context.game:restartCurrentRun()
             self.manager:change(GameConfig.SCENE.GAME)
         else
             local returnTitle, returnParams = getModeSelectItem(self)
@@ -93,12 +88,7 @@ function GameOverScene:getSystemMenuItems()
         {
             title = "Retry",
             callback = function()
-                if self.context.game:isReplayMode() then
-                    self.context.game:restartReplay()
-                else
-                    local state = self.context.game:getState()
-                    self.context.game:start(state.mode)
-                end
+                self.context.game:restartCurrentRun()
                 self.manager:change(GameConfig.SCENE.GAME)
             end,
         },

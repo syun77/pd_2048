@@ -43,6 +43,8 @@ local function isCompatibleReplay(data)
         and data.rulesVersion == Config.REPLAY_RULES_VERSION
         and data.rngVersion == Config.REPLAY_RNG_VERSION
         and data.mode == Config.GAME_MODE.NORMAL
+        and (data.initialBlockValue == Config.NORMAL_INITIAL_BLOCK_VALUE
+            or data.initialBlockValue == Config.NORMAL_RESCUE_INITIAL_BLOCK_VALUE)
         and type(data.seed) == "number"
         and type(data.events) == "table"
 end
@@ -122,6 +124,7 @@ local function replayDataForStorage(data, id)
         rulesVersion = data.rulesVersion,
         rngVersion = data.rngVersion,
         mode = data.mode,
+        initialBlockValue = data.initialBlockValue,
         seed = data.seed,
         events = data.events,
         finalChecksum = data.finalChecksum,
@@ -423,12 +426,14 @@ end
 ---@param mode GAME_MODE 記録するゲームモード
 ---@param practiceStageId integer? PRACTICEモードのステージID (nilの場合は通常モード)
 ---@param seed integer ランダムジェネレーターのシード値
-function ReplayController:start(mode, practiceStageId, seed)
+---@param initialBlockValue integer 左右初期ブロック値
+function ReplayController:start(mode, practiceStageId, seed, initialBlockValue)
     self.data = {
         formatVersion = Config.REPLAY_FORMAT_VERSION,
         rulesVersion = Config.REPLAY_RULES_VERSION,
         rngVersion = Config.REPLAY_RNG_VERSION,
         mode = mode,
+        initialBlockValue = initialBlockValue,
         practiceStageId = practiceStageId,
         seed = seed,
         events = {},

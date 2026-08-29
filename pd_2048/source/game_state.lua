@@ -7,6 +7,7 @@ local Config <const> = GameConfig
 ---@field phase GAME_PHASE 現在のゲームフェーズ.
 ---@field result GAME_RESULT 現在のゲーム結果.
 ---@field mode GAME_MODE 現在のゲームモード
+---@field initialBlockValue integer 現在のランの左右初期ブロック値
 ---@field board Array2D ゲーム盤面.
 ---■カーソル関連.
 ---@field cursorX integer カーソルのX座標 (1始まり)
@@ -161,6 +162,7 @@ function GameState.new()
         coreRushVictoryPending = false,
         timeAttackVictoryPending = false,
         mode = Config.GAME_MODE.NORMAL,
+        initialBlockValue = Config.NORMAL_INITIAL_BLOCK_VALUE,
         practiceClearedStages = {},
         practiceScenarioId = nil,
         practiceNextValues = {},

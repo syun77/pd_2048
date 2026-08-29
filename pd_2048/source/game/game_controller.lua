@@ -225,16 +225,28 @@ function GameController:startReplay(id)
     if not self.isReplayUnlocked() then return false end
     local data = ReplayController.load(pd, id)
     if data == nil or data.mode ~= Config.GAME_MODE.NORMAL then return false end
-    self:start(Config.GAME_MODE.NORMAL, nil,
-        { replayData = data, seed = data.seed })
+    self:start(Config.GAME_MODE.NORMAL, nil, {
+        replayData = data,
+        seed = data.seed,
+    })
     return true
 end
 
 function GameController:restartReplay()
     local data = self.replayData
     if data == nil or data.mode ~= Config.GAME_MODE.NORMAL then return false end
-    self:start(Config.GAME_MODE.NORMAL, nil,
-        { replayData = data, seed = data.seed })
+    self:start(Config.GAME_MODE.NORMAL, nil, {
+        replayData = data,
+        seed = data.seed,
+    })
+    return true
+end
+
+function GameController:restartCurrentRun()
+    if self:isReplayMode() then return self:restartReplay() end
+    self:start(self.state.mode, nil, {
+        initialBlockValue = self.state.initialBlockValue,
+    })
     return true
 end
 
@@ -1050,14 +1062,10 @@ end
 function GameController:spawnInitialBlocks()
     local state = self.state
     if not self:isCoreRush() then
-        local initialValue = 8
-        if state.mode == Config.GAME_MODE.TIME_ATTACK_256 then
-            initialValue = 128
-        elseif state.mode == Config.GAME_MODE.TIME_ATTACK_512 then
-            initialValue = 256
-        end
-        state.board:set(Config.CENTER - 1, Config.CENTER, initialValue)
-        state.board:set(Config.CENTER + 1, Config.CENTER, initialValue)
+        state.board:set(Config.CENTER - 1, Config.CENTER,
+            state.initialBlockValue)
+        state.board:set(Config.CENTER + 1, Config.CENTER,
+            state.initialBlockValue)
     end
 end
 
@@ -1156,6 +1164,17 @@ function GameController:start(mode, practiceStage, options)
     local seed = options.seed or self:createReplaySeed()
     self.randomGenerator:setSeed(seed)
     state.mode = mode or Config.GAME_MODE.NORMAL
+    if self.replayData ~= nil then
+        state.initialBlockValue = self.replayData.initialBlockValue
+    elseif options.initialBlockValue ~= nil then
+        state.initialBlockValue = options.initialBlockValue
+    elseif state.mode == Config.GAME_MODE.TIME_ATTACK_256 then
+        state.initialBlockValue = 128
+    elseif state.mode == Config.GAME_MODE.TIME_ATTACK_512 then
+        state.initialBlockValue = 256
+    else
+        state.initialBlockValue = Config.NORMAL_INITIAL_BLOCK_VALUE
+    end
     if options.persistentRecordEligible ~= nil then
         state.persistentRecordEligible = options.persistentRecordEligible == true
     else
@@ -1255,7 +1274,8 @@ function GameController:start(mode, practiceStage, options)
     end
     if state.persistentRecordEligible and not self.replayMode
         and state.mode == Config.GAME_MODE.NORMAL then
-        self.replayController:start(state.mode, nil, seed)
+        self.replayController:start(
+            state.mode, nil, seed, state.initialBlockValue)
     else
         self.replayController:cancelRecording()
     end

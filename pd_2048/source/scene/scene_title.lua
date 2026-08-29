@@ -7,6 +7,28 @@ import "practice_stage_loader"
 
 local pd <const> = playdate
 
+local NORMAL_RESCUE_COMMAND <const> = {
+    pd.kButtonUp,
+    pd.kButtonUp,
+    pd.kButtonDown,
+    pd.kButtonDown,
+    pd.kButtonLeft,
+    pd.kButtonRight,
+    pd.kButtonLeft,
+    pd.kButtonRight,
+    pd.kButtonB,
+    pd.kButtonA,
+}
+
+local TITLE_COMMAND_BUTTONS <const> = {
+    pd.kButtonUp,
+    pd.kButtonDown,
+    pd.kButtonLeft,
+    pd.kButtonRight,
+    pd.kButtonB,
+    pd.kButtonA,
+}
+
 local TIME_ATTACK_MODE_ITEMS <const> = {
     { label = "64 SPRINT", scene = GameConfig.SCENE.GAME,
       mode = GameConfig.GAME_MODE.TIME_ATTACK },
@@ -71,7 +93,15 @@ function TitleScene.new(context)
         notice = nil,
         resetConfirmationActive = false,
         resetConfirmationSelection = 2,
+        normalRescueCommandIndex = 0,
     }, TitleScene)
+end
+
+local function justPressedCommandButton()
+    for _, button in ipairs(TITLE_COMMAND_BUTTONS) do
+        if pd.buttonJustPressed(button) then return button end
+    end
+    return nil
 end
 
 local function getRootIndexForPage(scene, page)
@@ -196,7 +226,35 @@ function TitleScene:enter(params)
     self:clampSelectedIndex()
     self.resetConfirmationActive = false
     self.resetConfirmationSelection = 2
+    self.normalRescueCommandIndex = 0
     MenuSelectionController.reset(self.menuSelectionController)
+end
+
+function TitleScene:updateNormalRescueCommand()
+    if self.page ~= "ROOT" then
+        self.normalRescueCommandIndex = 0
+        return false
+    end
+
+    local button = justPressedCommandButton()
+    if button == nil then return false end
+
+    local expected = NORMAL_RESCUE_COMMAND[self.normalRescueCommandIndex + 1]
+    if button == expected then
+        self.normalRescueCommandIndex += 1
+        if self.normalRescueCommandIndex == #NORMAL_RESCUE_COMMAND then
+            self.normalRescueCommandIndex = 0
+            return true
+        end
+        return false
+    end
+
+    if self.selectedIndex == 1 and button == NORMAL_RESCUE_COMMAND[1] then
+        self.normalRescueCommandIndex = 1
+    else
+        self.normalRescueCommandIndex = 0
+    end
+    return false
 end
 
 function TitleScene:moveSelection(delta, items)
@@ -246,6 +304,16 @@ function TitleScene:update()
             end
             return
         end
+        return
+    end
+
+    if self:updateNormalRescueCommand() then
+        self.context.sound:play_se("decide")
+        self.context.game:discardSuspendData()
+        self.context.game:start(GameConfig.GAME_MODE.NORMAL, nil, {
+            initialBlockValue = GameConfig.NORMAL_RESCUE_INITIAL_BLOCK_VALUE,
+        })
+        self.manager:change(GameConfig.SCENE.GAME)
         return
     end
 
