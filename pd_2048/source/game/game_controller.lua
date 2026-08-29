@@ -25,6 +25,7 @@ local GameResult <const> = Config.GAME_RESULT
 ---@field state GameState ゲーム状態.
 ---@field sound Sound サウンド管理.
 ---@field cursorController CursorController
+---@field replayTurnController CursorController リプレイ手送りのキーリピート管理.
 ---@field autoPlayer AutoPlayer 自動プレイ.
 ---@field autoPlayEnabled boolean 自動プレイが有効か.
 ---@field practiceStage any
@@ -53,6 +54,7 @@ function GameController.new(dependencies)
     self.isReplayExtendUnlocked = dependencies.isReplayExtendUnlocked
         or function() return false end
     self.cursorController = CursorController.new()
+    self.replayTurnController = CursorController.new()
     self.autoPlayer = AutoPlayer.new()
     self.autoPlayEnabled = false
     self.randomGenerator = GameRandom.new(1)
@@ -1106,6 +1108,9 @@ function GameController:start(mode, practiceStage, options)
     self.replaySeekActive = options.replaySeek == true
     self.replayAtSeekBoundary = false
     self.replayPlaybackError = false
+    if not self.replaySeekActive then
+        CursorController.reset(self.replayTurnController)
+    end
     self.replaySaved = false
     self.suspendRestoreActive = options.restoring == true
     if not self.suspendRestoreActive then self.suspendRestoreData = nil end
@@ -1407,6 +1412,42 @@ function GameController:updateCursorKeyRepeat()
     state.cursorRepeatNextAt = self.cursorController.nextAt
 end
 
+-- リプレイ一時停止中の左右手送りをキーリピートする.
+---@param now integer 現在時刻 (ミリ秒)
+---@return boolean 左右入力を処理中か
+function GameController:updateReplayTurnKeyRepeat(now)
+    local controller = self.replayTurnController
+    if controller.direction ~= 0 then
+        local button = controller.direction < 0
+            and pd.kButtonLeft or pd.kButtonRight
+        if not pd.buttonIsPressed(button) then
+            CursorController.reset(controller)
+        end
+    end
+
+    if not pd.buttonJustPressed(pd.kButtonLeft)
+        and not pd.buttonJustPressed(pd.kButtonRight)
+        and controller.direction == 0 then
+        return false
+    end
+
+    CursorController.update(controller, pd, now, function(delta)
+        local state = self.state
+        if delta < 0 then
+            if state.replayTurn > 1 then
+                self.sound:play_se("pi")
+                self:seekReplayTurn(state.replayTurn - 1)
+            end
+        elseif state.replayTurn < state.replayTotalTurns then
+            self.sound:play_se("pi")
+            self:seekReplayTurn(state.replayTurn + 1)
+        elseif not self.replayAtSeekBoundary then
+            self:seekReplayTurn(state.replayTotalTurns)
+        end
+    end)
+    return true
+end
+
 function GameController:completeReplayEvent()
     self.replayIndex += 1
     self.replayEventStartedAt = nil
@@ -1423,6 +1464,7 @@ function GameController:openReplayBranchDialog()
     end
     state.replayBranchDialogOpen = true
     state.replayBranchSelection = Config.REPLAY_BRANCH_SELECTION.NO
+    CursorController.reset(self.replayTurnController)
     self.sound:play_se("decide")
     return true
 end
@@ -1498,6 +1540,7 @@ end
 function GameController:toggleReplayPause(now)
     local state = self.state
     if not self.replayMode or self.suspendRestoreActive then return end
+    CursorController.reset(self.replayTurnController)
 
     if not state.replayPaused then
         if state.result ~= nil then return end
@@ -1790,47 +1833,48 @@ function GameController:update()
     if self.replayMode and state.replayPaused then
         if state.replayBranchDialogOpen then
             if pd.buttonJustPressed(pd.kButtonUp) then
+                self.sound:play_se("pi")
                 self:moveReplayBranchSelection(-1)
             elseif pd.buttonJustPressed(pd.kButtonDown) then
+                self.sound:play_se("pi")
                 self:moveReplayBranchSelection(1)
             elseif pd.buttonJustPressed(pd.kButtonB) then
-                self.sound:play_se("decide")
+                self.sound:play_se("cancel")
                 self:closeReplayBranchDialog()
             elseif pd.buttonJustPressed(pd.kButtonA) then
                 if state.replayBranchSelection
                     == Config.REPLAY_BRANCH_SELECTION.YES then
                     self:branchReplayToPlayer(now)
+					self.sound:play_se("decide")
                 else
-                    self.sound:play_se("decide")
+                    self.sound:play_se("cancel")
                     self:closeReplayBranchDialog()
                 end
             end
         elseif state.result ~= nil then
             if pd.buttonJustPressed(pd.kButtonA)
                 or pd.buttonJustPressed(pd.kButtonB) then
+				self.sound:play_se("decide")
                 self:toggleReplayPause(now)
             end
-        elseif pd.buttonJustPressed(pd.kButtonLeft) then
-            if state.replayTurn > 1 then
-                self:seekReplayTurn(state.replayTurn - 1)
-            end
-        elseif pd.buttonJustPressed(pd.kButtonRight) then
-            if state.replayTurn < state.replayTotalTurns then
-                self:seekReplayTurn(state.replayTurn + 1)
-            elseif not self.replayAtSeekBoundary then
-                self:seekReplayTurn(state.replayTotalTurns)
-            end
-        elseif pd.buttonJustPressed(pd.kButtonB) then
-            self:toggleReplayPause(now)
-        elseif pd.buttonJustPressed(pd.kButtonA) then
-            if not self:openReplayBranchDialog() then
-                self.sound:play_se("error")
+        else
+            local replayTurnInputHandled = self:updateReplayTurnKeyRepeat(now)
+            if not replayTurnInputHandled then
+                if pd.buttonJustPressed(pd.kButtonB) then
+					self.sound:play_se("cancel")
+                    self:toggleReplayPause(now)
+                elseif pd.buttonJustPressed(pd.kButtonA) then
+                    if not self:openReplayBranchDialog() then
+                        self.sound:play_se("error")
+                    end
+                end
             end
         end
         return nil
     end
     if self.replayMode and state.result == nil
         and pd.buttonJustPressed(pd.kButtonA) then
+		self.sound:play_se("decide")
         self:toggleReplayPause(now)
         return nil
     end
