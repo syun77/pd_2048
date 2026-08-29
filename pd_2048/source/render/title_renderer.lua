@@ -9,6 +9,8 @@ local Config <const> = GameConfig
 ---@field state GameState ゲーム状態.
 ---@field menuRenderer OverlayRenderer メニュー描画クラス.
 ---@field background MenuBackgroundRenderer メニューバックグラウンド描画クラス.
+---@field defaultFont playdate.graphics.font 既定の英語フォント.
+---@field japaneseFont playdate.graphics.font|nil 日本語表示用フォント.
 
 ---@class TitleRenderer タイトル描画クラス.
 ---@field state GameState ゲーム状態.
@@ -17,6 +19,8 @@ local Config <const> = GameConfig
 ---@field titleImage playdate.graphics.image|nil タイトル背景画像.
 ---@field practiceClearedImage playdate.graphics.image|nil PRACTICEモードのクリア済みアイコン.
 ---@field favoriteImage playdate.graphics.image|nil リプレイのお気に入りアイコン.
+---@field defaultFont playdate.graphics.font 既定の英語フォント.
+---@field japaneseFont playdate.graphics.font|nil 日本語表示用フォント.
 local TitleRenderer = {}
 TitleRenderer.__index = TitleRenderer
 
@@ -28,6 +32,8 @@ function TitleRenderer.new(dependencies)
         state = dependencies.state,
         menuRenderer = dependencies.menuRenderer,
         background = dependencies.background,
+        defaultFont = dependencies.defaultFont,
+        japaneseFont = dependencies.japaneseFont,
         titleImage = gfx.image.new("assets/images/title2"),
         practiceClearedImage = gfx.image.new("assets/images/check"),
         favoriteImage = gfx.image.new("assets/images/fav"),
@@ -35,6 +41,36 @@ function TitleRenderer.new(dependencies)
         statisticsLeftAnimationOffset = 0,
         statisticsRightAnimationOffset = 0,
     }, TitleRenderer)
+end
+
+-- ROOTメニューで選択中の項目説明文を描画.
+---@param menuItems any[] 項目リスト.
+---@param selectedIndex integer 選択番号.
+---@param languageKey LANGUAGE 言語定義文字列.
+function TitleRenderer:drawItemDescription(menuItems, selectedIndex, languageKey)
+    local item = menuItems ~= nil and menuItems[selectedIndex] or nil
+    local descriptions = item ~= nil and item.descriptions or nil
+    local description = descriptions ~= nil and descriptions[languageKey] or nil
+    if description == nil or description == "" then return end
+
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillRect(Config.TITLE_ITEM_DESCRIPTION_X,
+        Config.TITLE_ITEM_DESCRIPTION_Y,
+        Config.TITLE_ITEM_DESCRIPTION_WIDTH,
+        Config.TITLE_ITEM_DESCRIPTION_HEIGHT)
+    gfx.setColor(gfx.kColorBlack)
+
+    local previousFont = gfx.getFont()
+    local descriptionFont = languageKey == Config.LANGUAGE.JAPANESE
+        and self.japaneseFont or self.defaultFont
+    if descriptionFont ~= nil then gfx.setFont(descriptionFont) end
+    gfx.drawTextInRect(description,
+        Config.TITLE_ITEM_DESCRIPTION_X,
+        Config.TITLE_ITEM_DESCRIPTION_Y,
+        Config.TITLE_ITEM_DESCRIPTION_WIDTH,
+        Config.TITLE_ITEM_DESCRIPTION_HEIGHT,
+        nil, "...", kTextAlignment.center)
+    if previousFont ~= nil then gfx.setFont(previousFont) end
 end
 
 function TitleRenderer:drawBackground()
@@ -85,7 +121,8 @@ end
 ---@param menuItems any[] 項目リスト
 ---@param title string|nil
 ---@param notice string|nil
-function TitleRenderer:drawTitle(selectedIndex, menuItems, title, notice)
+---@param languageKey LANGUAGE|nil
+function TitleRenderer:drawTitle(selectedIndex, menuItems, title, notice, languageKey)
     self:drawBackground()
     local labels = {}
     local itemOptions = {}
@@ -117,7 +154,9 @@ function TitleRenderer:drawTitle(selectedIndex, menuItems, title, notice)
     self.menuRenderer:drawMenu(Config.SCREEN_CENTER_X, menuCenterY,
         labels, selectedIndex, gfx.kColorWhite,
         Config.TITLE_MENU_MAX_VISIBLE_ITEMS, itemOptions)
-    if title == "PRACTICE" then
+    if title == nil and notice == nil and languageKey ~= nil then
+        self:drawItemDescription(menuItems, selectedIndex, languageKey)
+    elseif title == "PRACTICE" then
 		-- PRACTICEモードの説明文の描画.
 		-- 背景枠の描画.
 		gfx.setColor(gfx.kColorWhite)

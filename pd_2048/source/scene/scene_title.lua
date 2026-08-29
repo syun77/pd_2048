@@ -29,6 +29,51 @@ local TITLE_COMMAND_BUTTONS <const> = {
     pd.kButtonA,
 }
 
+local TITLE_ITEM_DESCRIPTIONS <const> = {
+    NORMAL = {
+        [GameConfig.LANGUAGE.ENGLISH] =
+            "Endless play with standard rules.",
+        [GameConfig.LANGUAGE.JAPANESE] =
+            "標準ルールでプレイします",
+    },
+    TIME_ATTACK = {
+        [GameConfig.LANGUAGE.ENGLISH] =
+            "Race to complete each timed challenge.",
+        [GameConfig.LANGUAGE.JAPANESE] =
+            "目標達成までのタイムを競います",
+    },
+    PRACTICE = {
+        [GameConfig.LANGUAGE.ENGLISH] =
+            "Learn the rules through preset challenges.",
+        [GameConfig.LANGUAGE.JAPANESE] =
+            "課題に挑戦しながらルールを学ぶモード",
+    },
+    REPLAYS = {
+        [GameConfig.LANGUAGE.ENGLISH] =
+            "Watch and manage your saved replays.",
+        [GameConfig.LANGUAGE.JAPANESE] =
+            "保存したリプレイを再生・管理します",
+    },
+    PLAYBOOK = {
+        [GameConfig.LANGUAGE.ENGLISH] =
+            "Review game rules and useful techniques.",
+        [GameConfig.LANGUAGE.JAPANESE] =
+            "ゲームのルールや役立つテクニックを確認します",
+    },
+    ACHIEVEMENTS = {
+        [GameConfig.LANGUAGE.ENGLISH] =
+            "View achievements and unlocked rewards.",
+        [GameConfig.LANGUAGE.JAPANESE] =
+            "実績の達成状況と解放した報酬を確認します",
+    },
+    STATISTICS = {
+        [GameConfig.LANGUAGE.ENGLISH] =
+            "Review records and play statistics.",
+        [GameConfig.LANGUAGE.JAPANESE] =
+            "記録やプレイ統計を確認します",
+    },
+}
+
 local TIME_ATTACK_MODE_ITEMS <const> = {
     { label = "64 SPRINT", scene = GameConfig.SCENE.GAME,
       mode = GameConfig.GAME_MODE.TIME_ATTACK },
@@ -77,11 +122,16 @@ function TitleScene.new(context)
         },
         menuItems = {
             { label = "NORMAL GAME", scene = GameConfig.SCENE.GAME,
-              mode = GameConfig.GAME_MODE.NORMAL },
-            { label = "PRACTICE", submenu = true, submenuPage = "PRACTICE" },
-            { label = "PLAYBOOK", scene = GameConfig.SCENE.PLAYBOOK },
-            { label = "ACHIEVEMENTS", scene = GameConfig.SCENE.ACHIEVEMENTS },
-            { label = "STATISTICS", scene = GameConfig.SCENE.STATISTICS },
+              mode = GameConfig.GAME_MODE.NORMAL,
+              descriptions = TITLE_ITEM_DESCRIPTIONS.NORMAL },
+            { label = "PRACTICE", submenu = true, submenuPage = "PRACTICE",
+              descriptions = TITLE_ITEM_DESCRIPTIONS.PRACTICE },
+            { label = "PLAYBOOK", scene = GameConfig.SCENE.PLAYBOOK,
+              descriptions = TITLE_ITEM_DESCRIPTIONS.PLAYBOOK },
+            { label = "ACHIEVEMENTS", scene = GameConfig.SCENE.ACHIEVEMENTS,
+              descriptions = TITLE_ITEM_DESCRIPTIONS.ACHIEVEMENTS },
+            { label = "STATISTICS", scene = GameConfig.SCENE.STATISTICS,
+              descriptions = TITLE_ITEM_DESCRIPTIONS.STATISTICS },
         },
         timeAttackItems = {},
         replayItems = {},
@@ -177,6 +227,7 @@ function TitleScene:enter(params)
             timeAttackMenu = true,
             submenu = true,
             submenuPage = "TIME_ATTACK",
+            descriptions = TITLE_ITEM_DESCRIPTIONS.TIME_ATTACK,
         })
     end
     self:refreshReplayItems()
@@ -187,6 +238,7 @@ function TitleScene:enter(params)
             replayMenu = true,
             submenu = true,
             submenuPage = "REPLAYS",
+            descriptions = TITLE_ITEM_DESCRIPTIONS.REPLAYS,
         })
     end
     if self.context.achievementManager:hasReward(
@@ -414,7 +466,8 @@ function TitleScene:draw()
         title = self.page
     end
     self.context.titleRenderer:drawTitle(
-        self.selectedIndex, items, title, self.notice)
+        self.selectedIndex, items, title, self.notice,
+        self.context.language:get())
     if self.resetConfirmationActive then
         self.context.titleRenderer:drawSaveDataResetConfirmation(
             self.resetConfirmationSelection)

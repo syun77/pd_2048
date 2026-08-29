@@ -346,6 +346,8 @@ REWINDではレベル、累計XP、DROP数、XP内訳、初到達済みの値を
 
 ROOTメニュー上部に`KURU KURU 512`を表示する。表示位置は`TITLE_ROOT_TITLE_X`と`TITLE_ROOT_TITLE_Y`で調整する。ROOTメニューは`TITLE_MENU_MAX_VISIBLE_ITEMS=5`に従って1画面に最大5件を表示し、項目数が5件を超える場合は選択移動に合わせてスクロールする。
 
+ROOTメニューで`NORMAL GAME`、`TIME ATTACK`、`PRACTICE`、`REPLAYS`、`PLAYBOOK`、`ACHIEVEMENTS`、`STATISTICS`のいずれかを選択中は、画面下部に項目の説明文を表示する。説明文は保存済みの`language`設定に従い、`en`では英語、`ja`では日本語とする。描画位置は`TITLE_ITEM_DESCRIPTION_X`、`TITLE_ITEM_DESCRIPTION_Y`、`TITLE_ITEM_DESCRIPTION_WIDTH`、`TITLE_ITEM_DESCRIPTION_HEIGHT`で調整する。`SOUND TEST`には項目説明文を表示しない。
+
 上下キーで選択し、Aボタンで決定する。
 
 TIME ATTACKサブメニューの見出しは`TIME ATTACK`と表示し、`TITLE_TIME_ATTACK_TITLE_X`と`TITLE_TIME_ATTACK_TITLE_Y`で描画位置を調整する。内部ページIDには`TIME_ATTACK`を使用する。画面最下部には、選択中の64・256・512 SPRINTまたはCORE RUSHに対応する種目別ハイスコアとベストタイムを横並びで表示する。左側は`HIGH SCORE N`、右側は`BEST TIME MM:SS.CC`の形式とし、ベストタイム未記録の場合は`BEST TIME --:--.--`と表示する。
@@ -366,7 +368,7 @@ PRACTICEなどのサブメニューで項目数が5件を超える場合は、�
 
 タイトル画面、TIME ATTACK/PRACTICEサブメニュー、PLAYBOOK画面、ACHIEVEMENTS画面、STATISTICS画面、SOUND TEST画面では、`MENU_BACKGROUND_LOAD`が`LOW`、`MEDIUM`、`HIGH`のときに1-bit向けの幾何学模様アニメーションを背景へ重ねる。背景はキャッシュ用イメージへ一定間隔で再描画し、毎フレームの計算量を抑える。`LOW`、`MEDIUM`、`HIGH`の順にモアレ円の描画密度と更新頻度が上がり、`HIGH`ではリサージュ線も描画する。初期値は`OFF`である。`SHOW_MENU_BACKGROUND_MENU_ITEM`が`true`の場合だけ、対象画面のPlaydateシステムメニューに`BG: ...`を追加し、`OFF`、`LOW`、`MEDIUM`、`HIGH`を実行中に切り替えられる。現行設定は`false`のため、この項目は表示しない。
 
-タイトル画面でPlaydateシステムメニューを開いた場合だけ、オプション項目`language`を表示する。選択肢は`en`と`ja`で、変更した言語は`datastore`へ保存する。保存値がない初回起動時はPlaydate OSが日本語なら`ja`、それ以外なら`en`を使用する。この設定はPLAYBOOKとACHIEVEMENTSの見出し、本文、空表示、各画面から戻るシステムメニュー項目へ反映する。`ja`選択時のPLAYBOOKとACHIEVEMENTSのゲーム内描画には`assets/fonts/k8x12`を使用する。タイトル、ゲーム、ゲームオーバー、STATISTICS、SOUND TESTなど、それ以外の画面は言語設定にかかわらずPlaydateのデフォルトフォントを使用する。
+タイトル画面でPlaydateシステムメニューを開いた場合だけ、オプション項目`language`を表示する。選択肢は`en`と`ja`で、変更した言語は`datastore`へ保存する。保存値がない初回起動時はPlaydate OSが日本語なら`ja`、それ以外なら`en`を使用する。この設定はタイトルの項目説明文、PLAYBOOKとACHIEVEMENTSの見出し、本文、空表示、各画面から戻るシステムメニュー項目へ反映する。`ja`選択時のタイトルの項目説明文、PLAYBOOK、ACHIEVEMENTSのゲーム内描画には`assets/fonts/k8x12`を使用する。タイトルのそれ以外の表示、ゲーム、ゲームオーバー、STATISTICS、SOUND TESTなどは言語設定にかかわらずPlaydateのデフォルトフォントを使用する。
 
 - 初期盤面は`(2,3)=8`、`(4,3)=8`。
 - NEXTの生成列は`2, 2, 4, 8`で、末尾まで進むと先頭へ戻る。

@@ -89,6 +89,8 @@ function App.new()
         state = self.game:getState(),
         menuRenderer = self.overlayRenderer,
         background = self.menuBackgroundRenderer,
+        defaultFont = self.defaultFont,
+        japaneseFont = self.japaneseFont,
     })
     self.renderer = GameRenderer.new({
         state = self.game:getState(),
